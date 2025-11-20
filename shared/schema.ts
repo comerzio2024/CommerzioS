@@ -32,7 +32,7 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   isVerified: boolean("is_verified").default(false).notNull(),
-  marketingPackage: varchar("marketing_package", { enum: ["basic", "pro", "enterprise"] }).default("basic"),
+  marketingPackage: varchar("marketing_package", { enum: ["basic", "pro", "premium", "enterprise"] }).default("basic"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -41,6 +41,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   services: many(services),
   reviews: many(reviews),
   favorites: many(favorites),
+  submittedCategories: many(submittedCategories),
 }));
 
 // Categories table
@@ -56,6 +57,29 @@ export const categoriesRelations = relations(categories, ({ many }) => ({
   services: many(services),
 }));
 
+// User-submitted categories (pending approval)
+export const submittedCategories = pgTable("submitted_categories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 100 }).notNull(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  status: varchar("status", { enum: ["pending", "approved", "rejected"] }).default("pending"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const submittedCategoriesRelations = relations(submittedCategories, ({ one }) => ({
+  user: one(users, {
+    fields: [submittedCategories.userId],
+    references: [users.id],
+  }),
+}));
+
+// Price list item type
+export const priceListSchema = z.object({
+  description: z.string(),
+  price: z.string(),
+  unit: z.string().optional(),
+});
+
 // Services table
 export const services = pgTable("services", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -63,14 +87,17 @@ export const services = pgTable("services", {
   title: varchar("title", { length: 200 }).notNull(),
   description: text("description").notNull(),
   categoryId: varchar("category_id").notNull().references(() => categories.id),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  priceUnit: varchar("price_unit", { enum: ["hour", "job", "consultation"] }).notNull(),
-  location: varchar("location", { length: 200 }).notNull(),
+  priceType: varchar("price_type", { enum: ["fixed", "list", "text"] }).default("fixed").notNull(),
+  price: decimal("price", { precision: 10, scale: 2 }),
+  priceText: text("price_text"),
+  priceList: jsonb("price_list").default(sql`'[]'::jsonb`),
+  priceUnit: varchar("price_unit", { enum: ["hour", "job", "consultation", "day", "month"] }).notNull(),
+  locations: text("locations").array().default(sql`ARRAY[]::text[]`).notNull(),
   images: text("images").array().default(sql`ARRAY[]::text[]`).notNull(),
-  status: varchar("status", { enum: ["active", "paused", "expired"] }).default("active").notNull(),
+  status: varchar("status", { enum: ["draft", "active", "paused", "expired"] }).default("draft").notNull(),
   tags: text("tags").array().default(sql`ARRAY[]::text[]`).notNull(),
-  contactPhone: varchar("contact_phone", { length: 50 }),
-  contactEmail: varchar("contact_email", { length: 200 }),
+  contactPhone: varchar("contact_phone", { length: 50 }).notNull(),
+  contactEmail: varchar("contact_email", { length: 200 }).notNull(),
   viewCount: integer("view_count").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   expiresAt: timestamp("expires_at").notNull(),
@@ -156,19 +183,41 @@ export type InsertReview = typeof reviews.$inferInsert;
 export type Favorite = typeof favorites.$inferSelect;
 export type InsertFavorite = typeof favorites.$inferInsert;
 
+export type SubmittedCategory = typeof submittedCategories.$inferSelect;
+export type InsertSubmittedCategory = typeof submittedCategories.$inferInsert;
+
 // Zod schemas for validation
 export const insertServiceSchema = createInsertSchema(services, {
   title: z.string().min(5, "Title must be at least 5 characters").max(200),
   description: z.string().min(20, "Description must be at least 20 characters"),
-  price: z.string().regex(/^\d+(\.\d{1,2})?$/, "Invalid price format"),
-  location: z.string().min(2, "Location is required"),
-  contactPhone: z.string().optional(),
-  contactEmail: z.string().email().optional(),
+  contactPhone: z.string().min(10, "Valid phone number required"),
+  contactEmail: z.string().email("Valid email required"),
+  locations: z.array(z.string()).min(1, "At least one location required"),
+  priceType: z.enum(["fixed", "list", "text"]),
+  price: z.string().optional(),
+  priceText: z.string().optional(),
+  priceList: z.any().optional(),
 }).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
   viewCount: true,
+  status: true,
+}).superRefine((val, ctx) => {
+  if (val.priceType === "fixed" && (!val.price || isNaN(Number(val.price)))) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["price"],
+      message: "Price is required for fixed pricing",
+    });
+  }
+  if (val.priceType === "text" && !val.priceText) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["priceText"],
+      message: "Price text is required",
+    });
+  }
 });
 
 export const insertReviewSchema = createInsertSchema(reviews, {
@@ -182,4 +231,10 @@ export const insertReviewSchema = createInsertSchema(reviews, {
 export const insertCategorySchema = createInsertSchema(categories).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertSubmittedCategorySchema = createInsertSchema(submittedCategories).omit({
+  id: true,
+  createdAt: true,
+  status: true,
 });
