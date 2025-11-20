@@ -1,38 +1,328 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import {
+  users,
+  categories,
+  services,
+  reviews,
+  favorites,
+  type User,
+  type UpsertUser,
+  type Category,
+  type InsertCategory,
+  type Service,
+  type InsertService,
+  type Review,
+  type InsertReview,
+  type Favorite,
+  type InsertFavorite,
+} from "@shared/schema";
+import { db } from "./db";
+import { eq, and, desc, sql, ilike, or } from "drizzle-orm";
 
 export interface IStorage {
+  // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  upsertUser(user: UpsertUser): Promise<User>;
+  updateUserVerification(id: string, isVerified: boolean): Promise<User | undefined>;
+  
+  // Category operations
+  getCategories(): Promise<Category[]>;
+  getCategoryBySlug(slug: string): Promise<Category | undefined>;
+  createCategory(category: InsertCategory): Promise<Category>;
+  
+  // Service operations
+  getServices(filters?: {
+    categoryId?: string;
+    ownerId?: string;
+    status?: string;
+    search?: string;
+  }): Promise<Array<Service & { owner: User; category: Category; rating: number; reviewCount: number }>>;
+  getService(id: string): Promise<(Service & { owner: User; category: Category; rating: number; reviewCount: number }) | undefined>;
+  createService(service: InsertService): Promise<Service>;
+  updateService(id: string, service: Partial<InsertService>): Promise<Service | undefined>;
+  deleteService(id: string): Promise<void>;
+  incrementViewCount(id: string): Promise<void>;
+  renewService(id: string): Promise<Service | undefined>;
+  expireOldServices(): Promise<void>;
+  
+  // Review operations
+  getReviewsForService(serviceId: string): Promise<Array<Review & { user: User }>>;
+  createReview(review: InsertReview): Promise<Review>;
+  
+  // Favorites operations
+  getUserFavorites(userId: string): Promise<Array<Favorite & { service: Service & { owner: User; category: Category } }>>;
+  addFavorite(userId: string, serviceId: string): Promise<Favorite>;
+  removeFavorite(userId: string, serviceId: string): Promise<void>;
+  isFavorite(userId: string, serviceId: string): Promise<boolean>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
-  }
-
+export class DatabaseStorage implements IStorage {
+  // User operations
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
   }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  }
+
+  async updateUserVerification(id: string, isVerified: boolean): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ isVerified, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
+  // Category operations
+  async getCategories(): Promise<Category[]> {
+    return await db.select().from(categories);
+  }
+
+  async getCategoryBySlug(slug: string): Promise<Category | undefined> {
+    const [category] = await db.select().from(categories).where(eq(categories.slug, slug));
+    return category;
+  }
+
+  async createCategory(category: InsertCategory): Promise<Category> {
+    const [newCategory] = await db.insert(categories).values(category).returning();
+    return newCategory;
+  }
+
+  // Service operations
+  async getServices(filters?: {
+    categoryId?: string;
+    ownerId?: string;
+    status?: string;
+    search?: string;
+  }): Promise<Array<Service & { owner: User; category: Category; rating: number; reviewCount: number }>> {
+    let query = db
+      .select({
+        service: services,
+        owner: users,
+        category: categories,
+        rating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`,
+        reviewCount: sql<number>`COUNT(${reviews.id})`,
+      })
+      .from(services)
+      .leftJoin(users, eq(services.ownerId, users.id))
+      .leftJoin(categories, eq(services.categoryId, categories.id))
+      .leftJoin(reviews, eq(services.id, reviews.serviceId))
+      .groupBy(services.id, users.id, categories.id)
+      .orderBy(desc(services.createdAt))
+      .$dynamic();
+
+    const conditions = [];
+    
+    if (filters?.categoryId) {
+      conditions.push(eq(services.categoryId, filters.categoryId));
+    }
+    
+    if (filters?.ownerId) {
+      conditions.push(eq(services.ownerId, filters.ownerId));
+    }
+    
+    if (filters?.status) {
+      conditions.push(eq(services.status, filters.status));
+    }
+    
+    if (filters?.search) {
+      conditions.push(
+        or(
+          ilike(services.title, `%${filters.search}%`),
+          ilike(services.description, `%${filters.search}%`)
+        )
+      );
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+
+    const results = await query;
+    
+    return results.map((row) => ({
+      ...row.service,
+      owner: row.owner!,
+      category: row.category!,
+      rating: Number(row.rating) || 0,
+      reviewCount: Number(row.reviewCount) || 0,
+    }));
+  }
+
+  async getService(id: string): Promise<(Service & { owner: User; category: Category; rating: number; reviewCount: number }) | undefined> {
+    const results = await db
+      .select({
+        service: services,
+        owner: users,
+        category: categories,
+        rating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`,
+        reviewCount: sql<number>`COUNT(${reviews.id})`,
+      })
+      .from(services)
+      .leftJoin(users, eq(services.ownerId, users.id))
+      .leftJoin(categories, eq(services.categoryId, categories.id))
+      .leftJoin(reviews, eq(services.id, reviews.serviceId))
+      .where(eq(services.id, id))
+      .groupBy(services.id, users.id, categories.id);
+
+    if (results.length === 0) return undefined;
+
+    const row = results[0];
+    return {
+      ...row.service,
+      owner: row.owner!,
+      category: row.category!,
+      rating: Number(row.rating) || 0,
+      reviewCount: Number(row.reviewCount) || 0,
+    };
+  }
+
+  async createService(service: InsertService): Promise<Service> {
+    const [newService] = await db.insert(services).values(service).returning();
+    return newService;
+  }
+
+  async updateService(id: string, service: Partial<InsertService>): Promise<Service | undefined> {
+    const [updated] = await db
+      .update(services)
+      .set({ ...service, updatedAt: new Date() })
+      .where(eq(services.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteService(id: string): Promise<void> {
+    await db.delete(services).where(eq(services.id, id));
+  }
+
+  async incrementViewCount(id: string): Promise<void> {
+    await db
+      .update(services)
+      .set({ viewCount: sql`${services.viewCount} + 1` })
+      .where(eq(services.id, id));
+  }
+
+  async renewService(id: string): Promise<Service | undefined> {
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 14);
+    
+    const [renewed] = await db
+      .update(services)
+      .set({ 
+        expiresAt,
+        status: "active",
+        updatedAt: new Date(),
+      })
+      .where(eq(services.id, id))
+      .returning();
+    return renewed;
+  }
+
+  async expireOldServices(): Promise<void> {
+    await db
+      .update(services)
+      .set({ status: "expired", updatedAt: new Date() })
+      .where(
+        and(
+          sql`${services.expiresAt} < NOW()`,
+          sql`${services.status} = 'active'`
+        )
+      );
+  }
+
+  // Review operations
+  async getReviewsForService(serviceId: string): Promise<Array<Review & { user: User }>> {
+    const results = await db
+      .select({
+        review: reviews,
+        user: users,
+      })
+      .from(reviews)
+      .leftJoin(users, eq(reviews.userId, users.id))
+      .where(eq(reviews.serviceId, serviceId))
+      .orderBy(desc(reviews.createdAt));
+
+    return results.map((row) => ({
+      ...row.review,
+      user: row.user!,
+    }));
+  }
+
+  async createReview(review: InsertReview): Promise<Review> {
+    const [newReview] = await db.insert(reviews).values(review).returning();
+    return newReview;
+  }
+
+  // Favorites operations
+  async getUserFavorites(userId: string): Promise<Array<Favorite & { service: Service & { owner: User; category: Category } }>> {
+    const results = await db
+      .select({
+        favorite: favorites,
+        service: services,
+        owner: users,
+        category: categories,
+      })
+      .from(favorites)
+      .leftJoin(services, eq(favorites.serviceId, services.id))
+      .leftJoin(users, eq(services.ownerId, users.id))
+      .leftJoin(categories, eq(services.categoryId, categories.id))
+      .where(eq(favorites.userId, userId))
+      .orderBy(desc(favorites.createdAt));
+
+    return results.map((row) => ({
+      ...row.favorite,
+      service: {
+        ...row.service!,
+        owner: row.owner!,
+        category: row.category!,
+      },
+    }));
+  }
+
+  async addFavorite(userId: string, serviceId: string): Promise<Favorite> {
+    const [favorite] = await db
+      .insert(favorites)
+      .values({ userId, serviceId })
+      .returning();
+    return favorite;
+  }
+
+  async removeFavorite(userId: string, serviceId: string): Promise<void> {
+    await db
+      .delete(favorites)
+      .where(
+        and(
+          eq(favorites.userId, userId),
+          eq(favorites.serviceId, serviceId)
+        )
+      );
+  }
+
+  async isFavorite(userId: string, serviceId: string): Promise<boolean> {
+    const [result] = await db
+      .select()
+      .from(favorites)
+      .where(
+        and(
+          eq(favorites.userId, userId),
+          eq(favorites.serviceId, serviceId)
+        )
+      );
+    return !!result;
+  }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
