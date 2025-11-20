@@ -2,9 +2,9 @@ import { Layout } from "@/components/layout";
 import { ServiceCard } from "@/components/service-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Filter, Sparkles, ArrowRight } from "lucide-react";
+import { Search, Filter, Sparkles, ArrowRight, Loader2 } from "lucide-react";
 import heroImg from "@assets/generated_images/abstract_community_connection_hero_background.png";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest, type ServiceWithDetails } from "@/lib/api";
@@ -13,6 +13,10 @@ import type { Category } from "@shared/schema";
 export default function Home() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [heroSearchResults, setHeroSearchResults] = useState<ServiceWithDetails[]>([]);
+  const [heroSearchOpen, setHeroSearchOpen] = useState(false);
+  const [heroSearchLoading, setHeroSearchLoading] = useState(false);
+  const heroSearchRef = useRef<HTMLDivElement>(null);
 
   const { data: categories = [], isLoading: categoriesLoading } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
@@ -32,6 +36,56 @@ export default function Home() {
       return matchesSearch && matchesCategory;
     });
   }, [services, searchTerm, selectedCategory]);
+
+  // Hero search suggestions
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (heroSearchRef.current && !heroSearchRef.current.contains(event.target as Node)) {
+        setHeroSearchOpen(false);
+      }
+    };
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setHeroSearchResults([]);
+      setHeroSearchOpen(false);
+      return;
+    }
+
+    setHeroSearchLoading(true);
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `/api/services/search?q=${encodeURIComponent(searchTerm)}&limit=5`,
+          { signal: abortController.signal }
+        );
+        
+        if (!response.ok) throw new Error("Search failed");
+        
+        const data = await response.json();
+        setHeroSearchResults(data);
+        setHeroSearchOpen(data.length > 0);
+      } catch (error: any) {
+        if (error.name !== 'AbortError') {
+          setHeroSearchResults([]);
+          setHeroSearchOpen(false);
+        }
+      } finally {
+        setHeroSearchLoading(false);
+      }
+    }, 300);
+
+    return () => {
+      clearTimeout(timeoutId);
+      abortController.abort();
+      setHeroSearchLoading(false);
+    };
+  }, [searchTerm]);
 
   return (
     <Layout>
@@ -70,30 +124,58 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="bg-white p-2 rounded-2xl shadow-2xl max-w-2xl mx-auto flex flex-col md:flex-row gap-2"
+              className="max-w-2xl mx-auto"
+              ref={heroSearchRef}
             >
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-3 text-muted-foreground w-5 h-5" />
-                <Input 
-                  placeholder="What service are you looking for?" 
-                  className="pl-10 border-0 shadow-none text-slate-900 placeholder:text-slate-400 h-12 text-lg focus-visible:ring-0"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  data-testid="input-home-search"
-                />
+              <div className="bg-white p-2 rounded-2xl shadow-2xl flex flex-col md:flex-row gap-2 relative">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-3 text-muted-foreground w-5 h-5" />
+                  <Input 
+                    placeholder="What service are you looking for?" 
+                    className="pl-10 border-0 shadow-none text-slate-900 placeholder:text-slate-400 h-12 text-lg focus-visible:ring-0"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onFocus={() => {
+                      if (heroSearchResults.length > 0) setHeroSearchOpen(true);
+                    }}
+                    data-testid="input-home-search"
+                  />
+                  {heroSearchLoading && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+                <Button 
+                  size="lg" 
+                  className="h-12 px-8 text-lg font-semibold"
+                  onClick={() => {
+                    const servicesSection = document.querySelector('[data-testid="services-section"]');
+                    servicesSection?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  data-testid="button-home-search"
+                >
+                  Search
+                </Button>
               </div>
-              <Button 
-                size="lg" 
-                className="h-12 px-8 text-lg font-semibold"
-                onClick={() => {
-                  // Scroll to services section
-                  const servicesSection = document.querySelector('[data-testid="services-section"]');
-                  servicesSection?.scrollIntoView({ behavior: 'smooth' });
-                }}
-                data-testid="button-home-search"
-              >
-                Search
-              </Button>
+
+              {heroSearchOpen && heroSearchResults.length > 0 && (
+                <div className="absolute top-full mt-2 w-full bg-white rounded-lg shadow-lg border z-50 max-h-96 overflow-y-auto">
+                  {heroSearchResults.map((result: any) => (
+                    <a
+                      key={result.id}
+                      href={`/service/${result.id}`}
+                      className="block w-full text-left px-4 py-3 hover:bg-slate-50 border-b last:border-b-0 transition-colors"
+                      data-testid={`hero-search-result-${result.id}`}
+                    >
+                      <div className="font-medium text-sm">{result.title}</div>
+                      <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+                        <span>{result.category}</span>
+                        <span>•</span>
+                        <span className="font-semibold text-primary">CHF {result.price}/{result.priceUnit}</span>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              )}
             </motion.div>
           </div>
         </div>
@@ -103,7 +185,14 @@ export default function Home() {
       <section className="py-12 container mx-auto px-4">
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-bold">Popular Categories</h2>
-          <Button variant="link" className="text-primary">View All <ArrowRight className="w-4 h-4 ml-1" /></Button>
+          <Button 
+            variant="link" 
+            className="text-primary"
+            onClick={() => setSelectedCategory("all")}
+            data-testid="button-view-all-categories"
+          >
+            View All <ArrowRight className="w-4 h-4 ml-1" />
+          </Button>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <button
