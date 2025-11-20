@@ -1,0 +1,158 @@
+import { Link, useLocation } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Search, Menu, UserCircle, PlusCircle, LogOut } from "lucide-react";
+import { useState } from "react";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+
+export function Layout({ children }: { children: React.ReactNode }) {
+  const [location, setLocation] = useLocation();
+  const [isLoggedIn, setIsLoggedIn] = useState(true); // Mock auth state
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setLocation("/");
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col bg-slate-50 font-sans">
+      <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+          {/* Logo */}
+          <Link href="/">
+            <a className="flex items-center gap-2 text-primary font-bold text-xl tracking-tight">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white">
+                <span className="text-lg">S</span>
+              </div>
+              ServeMkt
+            </a>
+          </Link>
+
+          {/* Desktop Nav */}
+          <div className="hidden md:flex items-center gap-8">
+            <nav className="flex items-center gap-6 text-sm font-medium text-muted-foreground">
+              <Link href="/"><a className="hover:text-primary transition-colors">Explore</a></Link>
+              <Link href="/categories"><a className="hover:text-primary transition-colors">Categories</a></Link>
+              <Link href="/how-it-works"><a className="hover:text-primary transition-colors">How it Works</a></Link>
+            </nav>
+
+            <div className="flex items-center gap-4">
+              {isLoggedIn ? (
+                <>
+                  <Link href="/dashboard">
+                    <Button variant="ghost" className="gap-2">
+                      Dashboard
+                    </Button>
+                  </Link>
+                  <Link href="/post-service">
+                    <Button className="gap-2 shadow-md shadow-primary/20">
+                      <PlusCircle className="w-4 h-4" />
+                      Post Service
+                    </Button>
+                  </Link>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="rounded-full">
+                        <img 
+                          src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alice" 
+                          alt="User" 
+                          className="w-8 h-8 rounded-full border border-border"
+                        />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setLocation("/dashboard")}>My Dashboard</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setLocation("/profile")}>Profile</DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleLogout} className="text-destructive">
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Log out
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Link href="/auth">
+                    <Button variant="ghost">Log in</Button>
+                  </Link>
+                  <Link href="/auth?mode=register">
+                    <Button>Get Started</Button>
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Mobile Nav */}
+          <div className="md:hidden">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu className="w-5 h-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right">
+                <div className="flex flex-col gap-6 mt-8">
+                  <Link href="/"><a className="text-lg font-medium">Explore</a></Link>
+                  <Link href="/categories"><a className="text-lg font-medium">Categories</a></Link>
+                  <Link href="/dashboard"><a className="text-lg font-medium">Dashboard</a></Link>
+                  <div className="h-px bg-border my-2" />
+                  <Link href="/post-service">
+                    <Button className="w-full">Post Service</Button>
+                  </Link>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1">
+        {children}
+      </main>
+
+      <footer className="bg-white border-t py-12 mt-20">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div>
+              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                <div className="w-6 h-6 bg-primary rounded-md flex items-center justify-center text-white text-xs">S</div>
+                ServeMkt
+              </h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                Connecting trusted professionals with people who need their skills. Simple, secure, and fast.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-4">Platform</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><a href="#" className="hover:text-primary">Browse Services</a></li>
+                <li><a href="#" className="hover:text-primary">Post a Service</a></li>
+                <li><a href="#" className="hover:text-primary">Pricing</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-4">Support</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><a href="#" className="hover:text-primary">Help Center</a></li>
+                <li><a href="#" className="hover:text-primary">Trust & Safety</a></li>
+                <li><a href="#" className="hover:text-primary">Contact Us</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-4">Legal</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><a href="#" className="hover:text-primary">Terms of Service</a></li>
+                <li><a href="#" className="hover:text-primary">Privacy Policy</a></li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t mt-12 pt-8 text-center text-sm text-muted-foreground">
+            © 2024 ServeMkt Inc. All rights reserved.
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
