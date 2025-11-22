@@ -2,15 +2,16 @@ import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { X, Plus, Upload } from "lucide-react";
+import { X, Plus } from "lucide-react";
 import type { Service } from "@shared/schema";
-import { uploadImage } from "@/lib/imageUpload";
+import { ImageManager } from "@/components/image-manager";
 
 interface EditServiceModalProps {
   open: boolean;
@@ -23,8 +24,11 @@ type PricingType = "fixed" | "list" | "text";
 export function EditServiceModal({ open, onOpenChange, service }: EditServiceModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [formData, setFormData] = useState<any>(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Calculate max images based on marketing package
+  const maxImages = user?.marketingPackage === "basic" ? 3 : 10;
 
   useEffect(() => {
     if (service) {
@@ -40,6 +44,8 @@ export function EditServiceModal({ open, onOpenChange, service }: EditServiceMod
         contactPhone: service.contactPhone,
         contactEmail: service.contactEmail,
         images: service.images || [],
+        imageMetadata: service.imageMetadata || [],
+        mainImageIndex: service.mainImageIndex || 0,
       });
     }
   }, [service]);
@@ -68,40 +74,6 @@ export function EditServiceModal({ open, onOpenChange, service }: EditServiceMod
   });
 
   if (!formData) return null;
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setUploadingImage(true);
-      try {
-        const objectPath = await uploadImage(file);
-        setFormData((prev: any) => ({
-          ...prev,
-          images: [...prev.images, objectPath],
-        }));
-        toast({
-          title: "Image uploaded",
-          description: "Image uploaded successfully",
-        });
-      } catch (error) {
-        console.error("Failed to upload image:", error);
-        toast({
-          title: "Upload failed",
-          description: "Failed to upload image. Please try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setUploadingImage(false);
-      }
-    }
-  };
-
-  const removeImage = (index: number) => {
-    setFormData((prev: any) => ({
-      ...prev,
-      images: prev.images.filter((_: any, i: number) => i !== index),
-    }));
-  };
 
   const addLocation = () => {
     setFormData((prev: any) => ({
@@ -316,40 +288,15 @@ export function EditServiceModal({ open, onOpenChange, service }: EditServiceMod
             </TabsContent>
 
             <TabsContent value="media" className="space-y-6">
-              <div className="space-y-4">
-                <Label>Service Images</Label>
-                <div className="border-2 border-dashed rounded-lg p-6 text-center">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                    id="edit-image-upload"
-                  />
-                  <label htmlFor="edit-image-upload" className="cursor-pointer flex flex-col items-center gap-2">
-                    <Upload className="w-8 h-8 text-muted-foreground" />
-                    <span className="text-sm">Click to upload images</span>
-                  </label>
-                </div>
-                {formData.images.length > 0 && (
-                  <div className="grid grid-cols-3 gap-4">
-                    {formData.images.map((img: string, idx: number) => (
-                      <div key={idx} className="relative">
-                        <img src={img} alt={`Service ${idx}`} className="w-full h-24 object-cover rounded" />
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="destructive"
-                          className="absolute top-1 right-1"
-                          onClick={() => removeImage(idx)}
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <ImageManager
+                images={formData.images}
+                imageMetadata={formData.imageMetadata}
+                mainImageIndex={formData.mainImageIndex}
+                maxImages={maxImages}
+                onImagesChange={(images) => setFormData({ ...formData, images })}
+                onMetadataChange={(metadata) => setFormData({ ...formData, imageMetadata: metadata })}
+                onMainImageChange={(index) => setFormData({ ...formData, mainImageIndex: index })}
+              />
 
               <div className="space-y-2">
                 <Label htmlFor="phone">Contact Phone</Label>
