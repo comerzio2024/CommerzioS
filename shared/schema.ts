@@ -81,6 +81,21 @@ export const priceListSchema = z.object({
   unit: z.string().optional(),
 });
 
+// Image metadata type
+export const imageMetadataSchema = z.object({
+  crop: z.object({
+    x: z.number(),
+    y: z.number(),
+    width: z.number(),
+    height: z.number(),
+  }).optional(),
+  rotation: z.number().default(0),
+  position: z.object({
+    x: z.number().default(50),
+    y: z.number().default(50),
+  }).optional(),
+});
+
 // Services table
 export const services = pgTable("services", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -95,6 +110,8 @@ export const services = pgTable("services", {
   priceUnit: varchar("price_unit", { enum: ["hour", "job", "consultation", "day", "month"] }).notNull(),
   locations: text("locations").array().default(sql`ARRAY[]::text[]`).notNull(),
   images: text("images").array().default(sql`ARRAY[]::text[]`).notNull(),
+  imageMetadata: jsonb("image_metadata").default(sql`'[]'::jsonb`),
+  mainImageIndex: integer("main_image_index").default(0).notNull(),
   status: varchar("status", { enum: ["draft", "active", "paused", "expired"] }).default("draft").notNull(),
   tags: text("tags").array().default(sql`ARRAY[]::text[]`).notNull(),
   contactPhone: varchar("contact_phone", { length: 50 }).notNull(),
