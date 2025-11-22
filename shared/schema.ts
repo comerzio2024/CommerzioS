@@ -61,6 +61,7 @@ export const categoriesRelations = relations(categories, ({ many }) => ({
 export const submittedCategories = pgTable("submitted_categories", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name", { length: 100 }).notNull(),
+  description: text("description").notNull(),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   status: varchar("status", { enum: ["pending", "approved", "rejected"] }).default("pending"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -233,7 +234,10 @@ export const insertCategorySchema = createInsertSchema(categories).omit({
   createdAt: true,
 });
 
-export const insertSubmittedCategorySchema = createInsertSchema(submittedCategories).omit({
+export const insertSubmittedCategorySchema = createInsertSchema(submittedCategories, {
+  name: z.string().min(3, "Category name must be at least 3 characters").max(100),
+  description: z.string().min(10, "Description must be at least 10 characters").max(500),
+}).omit({
   id: true,
   createdAt: true,
   status: true,

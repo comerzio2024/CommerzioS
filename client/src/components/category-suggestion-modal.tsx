@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Lightbulb } from "lucide-react";
 
 interface CategorySuggestionModalProps {
@@ -17,12 +18,13 @@ export function CategorySuggestionModal({ open, onOpenChange }: CategorySuggesti
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [categoryName, setCategoryName] = useState("");
+  const [categoryDescription, setCategoryDescription] = useState("");
 
   const submitCategoryMutation = useMutation({
-    mutationFn: (name: string) =>
+    mutationFn: (data: { name: string; description: string }) =>
       apiRequest("/api/categories/suggest", {
         method: "POST",
-        body: JSON.stringify({ name }),
+        body: JSON.stringify(data),
       }),
     onSuccess: () => {
       toast({
@@ -30,6 +32,7 @@ export function CategorySuggestionModal({ open, onOpenChange }: CategorySuggesti
         description: "Your category suggestion has been submitted for review.",
       });
       setCategoryName("");
+      setCategoryDescription("");
       onOpenChange(false);
     },
     onError: (error: Error) => {
@@ -43,8 +46,11 @@ export function CategorySuggestionModal({ open, onOpenChange }: CategorySuggesti
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (categoryName.trim()) {
-      submitCategoryMutation.mutate(categoryName.trim());
+    if (categoryName.trim() && categoryDescription.trim()) {
+      submitCategoryMutation.mutate({ 
+        name: categoryName.trim(),
+        description: categoryDescription.trim()
+      });
     }
   };
 
@@ -71,10 +77,28 @@ export function CategorySuggestionModal({ open, onOpenChange }: CategorySuggesti
               value={categoryName}
               onChange={(e) => setCategoryName(e.target.value)}
               required
+              maxLength={100}
               data-testid="input-suggest-category-name"
             />
             <p className="text-sm text-muted-foreground">
               Provide a clear, descriptive name for the category
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="category-description">Description *</Label>
+            <Textarea
+              id="category-description"
+              placeholder="Explain what types of services would fit in this category..."
+              value={categoryDescription}
+              onChange={(e) => setCategoryDescription(e.target.value)}
+              required
+              maxLength={500}
+              rows={4}
+              data-testid="input-suggest-category-description"
+            />
+            <p className="text-sm text-muted-foreground">
+              Help us understand the purpose and scope of this category (10-500 characters)
             </p>
           </div>
 
@@ -89,7 +113,7 @@ export function CategorySuggestionModal({ open, onOpenChange }: CategorySuggesti
             </Button>
             <Button
               type="submit"
-              disabled={!categoryName.trim() || submitCategoryMutation.isPending}
+              disabled={!categoryName.trim() || !categoryDescription.trim() || submitCategoryMutation.isPending}
               data-testid="button-submit-category-suggestion"
             >
               {submitCategoryMutation.isPending ? "Submitting..." : "Submit Suggestion"}
