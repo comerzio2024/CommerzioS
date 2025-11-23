@@ -616,6 +616,13 @@ function ServicesManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [serviceToDelete, setServiceToDelete] = useState<string | null>(null);
+  const [editService, setEditService] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({
+    title: "",
+    description: "",
+    price: "",
+    status: "active",
+  });
 
   const { data: services = [], isLoading } = useQuery<Service[]>({
     queryKey: ["/api/admin/services"],
@@ -637,19 +644,87 @@ function ServicesManagement() {
     },
   });
 
+  const updateServiceMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
+      apiRequest(`/api/admin/services/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/services"] });
+      setEditService(null);
+      resetEditForm();
+      toast({
+        title: "Success",
+        description: "Service updated successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update service",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resetEditForm = () => {
+    setEditForm({
+      title: "",
+      description: "",
+      price: "",
+      status: "active",
+    });
+  };
+
+  const handleEditClick = (service: any) => {
+    setEditService(service);
+    setEditForm({
+      title: service.title,
+      description: service.description,
+      price: service.price?.toString() || "",
+      status: service.status,
+    });
+  };
+
+  const handleSaveEdit = () => {
+    if (!editService) return;
+    
+    const updateData: any = {};
+    if (editForm.title !== editService.title) updateData.title = editForm.title;
+    if (editForm.description !== editService.description) updateData.description = editForm.description;
+    if (editForm.price !== editService.price?.toString()) updateData.price = parseFloat(editForm.price) || null;
+    if (editForm.status !== editService.status) updateData.status = editForm.status;
+    
+    if (Object.keys(updateData).length === 0) {
+      toast({
+        title: "No changes",
+        description: "Please make changes to update the service",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    updateServiceMutation.mutate({
+      id: editService.id,
+      data: updateData,
+    });
+  };
+
   if (isLoading) return <div>Loading...</div>;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Service Management</CardTitle>
-        <CardDescription>View and manage all services</CardDescription>
+        <CardDescription>View and edit all user services</CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Title</TableHead>
+              <TableHead>Owner</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Price</TableHead>
               <TableHead>Views</TableHead>
@@ -660,6 +735,7 @@ function ServicesManagement() {
             {services.map((service: any) => (
               <TableRow key={service.id} data-testid={`row-service-${service.id}`}>
                 <TableCell className="font-medium">{service.title}</TableCell>
+                <TableCell>{service.owner?.firstName || "Unknown"}</TableCell>
                 <TableCell>
                   <Badge
                     variant={service.status === "active" ? "default" : "secondary"}
@@ -671,7 +747,15 @@ function ServicesManagement() {
                   CHF {service.price || "N/A"}
                 </TableCell>
                 <TableCell>{service.viewCount}</TableCell>
-                <TableCell>
+                <TableCell className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEditClick(service)}
+                    data-testid={`button-edit-service-${service.id}`}
+                  >
+                    <Edit className="w-4 h-4" />
+                  </Button>
                   <Button
                     variant="destructive"
                     size="sm"
@@ -686,6 +770,71 @@ function ServicesManagement() {
           </TableBody>
         </Table>
       </CardContent>
+
+      <Dialog open={!!editService} onOpenChange={() => setEditService(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Service</DialogTitle>
+            <DialogDescription>Edit the service details for {editService?.title}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-title">Title</Label>
+              <Input
+                id="edit-title"
+                value={editForm.title}
+                onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                data-testid="input-edit-service-title"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-description">Description</Label>
+              <Textarea
+                id="edit-description"
+                value={editForm.description}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                rows={4}
+                data-testid="input-edit-service-description"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-price">Price (CHF)</Label>
+                <Input
+                  id="edit-price"
+                  type="number"
+                  step="0.01"
+                  value={editForm.price}
+                  onChange={(e) => setEditForm({ ...editForm, price: e.target.value })}
+                  data-testid="input-edit-service-price"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-status">Status</Label>
+                <Select value={editForm.status} onValueChange={(value) => setEditForm({ ...editForm, status: value })}>
+                  <SelectTrigger id="edit-status" data-testid="select-edit-service-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="expired">Expired</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditService(null)} data-testid="button-cancel-edit-service">
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={updateServiceMutation.isPending} data-testid="button-save-edit-service">
+              {updateServiceMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!serviceToDelete} onOpenChange={() => setServiceToDelete(null)}>
         <AlertDialogContent>

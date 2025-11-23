@@ -735,6 +735,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch('/api/admin/services/:id', isAdmin, async (req, res) => {
+    try {
+      const service = await storage.updateService(req.params.id, req.body);
+      res.json(service);
+    } catch (error) {
+      console.error("Error updating service:", error);
+      res.status(500).json({ message: "Failed to update service" });
+    }
+  });
+
   app.delete('/api/admin/services/:id', isAdmin, async (req, res) => {
     try {
       await storage.deleteService(req.params.id);
