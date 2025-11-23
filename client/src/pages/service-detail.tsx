@@ -225,7 +225,7 @@ export default function ServiceDetail() {
                   <div className="flex items-center gap-6 pb-6 border-b border-border">
                     <div className="flex items-center gap-1">
                       <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
-                      <span className="font-bold text-lg">{service.rating.toFixed(1)}</span>
+                      <span className="font-bold text-lg">{service.rating ? service.rating.toFixed(1) : "New"}</span>
                       <span className="text-muted-foreground">({service.reviewCount} reviews)</span>
                     </div>
                     <div className="flex items-center gap-1 text-muted-foreground">
