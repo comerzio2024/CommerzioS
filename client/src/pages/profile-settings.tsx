@@ -11,9 +11,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { Trash2, Plus, Edit2, MapPin } from "lucide-react";
 import type { SelectAddress } from "@shared/schema";
+import { apiRequest } from "@/lib/api";
 
 export default function ProfileSettings() {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("account");
@@ -37,8 +38,9 @@ export default function ProfileSettings() {
   });
 
   const { data: addresses = [] } = useQuery<SelectAddress[]>({
-    queryKey: ['/api/users/me/addresses'],
-    enabled: !!user,
+    queryKey: ["/api/users/me/addresses"],
+    queryFn: () => apiRequest("/api/users/me/addresses"),
+    enabled: isAuthenticated,
   });
 
   const updateProfileMutation = useMutation({
