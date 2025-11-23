@@ -204,16 +204,16 @@ export class DatabaseStorage implements IStorage {
 
   // Category operations
   async getCategories(): Promise<Category[]> {
-    return await db.select().from(categories);
+    return await tx.select().from(categories);
   }
 
   async getCategoryBySlug(slug: string): Promise<Category | undefined> {
-    const [category] = await db.select().from(categories).where(eq(categories.slug, slug));
+    const [category] = await tx.select().from(categories).where(eq(categories.slug, slug));
     return category;
   }
 
   async createCategory(category: InsertCategory): Promise<Category> {
-    const [newCategory] = await db.insert(categories).values(category).returning();
+    const [newCategory] = await tx.insert(categories).values(category).returning();
     return newCategory;
   }
 
@@ -307,7 +307,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createService(service: InsertService): Promise<Service> {
-    const [newService] = await db.insert(services).values(service).returning();
+    const [newService] = await tx.insert(services).values(service).returning();
     return newService;
   }
 
@@ -378,7 +378,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createReview(review: InsertReview): Promise<Review> {
-    const [newReview] = await db.insert(reviews).values(review).returning();
+    const [newReview] = await tx.insert(reviews).values(review).returning();
     return newReview;
   }
 
@@ -482,21 +482,21 @@ export class DatabaseStorage implements IStorage {
 
   // Plan operations
   async getPlans(): Promise<Plan[]> {
-    return await db.select().from(plans).orderBy(plans.sortOrder);
+    return await tx.select().from(plans).orderBy(plans.sortOrder);
   }
 
   async getPlan(id: string): Promise<Plan | undefined> {
-    const [plan] = await db.select().from(plans).where(eq(plans.id, id));
+    const [plan] = await tx.select().from(plans).where(eq(plans.id, id));
     return plan;
   }
 
   async getPlanBySlug(slug: string): Promise<Plan | undefined> {
-    const [plan] = await db.select().from(plans).where(eq(plans.slug, slug));
+    const [plan] = await tx.select().from(plans).where(eq(plans.slug, slug));
     return plan;
   }
 
   async createPlan(plan: InsertPlan): Promise<Plan> {
-    const [newPlan] = await db.insert(plans).values(plan).returning();
+    const [newPlan] = await tx.insert(plans).values(plan).returning();
     return newPlan;
   }
 
@@ -532,7 +532,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllUsers(): Promise<User[]> {
-    return await db.select().from(users).orderBy(desc(users.createdAt));
+    return await tx.select().from(users).orderBy(desc(users.createdAt));
   }
 
   async updateUserProfile(userId: string, data: { firstName?: string; lastName?: string; phoneNumber?: string; profileImageUrl?: string }): Promise<User> {
@@ -589,9 +589,9 @@ export class DatabaseStorage implements IStorage {
 
   // Platform settings operations
   async getPlatformSettings(): Promise<PlatformSettings | undefined> {
-    const [settings] = await db.select().from(platformSettings).where(eq(platformSettings.id, 'default'));
+    const [settings] = await tx.select().from(platformSettings).where(eq(platformSettings.id, 'default'));
     if (!settings) {
-      const [newSettings] = await db.insert(platformSettings).values({ id: 'default' }).returning();
+      const [newSettings] = await tx.insert(platformSettings).values({ id: 'default' }).returning();
       return newSettings;
     }
     return settings;
@@ -619,7 +619,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createServiceContact(contact: InsertServiceContact): Promise<ServiceContact> {
-    const [newContact] = await db.insert(serviceContacts).values(contact).returning();
+    const [newContact] = await tx.insert(serviceContacts).values(contact).returning();
     return newContact;
   }
 
@@ -660,7 +660,7 @@ export class DatabaseStorage implements IStorage {
 
   // AI conversation operations
   async getAiConversation(id: string): Promise<AiConversation | undefined> {
-    const [conversation] = await db.select().from(aiConversations).where(eq(aiConversations.id, id));
+    const [conversation] = await tx.select().from(aiConversations).where(eq(aiConversations.id, id));
     return conversation;
   }
 
@@ -678,7 +678,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createAiConversation(conversation: InsertAiConversation): Promise<AiConversation> {
-    const [newConversation] = await db.insert(aiConversations).values(conversation).returning();
+    const [newConversation] = await tx.insert(aiConversations).values(conversation).returning();
     return newConversation;
   }
 
@@ -703,7 +703,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTemporaryCategory(category: InsertTemporaryCategory): Promise<TemporaryCategory> {
-    const [newCategory] = await db.insert(temporaryCategories).values(category).returning();
+    const [newCategory] = await tx.insert(temporaryCategories).values(category).returning();
     return newCategory;
   }
 
@@ -922,85 +922,162 @@ export class DatabaseStorage implements IStorage {
     reason?: string,
     ipAddress?: string
   ): Promise<User> {
-    // Get current user status
-    const user = await this.getUser(userId);
-    if (!user) {
-      throw new Error("User not found");
-    }
+    // Use transaction to ensure atomicity
+    return await db.transaction(async (tx) => {
+      // Get current user status
+      const [user] = await tx.select().from(users).where(eq(users.id, userId)).limit(1);
+      if (!user) {
+        throw new Error("User not found");
+      }
 
-    const previousStatus = user.status;
-    const newStatus = action === "reactivate" ? "active" : action === "warn" ? "warned" : action;
+      const previousStatus = user.status;
+      const newStatus = action === "reactivate" ? "active" : action === "warn" ? "warned" : action;
 
-    // Update user status
-    const [updatedUser] = await db
-      .update(users)
-      .set({ 
-        status: newStatus as "active" | "warned" | "suspended" | "banned" | "kicked",
-        statusReason: reason || null,
-        updatedAt: new Date()
-      })
-      .where(eq(users.id, userId))
-      .returning();
+      // Update user status
+      const [updatedUser] = await tx
+        .update(users)
+        .set({ 
+          status: newStatus as "active" | "warned" | "suspended" | "banned" | "kicked",
+          statusReason: reason || null,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, userId))
+        .returning();
 
-    // Log moderation action
-    await db.insert(userModerationActions).values({
-      userId,
-      adminId,
-      action,
-      previousStatus,
-      newStatus,
-      reason,
-      ipAddress,
-    });
+      // Log moderation action
+      await tx.insert(userModerationActions).values({
+        userId,
+        adminId,
+        action,
+        previousStatus,
+        newStatus,
+        reason,
+        ipAddress,
+      });
 
-    // If banning or kicking, add identifiers to banned list
+    // If banning or kicking, add identifiers to banned list (with uniqueness check)
     if (action === "ban" || action === "kick") {
       const bannedData: InsertBannedIdentifier[] = [];
       
       if (user.email) {
-        bannedData.push({
-          identifierType: "email",
-          identifierValue: user.email,
-          userId,
-          bannedBy: adminId,
-          reason,
-        });
+        // Check if this identifier already exists
+        const existing = await db
+          .select()
+          .from(bannedIdentifiers)
+          .where(
+            and(
+              eq(bannedIdentifiers.identifierType, "email"),
+              eq(bannedIdentifiers.identifierValue, user.email)
+            )
+          )
+          .limit(1);
+        
+        if (existing.length === 0) {
+          bannedData.push({
+            identifierType: "email",
+            identifierValue: user.email,
+            userId,
+            bannedBy: adminId,
+            reason,
+          });
+        } else {
+          // Reactivate if it was deactivated
+          await db
+            .update(bannedIdentifiers)
+            .set({ isActive: true, bannedBy: adminId, reason })
+            .where(eq(bannedIdentifiers.id, existing[0].id));
+        }
       }
       
       if (user.phoneNumber) {
-        bannedData.push({
-          identifierType: "phone",
-          identifierValue: user.phoneNumber,
-          userId,
-          bannedBy: adminId,
-          reason,
-        });
+        const existing = await db
+          .select()
+          .from(bannedIdentifiers)
+          .where(
+            and(
+              eq(bannedIdentifiers.identifierType, "phone"),
+              eq(bannedIdentifiers.identifierValue, user.phoneNumber)
+            )
+          )
+          .limit(1);
+        
+        if (existing.length === 0) {
+          bannedData.push({
+            identifierType: "phone",
+            identifierValue: user.phoneNumber,
+            userId,
+            bannedBy: adminId,
+            reason,
+          });
+        } else {
+          await db
+            .update(bannedIdentifiers)
+            .set({ isActive: true, bannedBy: adminId, reason })
+            .where(eq(bannedIdentifiers.id, existing[0].id));
+        }
       }
       
       if (ipAddress) {
-        bannedData.push({
-          identifierType: "ip",
-          identifierValue: ipAddress,
-          userId,
-          bannedBy: adminId,
-          reason,
-        });
+        const existing = await db
+          .select()
+          .from(bannedIdentifiers)
+          .where(
+            and(
+              eq(bannedIdentifiers.identifierType, "ip"),
+              eq(bannedIdentifiers.identifierValue, ipAddress)
+            )
+          )
+          .limit(1);
+        
+        if (existing.length === 0) {
+          bannedData.push({
+            identifierType: "ip",
+            identifierValue: ipAddress,
+            userId,
+            bannedBy: adminId,
+            reason,
+          });
+        } else {
+          await db
+            .update(bannedIdentifiers)
+            .set({ isActive: true, bannedBy: adminId, reason })
+            .where(eq(bannedIdentifiers.id, existing[0].id));
+        }
       }
       
+      // Insert new identifiers in batch
       if (bannedData.length > 0) {
-        await db.insert(bannedIdentifiers).values(bannedData);
+        await tx.insert(bannedIdentifiers).values(bannedData);
       }
     }
+    
+    // If reactivating or suspending (lifting ban), deactivate all banned identifiers for this user
+    if (action === "reactivate" || action === "suspend") {
+      await db
+        .update(bannedIdentifiers)
+        .set({ isActive: false })
+        .where(eq(bannedIdentifiers.userId, userId));
+    }
 
-    return updatedUser;
+      return updatedUser;
+    });
   }
 
-  async getUserModerationHistory(userId: string): Promise<UserModerationAction[]> {
-    return await db
-      .select()
+  async getUserModerationHistory(userId: string): Promise<any[]> {
+    const results = await db
+      .select({
+        action: userModerationActions,
+        admin: users,
+      })
       .from(userModerationActions)
+      .leftJoin(users, eq(userModerationActions.adminId, users.id))
       .where(eq(userModerationActions.userId, userId))
       .orderBy(desc(userModerationActions.createdAt));
+    
+    return results.map((row) => ({
+      ...row.action,
+      adminName: row.admin ? `${row.admin.firstName || ''} ${row.admin.lastName || ''}`.trim() || row.admin.email : 'System',
+    }));
   }
 
   async getBannedIdentifiers(): Promise<BannedIdentifier[]> {
@@ -1012,7 +1089,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async addBannedIdentifier(data: InsertBannedIdentifier): Promise<BannedIdentifier> {
-    const [banned] = await db.insert(bannedIdentifiers).values(data).returning();
+    const [banned] = await tx.insert(bannedIdentifiers).values(data).returning();
     return banned;
   }
 
