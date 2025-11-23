@@ -156,7 +156,7 @@ export function CategoryFilterBar({
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setShowAllCategories(true)}
-                    className="relative flex flex-col items-center gap-2 px-3 py-3 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 hover:border-primary/50 hover:bg-slate-100 transition-all text-center col-span-1"
+                    className="relative flex flex-col items-center gap-2 px-3 py-3 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 hover:border-slate-400 hover:bg-slate-100 transition-all text-center col-span-1"
                     data-testid="button-show-more-categories"
                   >
                     <ChevronDown className="w-5 h-5 text-slate-500" />
@@ -172,7 +172,7 @@ export function CategoryFilterBar({
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setShowAllCategories(false)}
-                    className="relative flex flex-col items-center gap-2 px-3 py-3 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 hover:border-primary/50 hover:bg-slate-100 transition-all text-center col-span-1"
+                    className="relative flex flex-col items-center gap-2 px-3 py-3 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 hover:border-slate-400 hover:bg-slate-100 transition-all text-center col-span-1"
                     data-testid="button-show-less-categories"
                   >
                     <ChevronUp className="w-5 h-5 text-slate-500" />
