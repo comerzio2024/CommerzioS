@@ -252,6 +252,7 @@ export async function seedDatabase() {
         viewCount: 234,
         images: ["https://images.unsplash.com/photo-1581578731548-c64695c952952?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=MnwxfDB8MXxyYW5kb218MHx8Y2xlYW5pbmd8fHx8fHwxNjk5Njc4Mjcw&ixlib=rb-4.0.3&q=80"],
         tags: ["cleaning", "eco-friendly", "home"],
+        hashtags: ["cleaning", "ecofriendly", "zurich"],
       },
       {
         id: "demo-service-7",
@@ -344,6 +345,7 @@ export async function seedDatabase() {
         viewCount: 187,
         images: ["https://images.unsplash.com/photo-1561070791-2526d30994b5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg"],
         tags: ["design", "logo", "branding"],
+        hashtags: ["logodesign", "branding", "startup"],
       },
       {
         id: "demo-service-11",
@@ -362,6 +364,7 @@ export async function seedDatabase() {
         viewCount: 267,
         images: ["https://images.unsplash.com/photo-1517694712202-14dd9538aa97?crop=entropy&cs=tinysrgb&fit=max&fm=jpg"],
         tags: ["web design", "development", "programming"],
+        hashtags: ["webdesign", "webdev", "programming"],
       },
       {
         id: "demo-service-12",
@@ -398,6 +401,7 @@ export async function seedDatabase() {
         viewCount: 213,
         images: ["https://images.unsplash.com/photo-1502920917128-1aa500764cbd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg"],
         tags: ["photography", "events", "corporate"],
+        hashtags: ["photography", "basel", "events"],
       },
       {
         id: "demo-service-14",
@@ -436,6 +440,7 @@ export async function seedDatabase() {
         viewCount: 156,
         images: ["https://images.unsplash.com/photo-1456406146555-c142cad53c7b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg"],
         tags: ["tutoring", "english", "education"],
+        hashtags: ["english", "tutoring", "online"],
       },
       {
         id: "demo-service-15",
