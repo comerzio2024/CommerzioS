@@ -1,18 +1,20 @@
 import { Layout } from "@/components/layout";
 import { ServiceCard } from "@/components/service-card";
-import { CategoryFilterBar } from "@/components/category-filter-bar";
+import { ServiceResultsRail } from "@/components/service-results-rail";
+import { ServiceMapToggle } from "@/components/service-map-toggle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Sparkles, ArrowRight, Heart, MapPin, Loader2, Navigation, Search, X, ChevronDown, ChevronUp } from "lucide-react";
 import heroImg from "@assets/generated_images/abstract_community_connection_hero_background.png";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, type ServiceWithDetails, type CategoryWithTemporary, type FavoriteWithService } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -23,13 +25,17 @@ import { geocodeLocation, suggestionToGeocodeResult, type GeocodingSuggestion } 
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [radiusKm, setRadiusKm] = useState(10);
   
   const [searchLocation, setSearchLocation] = useState<{lat: number; lng: number; name: string} | null>(null);
   const [isGeocoding, setIsGeocoding] = useState(false);
-  const [isNearbyExpanded, setIsNearbyExpanded] = useState(true);
+  const [isNearbyExpanded, setIsNearbyExpanded] = useState(false);
   const [isFavoritesExpanded, setIsFavoritesExpanded] = useState(false);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [useLocationPermissions, setUseLocationPermissions] = useState(false);
+  const locationPermissionProcessingRef = useRef(false);
   
   // Use shared geocoding hook for location search
   const { 
@@ -50,16 +56,16 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: "instant" });
   }, []);
 
-  // Auto-load user's saved location on mount
+  // Auto-load user's saved location on mount (works for all users with stored location)
   useEffect(() => {
-    if (isAuthenticated && user && user.locationLat && user.locationLng && !searchLocation) {
+    if (user && user.locationLat && user.locationLng && !searchLocation) {
       setSearchLocation({
         lat: parseFloat(user.locationLat as any),
         lng: parseFloat(user.locationLng as any),
         name: user.preferredLocationName || "Your Location"
       });
     }
-  }, [isAuthenticated, user, searchLocation]);
+  }, [user, searchLocation]);
 
   const { data: categories = [], isLoading: categoriesLoading } = useQuery<CategoryWithTemporary[]>({
     queryKey: ["/api/categories"],
@@ -80,6 +86,12 @@ export default function Home() {
   const { data: newServiceCounts = [] } = useQuery<Array<{ categoryId: string; newCount: number }>>({
     queryKey: ["/api/categories/new-service-counts"],
     queryFn: () => apiRequest("/api/categories/new-service-counts"),
+    enabled: isAuthenticated,
+  });
+
+  const { data: userAddresses = [] } = useQuery<Array<{ id: string; street: string; city: string; postalCode: string; lat: number; lng: number; isPrimary: boolean }>>({
+    queryKey: ["/api/users/me/addresses"],
+    queryFn: () => apiRequest("/api/users/me/addresses"),
     enabled: isAuthenticated,
   });
 
@@ -147,6 +159,178 @@ export default function Home() {
     clearSuggestions();
   };
 
+  const handleBrowserLocation = async () => {
+    if (!navigator.geolocation) {
+      toast({
+        title: "Geolocation not supported",
+        description: "Your browser doesn't support geolocation",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGettingLocation(true);
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        });
+      });
+
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+
+      // Reverse geocode coordinates to get address name
+      const reverseGeocodeUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`;
+      const response = await fetch(reverseGeocodeUrl, {
+        headers: {
+          'User-Agent': 'ServiceMarketplace/1.0',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reverse geocode location');
+      }
+
+      const data = await response.json();
+      const locationName = data.address?.city || data.address?.town || data.address?.village || data.display_name;
+
+      // Save location to user profile if authenticated
+      if (isAuthenticated) {
+        await apiRequest("/api/users/me", {
+          method: "PATCH",
+          body: JSON.stringify({
+            locationLat: lat,
+            locationLng: lng,
+            preferredLocationName: locationName,
+          }),
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        
+        // Invalidate user query cache to ensure fresh data
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      }
+
+      setSearchLocation({
+        lat,
+        lng,
+        name: locationName,
+      });
+
+      toast({
+        title: "Location detected",
+        description: `Using your current location: ${locationName}`,
+      });
+    } catch (error: any) {
+      console.error("Geolocation error:", error);
+      let errorMessage = "Unable to get your location";
+      
+      if (error.code === 1) {
+        errorMessage = "Location permission denied. Please enable location access in your browser settings.";
+      } else if (error.code === 2) {
+        errorMessage = "Location unavailable. Please try again.";
+      } else if (error.code === 3) {
+        errorMessage = "Location request timed out. Please try again.";
+      }
+
+      toast({
+        title: "Location error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      setUseLocationPermissions(false);
+    } finally {
+      setIsGettingLocation(false);
+    }
+  };
+
+  const handleLocationPermissionsToggle = async (checked: boolean) => {
+    // Debounce: prevent rapid toggling while location is being processed
+    if (locationPermissionProcessingRef.current) {
+      return;
+    }
+
+    setUseLocationPermissions(checked);
+    
+    if (checked) {
+      locationPermissionProcessingRef.current = true;
+      try {
+        await handleBrowserLocation();
+      } finally {
+        locationPermissionProcessingRef.current = false;
+      }
+    }
+  };
+
+  const handleAddressSwitch = async (addressId: string) => {
+    if (!userAddresses || userAddresses.length === 0) {
+      toast({
+        title: "No addresses available",
+        description: "Please add an address first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const selectedAddress = userAddresses.find(addr => addr.id === addressId);
+    if (!selectedAddress) {
+      toast({
+        title: "Address not found",
+        description: "The selected address could not be found",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedAddress.lat || !selectedAddress.lng) {
+      toast({
+        title: "Invalid address",
+        description: "This address doesn't have valid coordinates",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const locationName = `${selectedAddress.street}, ${selectedAddress.postalCode} ${selectedAddress.city}`;
+    
+    setSearchLocation({
+      lat: selectedAddress.lat,
+      lng: selectedAddress.lng,
+      name: locationName,
+    });
+
+    // Save location to user profile if authenticated
+    if (isAuthenticated) {
+      try {
+        await apiRequest("/api/users/me", {
+          method: "PATCH",
+          body: JSON.stringify({
+            locationLat: selectedAddress.lat,
+            locationLng: selectedAddress.lng,
+            preferredLocationName: locationName,
+          }),
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        
+        // Invalidate user query cache to ensure fresh data
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      } catch (error) {
+        console.error("Failed to save location to profile:", error);
+      }
+    }
+
+    toast({
+      title: "Address switched",
+      description: `Now searching near ${selectedAddress.city}`,
+    });
+  };
+
   const { data: nearbyServices = [], isLoading: nearbyLoading } = useQuery<Array<ServiceWithDetails & { distance: number }>>({
     queryKey: ["/api/services/nearby", searchLocation, radiusKm],
     queryFn: () => apiRequest("/api/services/nearby", {
@@ -161,7 +345,7 @@ export default function Home() {
         "Content-Type": "application/json"
       }
     }),
-    enabled: !!searchLocation && isAuthenticated,
+    enabled: !!searchLocation,
   });
 
   const filteredServices = useMemo(() => {
@@ -212,44 +396,234 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="flex gap-3 justify-center flex-wrap"
+              className="space-y-6"
             >
-              <Button 
-                size="default" 
-                className="px-6"
-                onClick={() => {
-                  const categoriesSection = document.querySelector('[data-testid="categories-section"]');
-                  categoriesSection?.scrollIntoView({ behavior: 'smooth' });
-                }}
-                data-testid="button-browse-categories"
-              >
-                Browse Categories
-              </Button>
-              <Button 
-                size="default" 
-                variant="outline"
-                className="px-6 bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20"
-                onClick={() => {
-                  const servicesSection = document.querySelector('[data-testid="services-section"]');
-                  servicesSection?.scrollIntoView({ behavior: 'smooth' });
-                }}
-                data-testid="button-view-all-services"
-              >
-                View All Services
-              </Button>
+              {/* Find Services Near You */}
+              <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 shadow-2xl">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                  {/* Location Search */}
+                  <div className="md:col-span-6 relative">
+                    <Label htmlFor="hero-location-search" className="text-white text-sm font-medium mb-2 block">
+                      Location
+                    </Label>
+                    <div className="relative">
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <Input
+                            id="hero-location-search"
+                            type="text"
+                            placeholder="Enter postcode, city, or address..."
+                            value={locationSearchQuery}
+                            onChange={(e) => setLocationSearchQuery(e.target.value)}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter' && locationSearchQuery.trim()) {
+                                handleLocationSearch();
+                              }
+                            }}
+                            disabled={isGeocoding || isGettingLocation}
+                            className="pl-10 bg-white/95 border-white/30 text-slate-900 placeholder:text-slate-500"
+                            data-testid="input-hero-location-search"
+                            autoComplete="off"
+                          />
+                        </div>
+                        <Button
+                          onClick={() => handleLocationSearch()}
+                          disabled={isGeocoding || !locationSearchQuery.trim() || isGettingLocation}
+                          className="bg-primary hover:bg-primary/90"
+                          data-testid="button-hero-search-location"
+                        >
+                          {isGeocoding ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Search className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </div>
+                      
+                      {addressSuggestions.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+                          {addressSuggestions.map((suggestion, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => handleLocationSearch(suggestion)}
+                              className="w-full text-left px-4 py-2 hover:bg-slate-50 border-b border-slate-100 last:border-b-0 transition-colors"
+                              data-testid={`suggestion-hero-address-${idx}`}
+                            >
+                              <div className="flex items-start gap-2">
+                                <MapPin className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-slate-900 truncate">{suggestion.city || suggestion.postcode || suggestion.display_name}</p>
+                                  <p className="text-xs text-slate-500 truncate">{suggestion.display_name}</p>
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {isLoadingSuggestions && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 p-3">
+                          <div className="flex items-center gap-2 text-sm text-slate-500">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Loading suggestions...
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Radius Selector */}
+                  <div className="md:col-span-3">
+                    <Label htmlFor="hero-radius-select" className="text-white text-sm font-medium mb-2 block">
+                      Radius
+                    </Label>
+                    <Select 
+                      value={radiusKm.toString()} 
+                      onValueChange={(value) => setRadiusKm(parseInt(value, 10))}
+                    >
+                      <SelectTrigger 
+                        id="hero-radius-select" 
+                        className="bg-white/95 border-white/30 text-slate-900"
+                        data-testid="select-hero-radius"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5">5 km</SelectItem>
+                        <SelectItem value="10">10 km</SelectItem>
+                        <SelectItem value="25">25 km</SelectItem>
+                        <SelectItem value="50">50 km</SelectItem>
+                        <SelectItem value="100">100 km</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Location Permissions Toggle */}
+                  <div className="md:col-span-3">
+                    <Label htmlFor="hero-location-permissions" className="text-white text-sm font-medium mb-2 block">
+                      Use My Location
+                    </Label>
+                    <div className="flex items-center h-10 px-4 bg-white/95 border border-white/30 rounded-md">
+                      <Switch
+                        id="hero-location-permissions"
+                        checked={useLocationPermissions}
+                        onCheckedChange={handleLocationPermissionsToggle}
+                        disabled={isGettingLocation || isGeocoding}
+                        data-testid="switch-hero-location-permissions"
+                      />
+                      {isGettingLocation && (
+                        <Loader2 className="w-4 h-4 animate-spin ml-2 text-slate-600" />
+                      )}
+                      <span className="ml-2 text-sm text-slate-700">
+                        {isGettingLocation ? "Getting..." : useLocationPermissions ? "On" : "Off"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Active Location & Address Switcher */}
+                <div className="flex items-center gap-3 mt-4 flex-wrap">
+                  {searchLocation && (
+                    <Badge variant="secondary" className="px-3 py-1.5 bg-white/20 text-white border-white/30" data-testid="badge-hero-active-location">
+                      <MapPin className="w-3 h-3 mr-1" />
+                      {searchLocation.name}
+                    </Badge>
+                  )}
+
+                  {isAuthenticated && userAddresses.length > 0 && (
+                    <Select onValueChange={handleAddressSwitch}>
+                      <SelectTrigger 
+                        className="w-auto bg-white/90 border-white/30 text-slate-900 h-8"
+                        data-testid="select-hero-address-switcher"
+                      >
+                        <SelectValue placeholder="Switch Address" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {userAddresses.map((address) => (
+                          <SelectItem key={address.id} value={address.id}>
+                            {address.isPrimary && "⭐ "}
+                            {address.street}, {address.postalCode} {address.city}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 bg-white/90 border-white/30 text-slate-900 hover:bg-white"
+                    onClick={() => {
+                      const servicesSection = document.querySelector('[data-testid="services-section"]');
+                      servicesSection?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    data-testid="button-hero-view-all-services"
+                  >
+                    View All Services
+                    <ArrowRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Category Quick Filters */}
+              <div className="overflow-x-auto">
+                <ScrollArea className="w-full whitespace-nowrap">
+                  <div className="flex gap-3 pb-2">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setSelectedCategory(null)}
+                      className={cn(
+                        "inline-flex items-center gap-2 px-4 py-2.5 rounded-full border-2 transition-all backdrop-blur-sm text-sm font-medium whitespace-nowrap",
+                        selectedCategory === null
+                          ? "bg-white text-primary border-white"
+                          : "bg-white/20 text-white border-white/30 hover:bg-white/30"
+                      )}
+                      data-testid="category-hero-filter-all"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      All Services
+                      <Badge variant={selectedCategory === null ? "default" : "secondary"} className="ml-1">
+                        {services.length}
+                      </Badge>
+                    </motion.button>
+
+                    {categories.map((category) => (
+                      <motion.button
+                        key={category.id}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setSelectedCategory(category.id)}
+                        className={cn(
+                          "relative inline-flex items-center gap-2 px-4 py-2.5 rounded-full border-2 transition-all backdrop-blur-sm text-sm font-medium whitespace-nowrap",
+                          selectedCategory === category.id
+                            ? "bg-white text-primary border-white"
+                            : "bg-white/20 text-white border-white/30 hover:bg-white/30"
+                        )}
+                        data-testid={`category-hero-filter-${category.slug}`}
+                      >
+                        {newCountsMap[category.id] > 0 && (
+                          <div className="absolute -top-1 -right-1">
+                            <div className="bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-md">
+                              {newCountsMap[category.id]}
+                            </div>
+                          </div>
+                        )}
+                        {category.icon && <span className="text-lg">{category.icon}</span>}
+                        {category.name}
+                        <Badge variant={selectedCategory === category.id ? "default" : "secondary"} className="ml-1">
+                          {categoryServiceCounts[category.id] || 0}
+                        </Badge>
+                      </motion.button>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
             </motion.div>
           </div>
         </div>
       </section>
-
-      <CategoryFilterBar
-        categories={categories}
-        selectedCategory={selectedCategory}
-        onCategoryChange={setSelectedCategory}
-        serviceCount={services.length}
-        categoryCounts={categoryServiceCounts}
-        newCounts={newCountsMap}
-      />
 
       {isAuthenticated && searchLocation && (
         <section className="py-12 container mx-auto px-4">
@@ -399,52 +773,25 @@ export default function Home() {
             )}
           </div>
 
-          {!searchLocation ? (
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-8 text-center">
-              <Loader2 className="w-12 h-12 text-slate-400 mx-auto mb-4 animate-spin" />
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                Loading your location...
-              </h3>
-              <p className="text-slate-500 text-sm">
-                Or search for a location manually above
-              </p>
+          {searchLocation && (
+            <div className="space-y-6">
+              <ServiceMapToggle 
+                services={nearbyServices}
+                userLocation={searchLocation}
+                maxServices={5}
+                defaultExpanded={false}
+              />
+              
+              <ServiceResultsRail
+                services={nearbyServices}
+                isLoading={nearbyLoading}
+                emptyMessage={`No services found within ${radiusKm} km`}
+                emptyDescription="Try increasing the search radius to discover more services"
+                isExpanded={isNearbyExpanded}
+                onExpandChange={setIsNearbyExpanded}
+                dataTestIdPrefix="nearby"
+              />
             </div>
-          ) : (
-            <>
-
-              {nearbyLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                </div>
-              ) : nearbyServices.length > 0 ? (
-                <ScrollArea className="w-full">
-                  <div className="flex gap-6 pb-4">
-                    {nearbyServices.map((service) => (
-                      <motion.div
-                        key={service.id}
-                        className="w-80 flex-shrink-0"
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.3 }}
-                        data-testid={`nearby-service-card-${service.id}`}
-                      >
-                        <ServiceCard service={service} />
-                      </motion.div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              ) : (
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-8 text-center">
-                  <MapPin className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                    No services found within {radiusKm} km
-                  </h3>
-                  <p className="text-slate-500 text-sm">
-                    Try increasing the search radius to discover more services
-                  </p>
-                </div>
-              )}
-            </>
           )}
               </motion.div>
             )}
@@ -532,110 +879,24 @@ export default function Home() {
             <h2 className="text-2xl font-bold flex items-center gap-2">
               <Heart className="w-6 h-6 text-red-500 fill-red-500" />
               Your Saved Listings
-              <Badge variant="secondary" className="ml-2">{favorites.length}</Badge>
+              <Badge variant="secondary" className="ml-2" data-testid="badge-favorites-count">{favorites.length}</Badge>
             </h2>
-            <div className="flex items-center gap-2">
-              <Link href="/favorites">
-                <Button variant="ghost" className="gap-1" data-testid="button-view-all-favorites">
-                  View All <ArrowRight className="w-4 h-4" />
-                </Button>
-              </Link>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsFavoritesExpanded(!isFavoritesExpanded)}
-                className="h-8 px-2 hover:bg-slate-100 transition-colors"
-                data-testid="button-toggle-favorites"
-              >
-                {isFavoritesExpanded ? (
-                  <>
-                    <ChevronUp className="w-4 h-4 mr-1" />
-                    <span className="text-xs">Collapse</span>
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="w-4 h-4 mr-1" />
-                    <span className="text-xs">Expand</span>
-                  </>
-                )}
+            <Link href="/favorites">
+              <Button variant="ghost" className="gap-1" data-testid="button-view-all-favorites">
+                View All <ArrowRight className="w-4 h-4" />
               </Button>
-            </div>
+            </Link>
           </div>
 
-          <AnimatePresence>
-            {!isFavoritesExpanded ? (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="overflow-hidden"
-              >
-                <div className="space-y-3">
-                  {favorites.slice(0, 5).map((fav) => (
-                    <motion.div
-                      key={fav.id}
-                      className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.2 }}
-                      data-testid={`favorite-card-compact-${fav.id}`}
-                    >
-                      <Link href={`/service/${fav.service.id}`}>
-                        <a className="flex justify-between items-start gap-4 hover:opacity-75 transition-opacity">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-slate-900 truncate text-sm">
-                              {fav.service.title}
-                            </h3>
-                            <p className="text-xs text-slate-500 truncate">
-                              by {fav.service.owner?.firstName || "Service provider"}
-                            </p>
-                          </div>
-                          <div className="flex-shrink-0 text-right">
-                            <p className="font-semibold text-primary text-sm">
-                              CHF {fav.service.price}
-                            </p>
-                          </div>
-                        </a>
-                      </Link>
-                    </motion.div>
-                  ))}
-                  {favorites.length > 5 && (
-                    <div className="text-center pt-2">
-                      <p className="text-xs text-slate-500">
-                        Click "Expand" to see all {favorites.length} saved listings
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="overflow-hidden"
-              >
-                <ScrollArea className="w-full">
-                  <div className="flex gap-6 pb-4">
-                    {favorites.map((fav) => (
-                      <motion.div
-                        key={fav.id}
-                        className="w-80 flex-shrink-0"
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.3 }}
-                        data-testid={`favorite-card-${fav.id}`}
-                      >
-                        <ServiceCard service={fav.service} />
-                      </motion.div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <ServiceResultsRail
+            services={favorites.map(fav => fav.service)}
+            isLoading={false}
+            emptyMessage="No saved services"
+            emptyDescription="Start saving services you like to see them here"
+            isExpanded={isFavoritesExpanded}
+            onExpandChange={setIsFavoritesExpanded}
+            dataTestIdPrefix="favorite"
+          />
         </section>
       )}
 
