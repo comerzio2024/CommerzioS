@@ -2,7 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { users } from "@shared/schema";
+import { eq } from "drizzle-orm";
+import { users, reviews, services } from "@shared/schema";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { isAdmin, adminLogin, adminLogout, getAdminSession } from "./adminAuth";
 import { 
@@ -1769,7 +1770,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/users/me/reviews-received', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { reviews: reviewsTable, services: servicesTable, users: usersTable } = require("@shared/schema");
       
       // Get all reviews for services owned by this user
       const receivedReviews = await db
