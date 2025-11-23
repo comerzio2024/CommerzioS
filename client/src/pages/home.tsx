@@ -24,7 +24,7 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{lat: number; lng: number} | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [radiusKm, setRadiusKm] = useState(25);
+  const [radiusKm, setRadiusKm] = useState(10);
   
   const [customLocation, setCustomLocation] = useState<{lat: number; lng: number; name: string} | null>(null);
   const [locationSearchQuery, setLocationSearchQuery] = useState("");
