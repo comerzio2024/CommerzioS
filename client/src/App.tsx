@@ -10,7 +10,7 @@ import type { PageContextActions } from "@/hooks/use-page-context";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import ServiceDetail from "@/pages/service-detail";
-import Dashboard from "@/pages/dashboard";
+import Profile from "@/pages/profile";
 import Favorites from "@/pages/favorites";
 import HowItWorks from "@/pages/how-it-works";
 import HelpCenter from "@/pages/help-center";
@@ -21,7 +21,6 @@ import Privacy from "@/pages/privacy";
 import { AdminPage } from "@/pages/admin";
 import HashtagResults from "@/pages/hashtag-results";
 import UserProfile from "@/pages/user-profile";
-import ProfileSettings from "@/pages/profile-settings";
 
 // Create a context for the page context actions
 export const PageContextActionsContext = createContext<PageContextActions | null>(null);
@@ -42,11 +41,12 @@ function Router() {
       <Route path="/service/:id" component={ServiceDetail} />
       <Route path="/users/:userId" component={UserProfile} />
       <Route path="/hashtags/:hashtag" component={HashtagResults} />
-      <Route path="/dashboard" component={Dashboard} />
+      <Route path="/profile" component={Profile} />
+      <Route path="/dashboard" component={Profile} />
+      <Route path="/settings" component={Profile} />
       <Route path="/favorites" component={Favorites} />
-      <Route path="/settings" component={ProfileSettings} />
-      <Route path="/categories" component={Home} /> {/* Reusing Home for now */}
-      <Route path="/post-service" component={Dashboard} /> {/* Reusing Dashboard for now */}
+      <Route path="/categories" component={Home} />
+      <Route path="/post-service" component={Profile} />
       <Route path="/how-it-works" component={HowItWorks} />
       <Route path="/help-center" component={HelpCenter} />
       <Route path="/trust-safety" component={TrustSafety} />
