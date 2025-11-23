@@ -52,7 +52,23 @@ function updateUserSession(
 
 async function upsertUser(
   claims: any,
+  ipAddress?: string
 ) {
+  const email = claims["email"];
+  const phone = claims["phone_number"]; // Replit Auth may provide this
+  
+  // Check if user is banned before allowing login/registration
+  const banCheck = await storage.checkIfBanned(email, phone, ipAddress);
+  if (banCheck.isBanned) {
+    throw new Error(`Account access denied. ${banCheck.reason ? `Reason: ${banCheck.reason}` : 'Please contact support.'}`);
+  }
+  
+  // Check if user exists and has a banned/kicked status
+  const existingUser = await storage.getUser(claims["sub"]);
+  if (existingUser && (existingUser.status === "banned" || existingUser.status === "kicked" || existingUser.status === "suspended")) {
+    throw new Error(`Account is ${existingUser.status}. ${existingUser.statusReason || 'Please contact support.'}`);
+  }
+  
   await storage.upsertUser({
     id: claims["sub"],
     email: claims["email"],
@@ -74,10 +90,16 @@ export async function setupAuth(app: Express) {
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
     verified: passport.AuthenticateCallback
   ) => {
-    const user = {};
-    updateUserSession(user, tokens);
-    await upsertUser(tokens.claims());
-    verified(null, user);
+    try {
+      const user = {};
+      updateUserSession(user, tokens);
+      // Note: IP address is not easily available in this context, but we check email/phone
+      await upsertUser(tokens.claims());
+      verified(null, user);
+    } catch (error: any) {
+      // Return error to prevent login
+      verified(error, false);
+    }
   };
 
   // Keep track of registered strategies
@@ -137,6 +159,38 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
 
   if (!req.isAuthenticated() || !user.expires_at) {
     return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  // Check if user is banned/suspended/kicked (enforce immediately)
+  const userId = user.claims?.sub;
+  if (userId) {
+    try {
+      const dbUser = await storage.getUser(userId);
+      if (dbUser && (dbUser.status === "banned" || dbUser.status === "kicked" || dbUser.status === "suspended")) {
+        // Force logout and destroy session
+        return new Promise((resolve) => {
+          req.logout((err) => {
+            if (req.session) {
+              req.session.destroy(() => {
+                res.clearCookie('connect.sid');
+                res.status(403).json({ 
+                  message: `Account is ${dbUser.status}. ${dbUser.statusReason || 'Please contact support.'}` 
+                });
+                resolve(undefined);
+              });
+            } else {
+              res.clearCookie('connect.sid');
+              res.status(403).json({ 
+                message: `Account is ${dbUser.status}. ${dbUser.statusReason || 'Please contact support.'}` 
+              });
+              resolve(undefined);
+            }
+          });
+        });
+      }
+    } catch (error) {
+      console.error("Error checking user status:", error);
+    }
   }
 
   const now = Math.floor(Date.now() / 1000);

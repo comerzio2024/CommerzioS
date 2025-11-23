@@ -13,9 +13,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Textarea } from "@/components/ui/textarea";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, Users, FileText, CreditCard, CheckCircle, XCircle, Trash2, Brain, Send, Loader2, Sparkles, BarChart3, Settings, Eye, EyeOff } from "lucide-react";
-import type { User, Service, Plan, SubmittedCategory } from "@shared/schema";
+import { Shield, Users, FileText, CreditCard, CheckCircle, XCircle, Trash2, Brain, Send, Loader2, Sparkles, BarChart3, Settings, Eye, EyeOff, History, AlertCircle, Plus, Edit, MoreVertical, ChevronDown, ChevronUp, Folder } from "lucide-react";
+import type { User, Service, Plan, SubmittedCategory, Category } from "@shared/schema";
 
 interface Message {
   role: "user" | "assistant";
@@ -142,8 +147,8 @@ export function AdminPage() {
               Services
             </TabsTrigger>
             <TabsTrigger value="categories" data-testid="tab-categories">
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Category Suggestions
+              <Folder className="w-4 h-4 mr-2" />
+              Categories
             </TabsTrigger>
             <TabsTrigger value="plans" data-testid="tab-plans">
               <CreditCard className="w-4 h-4 mr-2" />
@@ -191,6 +196,11 @@ export function AdminPage() {
 function UsersManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [moderationDialog, setModerationDialog] = useState<{ open: boolean; userId: string; action: string } | null>(null);
+  const [moderationReason, setModerationReason] = useState("");
+  const [ipAddress, setIpAddress] = useState("");
+  const [historyDialog, setHistoryDialog] = useState<{ open: boolean; userId: string } | null>(null);
+  const [bannedIdentifiersOpen, setBannedIdentifiersOpen] = useState(false);
 
   const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
@@ -200,6 +210,18 @@ function UsersManagement() {
   const { data: plans = [] } = useQuery<Plan[]>({
     queryKey: ["/api/plans"],
     queryFn: () => apiRequest("/api/plans"),
+  });
+
+  const { data: bannedIdentifiers = [] } = useQuery<any[]>({
+    queryKey: ["/api/admin/banned-identifiers"],
+    queryFn: () => apiRequest("/api/admin/banned-identifiers"),
+    enabled: bannedIdentifiersOpen,
+  });
+
+  const { data: moderationHistory = [] } = useQuery<any[]>({
+    queryKey: ["/api/admin/users", historyDialog?.userId, "history"],
+    queryFn: () => apiRequest(`/api/admin/users/${historyDialog?.userId}/history`),
+    enabled: !!historyDialog?.userId,
   });
 
   const updateUserMutation = useMutation({
@@ -217,83 +239,376 @@ function UsersManagement() {
     },
   });
 
+  const moderateUserMutation = useMutation({
+    mutationFn: ({ userId, action, reason, ipAddress }: { userId: string; action: string; reason: string; ipAddress?: string }) =>
+      apiRequest(`/api/admin/users/${userId}/moderate`, {
+        method: "POST",
+        body: JSON.stringify({ action, reason, ipAddress: ipAddress || undefined }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/banned-identifiers"] });
+      setModerationDialog(null);
+      setModerationReason("");
+      setIpAddress("");
+      toast({
+        title: "Success",
+        description: "User moderation action applied",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to moderate user",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const removeBannedIdentifierMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiRequest(`/api/admin/banned-identifiers/${id}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/banned-identifiers"] });
+      toast({
+        title: "Success",
+        description: "Banned identifier removed",
+      });
+    },
+  });
+
+  const handleModerateUser = () => {
+    if (!moderationDialog || !moderationReason.trim()) {
+      toast({
+        title: "Error",
+        description: "Please provide a reason for moderation",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    moderateUserMutation.mutate({
+      userId: moderationDialog.userId,
+      action: moderationDialog.action,
+      reason: moderationReason,
+      ipAddress: ipAddress,
+    });
+  };
+
+  const getStatusBadge = (status: string) => {
+    const statusColors: Record<string, { variant: any; className: string }> = {
+      active: { variant: "secondary", className: "bg-green-100 text-green-700" },
+      warned: { variant: "secondary", className: "bg-yellow-100 text-yellow-700" },
+      suspended: { variant: "secondary", className: "bg-orange-100 text-orange-700" },
+      banned: { variant: "secondary", className: "bg-red-100 text-red-700" },
+      kicked: { variant: "secondary", className: "bg-gray-100 text-gray-700" },
+    };
+    const config = statusColors[status] || statusColors.active;
+    return <Badge variant={config.variant} className={config.className}>{status}</Badge>;
+  };
+
   if (isLoading) return <div>Loading...</div>;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>User Management</CardTitle>
-        <CardDescription>Manage user accounts, roles, and plans</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Verified</TableHead>
-              <TableHead>Admin</TableHead>
-              <TableHead>Plan</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {users.map((user) => (
-              <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
-                <TableCell>{user.firstName} {user.lastName}</TableCell>
-                <TableCell>{user.email}</TableCell>
-                <TableCell>
-                  {user.isVerified ? (
-                    <Badge variant="secondary" className="bg-green-100 text-green-700">Verified</Badge>
-                  ) : (
-                    <Badge variant="secondary">Not Verified</Badge>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {user.isAdmin ? (
-                    <Badge className="bg-primary">Admin</Badge>
-                  ) : (
-                    <Badge variant="outline">User</Badge>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Select
-                    value={user.planId || ""}
-                    onValueChange={(planId) => updateUserMutation.mutate({ id: user.id, data: { planId } })}
-                  >
-                    <SelectTrigger className="w-40" data-testid={`select-plan-${user.id}`}>
-                      <SelectValue placeholder="No plan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {plans.map((plan) => (
-                        <SelectItem key={plan.id} value={plan.id}>
-                          {plan.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      updateUserMutation.mutate({
-                        id: user.id,
-                        data: { isAdmin: !user.isAdmin },
-                      })
-                    }
-                    data-testid={`button-toggle-admin-${user.id}`}
-                  >
-                    {user.isAdmin ? "Remove Admin" : "Make Admin"}
-                  </Button>
-                </TableCell>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>User Management</CardTitle>
+          <CardDescription>Manage user accounts, roles, plans, and moderation</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Verified</TableHead>
+                <TableHead>Admin</TableHead>
+                <TableHead>Plan</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+            </TableHeader>
+            <TableBody>
+              {users.map((user) => (
+                <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
+                  <TableCell>{user.firstName} {user.lastName}</TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell data-testid={`status-${user.id}`}>
+                    {getStatusBadge(user.status)}
+                  </TableCell>
+                  <TableCell>
+                    {user.isVerified ? (
+                      <Badge variant="secondary" className="bg-green-100 text-green-700">Verified</Badge>
+                    ) : (
+                      <Badge variant="secondary">Not Verified</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {user.isAdmin ? (
+                      <Badge className="bg-primary">Admin</Badge>
+                    ) : (
+                      <Badge variant="outline">User</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      value={user.planId || ""}
+                      onValueChange={(planId) => updateUserMutation.mutate({ id: user.id, data: { planId } })}
+                    >
+                      <SelectTrigger className="w-40" data-testid={`select-plan-${user.id}`}>
+                        <SelectValue placeholder="No plan" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {plans.map((plan) => (
+                          <SelectItem key={plan.id} value={plan.id}>
+                            {plan.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          updateUserMutation.mutate({
+                            id: user.id,
+                            data: { isAdmin: !user.isAdmin },
+                          })
+                        }
+                        data-testid={`button-toggle-admin-${user.id}`}
+                      >
+                        {user.isAdmin ? "Remove Admin" : "Make Admin"}
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" data-testid={`button-moderate-${user.id}`}>
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem
+                            onClick={() => setModerationDialog({ open: true, userId: user.id, action: "warn" })}
+                            data-testid={`button-warn-${user.id}`}
+                          >
+                            <AlertCircle className="w-4 h-4 mr-2" />
+                            Warn User
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setModerationDialog({ open: true, userId: user.id, action: "suspend" })}
+                            data-testid={`button-suspend-${user.id}`}
+                          >
+                            <XCircle className="w-4 h-4 mr-2" />
+                            Suspend User
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setModerationDialog({ open: true, userId: user.id, action: "ban" })}
+                            data-testid={`button-ban-${user.id}`}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Ban User
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setModerationDialog({ open: true, userId: user.id, action: "kick" })}
+                            data-testid={`button-kick-${user.id}`}
+                          >
+                            <XCircle className="w-4 h-4 mr-2" />
+                            Kick User
+                          </DropdownMenuItem>
+                          {user.status !== "active" && (
+                            <DropdownMenuItem
+                              onClick={() => setModerationDialog({ open: true, userId: user.id, action: "reactivate" })}
+                              data-testid={`button-reactivate-${user.id}`}
+                            >
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                              Reactivate User
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setHistoryDialog({ open: true, userId: user.id })}
+                        data-testid={`button-history-${user.id}`}
+                      >
+                        <History className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Collapsible open={bannedIdentifiersOpen} onOpenChange={setBannedIdentifiersOpen}>
+        <Card>
+          <CardHeader>
+            <CollapsibleTrigger asChild>
+              <div className="flex items-center justify-between cursor-pointer" data-testid="button-toggle-banned-identifiers">
+                <div>
+                  <CardTitle>Banned Identifiers</CardTitle>
+                  <CardDescription>IP addresses, emails, and phone numbers that are banned</CardDescription>
+                </div>
+                {bannedIdentifiersOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+              </div>
+            </CollapsibleTrigger>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Value</TableHead>
+                    <TableHead>Reason</TableHead>
+                    <TableHead>Banned Date</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {bannedIdentifiers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground">
+                        No banned identifiers
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    bannedIdentifiers.map((identifier: any) => (
+                      <TableRow key={identifier.id} data-testid={`row-banned-${identifier.id}`}>
+                        <TableCell>{identifier.identifierType}</TableCell>
+                        <TableCell>{identifier.identifierValue}</TableCell>
+                        <TableCell>{identifier.reason}</TableCell>
+                        <TableCell>{new Date(identifier.createdAt).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => removeBannedIdentifierMutation.mutate(identifier.id)}
+                            data-testid={`button-remove-banned-${identifier.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      <Dialog open={moderationDialog?.open || false} onOpenChange={(open) => !open && setModerationDialog(null)}>
+        <DialogContent data-testid="dialog-moderation">
+          <DialogHeader>
+            <DialogTitle>Moderate User</DialogTitle>
+            <DialogDescription>
+              {moderationDialog?.action === "warn" && "Issue a warning to this user"}
+              {moderationDialog?.action === "suspend" && "Temporarily suspend this user's account"}
+              {moderationDialog?.action === "ban" && "Permanently ban this user (will track IP, email, and phone)"}
+              {moderationDialog?.action === "kick" && "Temporarily block this user"}
+              {moderationDialog?.action === "reactivate" && "Reactivate this user's account"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="moderation-reason">Reason (required)</Label>
+              <Textarea
+                id="moderation-reason"
+                value={moderationReason}
+                onChange={(e) => setModerationReason(e.target.value)}
+                placeholder="Provide a reason for this moderation action..."
+                data-testid="input-moderation-reason"
+              />
+            </div>
+            <div>
+              <Label htmlFor="moderation-ip">IP Address (Optional)</Label>
+              <Input
+                id="moderation-ip"
+                value={ipAddress}
+                onChange={(e) => setIpAddress(e.target.value)}
+                placeholder="e.g., 192.168.1.1 (optional)"
+                data-testid="input-moderation-ip"
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                Enter user's IP address if known. Helps prevent ban circumvention.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setModerationDialog(null)}
+              data-testid="button-cancel-moderation"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleModerateUser}
+              disabled={moderateUserMutation.isPending}
+              data-testid="button-confirm-moderation"
+            >
+              {moderateUserMutation.isPending ? "Processing..." : "Confirm"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={historyDialog?.open || false} onOpenChange={(open) => !open && setHistoryDialog(null)}>
+        <DialogContent className="max-w-3xl" data-testid="dialog-history">
+          <DialogHeader>
+            <DialogTitle>Moderation History</DialogTitle>
+            <DialogDescription>All moderation actions for this user</DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead>Admin</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {moderationHistory.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                      No moderation history
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  moderationHistory.map((action: any) => (
+                    <TableRow key={action.id} data-testid={`row-history-${action.id}`}>
+                      <TableCell>{new Date(action.createdAt).toLocaleString()}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{action.action}</Badge>
+                      </TableCell>
+                      <TableCell>{action.reason}</TableCell>
+                      <TableCell>{action.adminId || "System"}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setHistoryDialog(null)} data-testid="button-close-history">
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
@@ -399,10 +714,92 @@ function ServicesManagement() {
 function CategorySuggestionsManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [categoryDialog, setCategoryDialog] = useState<{ open: boolean; category?: Category } | null>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
+  const [categoryForm, setCategoryForm] = useState({
+    name: "",
+    slug: "",
+    icon: "",
+  });
 
-  const { data: suggestions = [], isLoading } = useQuery<SubmittedCategory[]>({
+  const { data: categories = [], isLoading: isLoadingCategories } = useQuery<Category[]>({
+    queryKey: ["/api/categories"],
+    queryFn: () => apiRequest("/api/categories"),
+  });
+
+  const { data: suggestions = [], isLoading: isLoadingSuggestions } = useQuery<SubmittedCategory[]>({
     queryKey: ["/api/admin/category-suggestions"],
     queryFn: () => apiRequest("/api/admin/category-suggestions"),
+  });
+
+  const createCategoryMutation = useMutation({
+    mutationFn: (data: any) =>
+      apiRequest("/api/categories", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+      setCategoryDialog(null);
+      resetCategoryForm();
+      toast({
+        title: "Success",
+        description: "Category created successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create category",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateCategoryMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
+      apiRequest(`/api/admin/categories/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+      setCategoryDialog(null);
+      resetCategoryForm();
+      toast({
+        title: "Success",
+        description: "Category updated successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update category",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiRequest(`/api/admin/categories/${id}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+      setCategoryToDelete(null);
+      toast({
+        title: "Success",
+        description: "Category deleted successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete category",
+        variant: "destructive",
+      });
+    },
   });
 
   const updateSuggestionMutation = useMutation({
@@ -420,98 +817,432 @@ function CategorySuggestionsManagement() {
     },
   });
 
-  if (isLoading) return <div>Loading...</div>;
+  const resetCategoryForm = () => {
+    setCategoryForm({
+      name: "",
+      slug: "",
+      icon: "",
+    });
+  };
+
+  const openCreateDialog = () => {
+    resetCategoryForm();
+    setCategoryDialog({ open: true });
+  };
+
+  const openEditDialog = (category: Category) => {
+    setCategoryForm({
+      name: category.name,
+      slug: category.slug,
+      icon: category.icon || "",
+    });
+    setCategoryDialog({ open: true, category });
+  };
+
+  const handleSaveCategory = () => {
+    if (categoryDialog?.category) {
+      updateCategoryMutation.mutate({ id: categoryDialog.category.id, data: categoryForm });
+    } else {
+      createCategoryMutation.mutate(categoryForm);
+    }
+  };
+
+  if (isLoadingCategories || isLoadingSuggestions) return <div>Loading...</div>;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Category Suggestions</CardTitle>
-        <CardDescription>Review and manage user-submitted categories</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {suggestions.map((suggestion: any) => (
-              <TableRow key={suggestion.id} data-testid={`row-suggestion-${suggestion.id}`}>
-                <TableCell className="font-medium">{suggestion.name}</TableCell>
-                <TableCell>{suggestion.description}</TableCell>
-                <TableCell>
-                  <Badge
-                    variant={
-                      suggestion.status === "approved"
-                        ? "default"
-                        : suggestion.status === "rejected"
-                        ? "destructive"
-                        : "secondary"
-                    }
-                  >
-                    {suggestion.status}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  {suggestion.status === "pending" && (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Categories</CardTitle>
+              <CardDescription>Manage service categories</CardDescription>
+            </div>
+            <Button onClick={openCreateDialog} data-testid="button-add-category">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Category
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Slug</TableHead>
+                <TableHead>Icon</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {categories.map((category) => (
+                <TableRow key={category.id} data-testid={`row-category-${category.id}`}>
+                  <TableCell className="font-medium">{category.name}</TableCell>
+                  <TableCell>{category.slug}</TableCell>
+                  <TableCell>{category.icon || "-"}</TableCell>
+                  <TableCell>
                     <div className="flex gap-2">
                       <Button
-                        variant="default"
+                        variant="outline"
                         size="sm"
-                        onClick={() =>
-                          updateSuggestionMutation.mutate({
-                            id: suggestion.id,
-                            status: "approved",
-                          })
-                        }
-                        data-testid={`button-approve-${suggestion.id}`}
+                        onClick={() => openEditDialog(category)}
+                        data-testid={`button-edit-category-${category.id}`}
                       >
-                        <CheckCircle className="w-4 h-4 mr-1" />
-                        Approve
+                        <Edit className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={() =>
-                          updateSuggestionMutation.mutate({
-                            id: suggestion.id,
-                            status: "rejected",
-                          })
-                        }
-                        data-testid={`button-reject-${suggestion.id}`}
+                        onClick={() => setCategoryToDelete(category.id)}
+                        data-testid={`button-delete-category-${category.id}`}
                       >
-                        <XCircle className="w-4 h-4 mr-1" />
-                        Reject
+                        <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
-                  )}
-                </TableCell>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Category Suggestions</CardTitle>
+          <CardDescription>Review and manage user-submitted category suggestions</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+            </TableHeader>
+            <TableBody>
+              {suggestions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-muted-foreground">
+                    No category suggestions
+                  </TableCell>
+                </TableRow>
+              ) : (
+                suggestions.map((suggestion: any) => (
+                  <TableRow key={suggestion.id} data-testid={`row-suggestion-${suggestion.id}`}>
+                    <TableCell className="font-medium">{suggestion.name}</TableCell>
+                    <TableCell>{suggestion.description}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          suggestion.status === "approved"
+                            ? "default"
+                            : suggestion.status === "rejected"
+                            ? "destructive"
+                            : "secondary"
+                        }
+                      >
+                        {suggestion.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {suggestion.status === "pending" && (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() =>
+                              updateSuggestionMutation.mutate({
+                                id: suggestion.id,
+                                status: "approved",
+                              })
+                            }
+                            data-testid={`button-approve-${suggestion.id}`}
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() =>
+                              updateSuggestionMutation.mutate({
+                                id: suggestion.id,
+                                status: "rejected",
+                              })
+                            }
+                            data-testid={`button-reject-${suggestion.id}`}
+                          >
+                            <XCircle className="w-4 h-4 mr-1" />
+                            Reject
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Dialog open={categoryDialog?.open || false} onOpenChange={(open) => !open && setCategoryDialog(null)}>
+        <DialogContent data-testid="dialog-category">
+          <DialogHeader>
+            <DialogTitle>{categoryDialog?.category ? "Edit Category" : "Add Category"}</DialogTitle>
+            <DialogDescription>
+              {categoryDialog?.category ? "Update category details" : "Create a new service category"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="category-name">Name</Label>
+              <Input
+                id="category-name"
+                value={categoryForm.name}
+                onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
+                placeholder="Plumbing"
+                data-testid="input-category-name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="category-slug">Slug</Label>
+              <Input
+                id="category-slug"
+                value={categoryForm.slug}
+                onChange={(e) => setCategoryForm({ ...categoryForm, slug: e.target.value })}
+                placeholder="plumbing"
+                data-testid="input-category-slug"
+              />
+            </div>
+            <div>
+              <Label htmlFor="category-icon">Icon (optional)</Label>
+              <Input
+                id="category-icon"
+                value={categoryForm.icon}
+                onChange={(e) => setCategoryForm({ ...categoryForm, icon: e.target.value })}
+                placeholder="wrench"
+                data-testid="input-category-icon"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCategoryDialog(null)}
+              data-testid="button-cancel-category"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveCategory}
+              disabled={createCategoryMutation.isPending || updateCategoryMutation.isPending}
+              data-testid="button-save-category"
+            >
+              {(createCategoryMutation.isPending || updateCategoryMutation.isPending) ? "Saving..." : "Save Category"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!categoryToDelete} onOpenChange={() => setCategoryToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Category?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this category? Services using this category may be affected. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-category">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => categoryToDelete && deleteCategoryMutation.mutate(categoryToDelete)}
+              className="bg-destructive hover:bg-destructive/90"
+              data-testid="button-confirm-delete-category"
+            >
+              Delete Category
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 }
 
 function PlansManagement() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [planDialog, setPlanDialog] = useState<{ open: boolean; plan?: Plan } | null>(null);
+  const [planToDelete, setPlanToDelete] = useState<string | null>(null);
+  const [planForm, setPlanForm] = useState({
+    name: "",
+    slug: "",
+    description: "",
+    priceMonthly: "",
+    priceYearly: "",
+    maxImages: "4",
+    listingDurationDays: "14",
+    canRenew: true,
+    featuredListing: false,
+    prioritySupport: false,
+    analyticsAccess: false,
+    customBranding: false,
+    isActive: true,
+    sortOrder: "0",
+  });
+
   const { data: plans = [], isLoading } = useQuery<Plan[]>({
     queryKey: ["/api/plans"],
     queryFn: () => apiRequest("/api/plans"),
   });
 
+  const createPlanMutation = useMutation({
+    mutationFn: (data: any) =>
+      apiRequest("/api/admin/plans", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/plans"] });
+      setPlanDialog(null);
+      resetPlanForm();
+      toast({
+        title: "Success",
+        description: "Plan created successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create plan",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updatePlanMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
+      apiRequest(`/api/admin/plans/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/plans"] });
+      setPlanDialog(null);
+      resetPlanForm();
+      toast({
+        title: "Success",
+        description: "Plan updated successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update plan",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deletePlanMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiRequest(`/api/admin/plans/${id}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/plans"] });
+      setPlanToDelete(null);
+      toast({
+        title: "Success",
+        description: "Plan deleted successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete plan",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resetPlanForm = () => {
+    setPlanForm({
+      name: "",
+      slug: "",
+      description: "",
+      priceMonthly: "",
+      priceYearly: "",
+      maxImages: "4",
+      listingDurationDays: "14",
+      canRenew: true,
+      featuredListing: false,
+      prioritySupport: false,
+      analyticsAccess: false,
+      customBranding: false,
+      isActive: true,
+      sortOrder: "0",
+    });
+  };
+
+  const openCreateDialog = () => {
+    resetPlanForm();
+    setPlanDialog({ open: true });
+  };
+
+  const openEditDialog = (plan: Plan) => {
+    setPlanForm({
+      name: plan.name,
+      slug: plan.slug,
+      description: plan.description || "",
+      priceMonthly: plan.priceMonthly,
+      priceYearly: plan.priceYearly,
+      maxImages: String(plan.maxImages),
+      listingDurationDays: String(plan.listingDurationDays),
+      canRenew: plan.canRenew,
+      featuredListing: plan.featuredListing,
+      prioritySupport: plan.prioritySupport,
+      analyticsAccess: plan.analyticsAccess,
+      customBranding: plan.customBranding,
+      isActive: plan.isActive,
+      sortOrder: String(plan.sortOrder),
+    });
+    setPlanDialog({ open: true, plan });
+  };
+
+  const handleSavePlan = () => {
+    const data = {
+      ...planForm,
+      maxImages: parseInt(planForm.maxImages),
+      listingDurationDays: parseInt(planForm.listingDurationDays),
+      sortOrder: parseInt(planForm.sortOrder),
+    };
+
+    if (planDialog?.plan) {
+      updatePlanMutation.mutate({ id: planDialog.plan.id, data });
+    } else {
+      createPlanMutation.mutate(data);
+    }
+  };
+
   if (isLoading) return <div>Loading...</div>;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Plan Management</CardTitle>
-        <CardDescription>View and manage subscription plans</CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Plan Management</CardTitle>
+            <CardDescription>Create, view, and manage subscription plans</CardDescription>
+          </div>
+          <Button onClick={openCreateDialog} data-testid="button-add-plan">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Plan
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <Table>
@@ -522,6 +1253,8 @@ function PlansManagement() {
               <TableHead>Max Images</TableHead>
               <TableHead>Listing Duration</TableHead>
               <TableHead>Features</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -532,11 +1265,36 @@ function PlansManagement() {
                 <TableCell>{plan.maxImages}</TableCell>
                 <TableCell>{plan.listingDurationDays} days</TableCell>
                 <TableCell>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 flex-wrap">
                     {plan.featuredListing && <Badge variant="secondary">Featured</Badge>}
                     {plan.prioritySupport && <Badge variant="secondary">Priority Support</Badge>}
                     {plan.analyticsAccess && <Badge variant="secondary">Analytics</Badge>}
                     {plan.customBranding && <Badge variant="secondary">Branding</Badge>}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={plan.isActive ? "default" : "secondary"}>
+                    {plan.isActive ? "Active" : "Inactive"}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEditDialog(plan)}
+                      data-testid={`button-edit-plan-${plan.id}`}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setPlanToDelete(plan.id)}
+                      data-testid={`button-delete-plan-${plan.id}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </TableCell>
               </TableRow>
@@ -544,6 +1302,205 @@ function PlansManagement() {
           </TableBody>
         </Table>
       </CardContent>
+
+      <Dialog open={planDialog?.open || false} onOpenChange={(open) => !open && setPlanDialog(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="dialog-plan">
+          <DialogHeader>
+            <DialogTitle>{planDialog?.plan ? "Edit Plan" : "Add Plan"}</DialogTitle>
+            <DialogDescription>
+              {planDialog?.plan ? "Update plan details" : "Create a new subscription plan"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="plan-name">Name</Label>
+                <Input
+                  id="plan-name"
+                  value={planForm.name}
+                  onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
+                  placeholder="Basic Plan"
+                  data-testid="input-plan-name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="plan-slug">Slug</Label>
+                <Input
+                  id="plan-slug"
+                  value={planForm.slug}
+                  onChange={(e) => setPlanForm({ ...planForm, slug: e.target.value })}
+                  placeholder="basic-plan"
+                  data-testid="input-plan-slug"
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="plan-description">Description</Label>
+              <Textarea
+                id="plan-description"
+                value={planForm.description}
+                onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })}
+                placeholder="Plan description..."
+                data-testid="input-plan-description"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="plan-price-monthly">Price Monthly (CHF)</Label>
+                <Input
+                  id="plan-price-monthly"
+                  type="number"
+                  step="0.01"
+                  value={planForm.priceMonthly}
+                  onChange={(e) => setPlanForm({ ...planForm, priceMonthly: e.target.value })}
+                  placeholder="9.99"
+                  data-testid="input-plan-price-monthly"
+                />
+              </div>
+              <div>
+                <Label htmlFor="plan-price-yearly">Price Yearly (CHF)</Label>
+                <Input
+                  id="plan-price-yearly"
+                  type="number"
+                  step="0.01"
+                  value={planForm.priceYearly}
+                  onChange={(e) => setPlanForm({ ...planForm, priceYearly: e.target.value })}
+                  placeholder="99.99"
+                  data-testid="input-plan-price-yearly"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="plan-max-images">Max Images</Label>
+                <Input
+                  id="plan-max-images"
+                  type="number"
+                  value={planForm.maxImages}
+                  onChange={(e) => setPlanForm({ ...planForm, maxImages: e.target.value })}
+                  data-testid="input-plan-max-images"
+                />
+              </div>
+              <div>
+                <Label htmlFor="plan-duration">Listing Duration (days)</Label>
+                <Input
+                  id="plan-duration"
+                  type="number"
+                  value={planForm.listingDurationDays}
+                  onChange={(e) => setPlanForm({ ...planForm, listingDurationDays: e.target.value })}
+                  data-testid="input-plan-duration"
+                />
+              </div>
+              <div>
+                <Label htmlFor="plan-sort-order">Sort Order</Label>
+                <Input
+                  id="plan-sort-order"
+                  type="number"
+                  value={planForm.sortOrder}
+                  onChange={(e) => setPlanForm({ ...planForm, sortOrder: e.target.value })}
+                  data-testid="input-plan-sort-order"
+                />
+              </div>
+            </div>
+            <div className="space-y-3">
+              <Label>Features</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="can-renew"
+                    checked={planForm.canRenew}
+                    onCheckedChange={(checked) => setPlanForm({ ...planForm, canRenew: !!checked })}
+                    data-testid="checkbox-can-renew"
+                  />
+                  <Label htmlFor="can-renew" className="font-normal">Can Renew</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="featured-listing"
+                    checked={planForm.featuredListing}
+                    onCheckedChange={(checked) => setPlanForm({ ...planForm, featuredListing: !!checked })}
+                    data-testid="checkbox-featured-listing"
+                  />
+                  <Label htmlFor="featured-listing" className="font-normal">Featured Listing</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="priority-support"
+                    checked={planForm.prioritySupport}
+                    onCheckedChange={(checked) => setPlanForm({ ...planForm, prioritySupport: !!checked })}
+                    data-testid="checkbox-priority-support"
+                  />
+                  <Label htmlFor="priority-support" className="font-normal">Priority Support</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="analytics-access"
+                    checked={planForm.analyticsAccess}
+                    onCheckedChange={(checked) => setPlanForm({ ...planForm, analyticsAccess: !!checked })}
+                    data-testid="checkbox-analytics-access"
+                  />
+                  <Label htmlFor="analytics-access" className="font-normal">Analytics Access</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="custom-branding"
+                    checked={planForm.customBranding}
+                    onCheckedChange={(checked) => setPlanForm({ ...planForm, customBranding: !!checked })}
+                    data-testid="checkbox-custom-branding"
+                  />
+                  <Label htmlFor="custom-branding" className="font-normal">Custom Branding</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="is-active"
+                    checked={planForm.isActive}
+                    onCheckedChange={(checked) => setPlanForm({ ...planForm, isActive: !!checked })}
+                    data-testid="checkbox-is-active"
+                  />
+                  <Label htmlFor="is-active" className="font-normal">Is Active</Label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setPlanDialog(null)}
+              data-testid="button-cancel-plan"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSavePlan}
+              disabled={createPlanMutation.isPending || updatePlanMutation.isPending}
+              data-testid="button-save-plan"
+            >
+              {(createPlanMutation.isPending || updatePlanMutation.isPending) ? "Saving..." : "Save Plan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!planToDelete} onOpenChange={() => setPlanToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Plan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this plan? Users currently on this plan may be affected. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-plan">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => planToDelete && deletePlanMutation.mutate(planToDelete)}
+              className="bg-destructive hover:bg-destructive/90"
+              data-testid="button-confirm-delete-plan"
+            >
+              Delete Plan
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
