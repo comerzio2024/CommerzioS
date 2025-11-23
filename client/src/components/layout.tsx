@@ -50,9 +50,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <div className="text-sm text-muted-foreground">Loading...</div>
               ) : isAuthenticated && user ? (
                 <>
-                  <Link href="/dashboard">
-                    <Button variant="ghost" className="gap-2">
-                      Dashboard
+                  <Link href="/profile">
+                    <Button variant="ghost" className="gap-2" data-testid="link-profile">
+                      Profile
                     </Button>
                   </Link>
                   <Button 
@@ -74,16 +74,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => setLocation("/dashboard")} data-testid="menu-item-dashboard">My Dashboard</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setLocation("/favorites")} data-testid="menu-item-favorites">
                         <Heart className="w-4 h-4 mr-2" />
                         Favorites
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setLocation(`/users/${user.id}`)} data-testid="menu-item-profile">My Profile</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setLocation("/settings")} data-testid="menu-item-settings">
-                        <Settings className="w-4 h-4 mr-2" />
-                        Settings
-                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setLocation(`/users/${user.id}`)} data-testid="menu-item-public-profile">My Public Profile</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => window.location.href = "/api/logout"} className="text-destructive" data-testid="menu-item-logout">
                         <LogOut className="w-4 h-4 mr-2" />
                         Log out
@@ -116,7 +111,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <div className="flex flex-col gap-6 mt-8">
                   <Link href="/"><span className="text-lg font-medium cursor-pointer">Explore</span></Link>
                   <Link href="/categories"><span className="text-lg font-medium cursor-pointer">Categories</span></Link>
-                  <Link href="/dashboard"><span className="text-lg font-medium cursor-pointer">Dashboard</span></Link>
+                  <Link href="/profile"><span className="text-lg font-medium cursor-pointer">Profile</span></Link>
                   <Link href="/favorites"><span className="text-lg font-medium cursor-pointer">Favorites</span></Link>
                   <div className="h-px bg-border my-2" />
                   <Button 
