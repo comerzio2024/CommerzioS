@@ -518,104 +518,449 @@ export default function Profile() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="mb-6 bg-white p-1 border border-border">
               <TabsTrigger value="profile" data-testid="tab-profile">Profile</TabsTrigger>
-              <TabsTrigger value="services" data-testid="tab-my-services">My Services</TabsTrigger>
+              <TabsTrigger value="services" data-testid="tab-my-services">My Listings</TabsTrigger>
               <TabsTrigger value="reviews" data-testid="tab-reviews">Reviews ({receivedReviews.length})</TabsTrigger>
-              <TabsTrigger value="settings" data-testid="tab-settings">Settings</TabsTrigger>
-              <TabsTrigger value="account" data-testid="tab-account">Account</TabsTrigger>
             </TabsList>
 
             <TabsContent value="profile" data-testid="panel-profile" className="space-y-6">
-              <div className="bg-white rounded-xl border border-border shadow-sm p-8">
-                <h2 className="text-2xl font-bold mb-6">Your Profile</h2>
-                
-                {/* Profile Header */}
-                <div className="flex flex-col items-center text-center mb-8 pb-8 border-b">
-                  <img
-                    src={user?.profileImageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.id}`}
-                    alt={`${user?.firstName} ${user?.lastName}`}
-                    className="w-24 h-24 rounded-full ring-4 ring-slate-100 mb-4"
-                    data-testid="img-profile-avatar"
-                  />
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-2xl font-bold">{user?.firstName} {user?.lastName}</h3>
-                    {user?.isVerified && (
-                      <CheckCircle2 className="w-5 h-5 text-primary fill-primary/10" />
-                    )}
+              {/* Profile Header Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-3xl">Your Profile</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col items-center text-center mb-8 pb-8 border-b">
+                    <img
+                      src={user?.profileImageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.id}`}
+                      alt={`${user?.firstName} ${user?.lastName}`}
+                      className="w-24 h-24 rounded-full ring-4 ring-slate-100 mb-4"
+                      data-testid="img-profile-avatar"
+                    />
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="text-2xl font-bold">{user?.firstName} {user?.lastName}</h3>
+                      {user?.isVerified && (
+                        <CheckCircle2 className="w-5 h-5 text-primary fill-primary/10" />
+                      )}
+                    </div>
+                    <p className="text-muted-foreground mb-4">{user?.email}</p>
+                    <div className="flex gap-2 flex-wrap justify-center">
+                      {user?.isVerified && (
+                        <Badge variant="secondary" className="flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Verified
+                        </Badge>
+                      )}
+                      {user?.marketingPackage && (
+                        <Badge variant="outline" className="capitalize">
+                          {user.marketingPackage} Plan
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-muted-foreground mb-4">{user?.email}</p>
-                  <div className="flex gap-2 flex-wrap justify-center">
-                    {user?.isVerified && (
-                      <Badge variant="secondary" className="flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" />
-                        Verified
-                      </Badge>
-                    )}
-                    {user?.marketingPackage && (
-                      <Badge variant="outline" className="capitalize">
-                        {user.marketingPackage} Plan
-                      </Badge>
-                    )}
-                  </div>
-                </div>
+                </CardContent>
+              </Card>
 
-                {/* Profile Edit Form */}
-                <form onSubmit={handleProfileSubmit} className="space-y-6 max-w-md mx-auto">
-                  <div>
-                    <Label htmlFor="firstName">First Name</Label>
-                    <Input
-                      id="firstName"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      data-testid="input-profile-firstName"
-                    />
+              {/* Profile Picture Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Profile Picture</CardTitle>
+                  <CardDescription>Upload and customize your profile picture</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col items-center gap-6">
+                    <Avatar className="w-32 h-32 ring-4 ring-slate-100">
+                      <AvatarImage 
+                        src={user?.profileImageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.id}`}
+                        alt={`${user?.firstName} ${user?.lastName}`}
+                      />
+                      <AvatarFallback>
+                        <UserIcon className="w-16 h-16 text-muted-foreground" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex gap-3">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                        data-testid="input-profile-picture"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={updateProfileMutation.isPending}
+                        data-testid="button-change-photo"
+                      >
+                        <Camera className="w-4 h-4 mr-2" />
+                        Change Photo
+                      </Button>
+                    </div>
+                    <p className="text-sm text-muted-foreground text-center max-w-md">
+                      Recommended: Square image, at least 400x400 pixels. JPG, PNG, or GIF.
+                    </p>
                   </div>
-                  <div>
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input
-                      id="lastName"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      data-testid="input-profile-lastName"
-                    />
+                </CardContent>
+              </Card>
+
+              {/* Personal Information Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Personal Information</CardTitle>
+                  <CardDescription>Update your personal details</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleProfileSubmit} className="space-y-4">
+                    <div>
+                      <Label htmlFor="firstName">First Name</Label>
+                      <Input
+                        id="firstName"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="Enter your first name"
+                        data-testid="input-firstName"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="lastName">Last Name</Label>
+                      <Input
+                        id="lastName"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder="Enter your last name"
+                        data-testid="input-lastName"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="phoneNumber">Phone Number</Label>
+                      <Input
+                        id="phoneNumber"
+                        type="tel"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        placeholder="+41 44 123 4567"
+                        className={phoneNumber && !validateSwissPhoneNumber(phoneNumber) ? "border-red-500" : ""}
+                        data-testid="input-phoneNumber"
+                      />
+                      {phoneNumber && !validateSwissPhoneNumber(phoneNumber) && (
+                        <p className="text-sm text-red-500 mt-1">
+                          Phone number must start with +41 (e.g., +41 44 123 4567)
+                        </p>
+                      )}
+                    </div>
+                    <Button 
+                      type="submit" 
+                      disabled={updateProfileMutation.isPending}
+                      data-testid="button-save-profile"
+                    >
+                      {updateProfileMutation.isPending ? "Saving..." : "Save Changes"}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              {/* Location of Interest Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Location of Interest</CardTitle>
+                  <CardDescription>Set your main location to auto-load services on the home page</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="relative">
+                      <Label htmlFor="main-location-search">Search Location</Label>
+                      <div className="flex gap-2 mt-2">
+                        <Input
+                          id="main-location-search"
+                          type="text"
+                          placeholder="Enter postcode, city, or address..."
+                          value={mainLocationName}
+                          onChange={(e) => setMainLocationName(e.target.value)}
+                          data-testid="input-main-location"
+                        />
+                        <Button
+                          onClick={async () => {
+                            if (!mainLocationName.trim()) return;
+                            try {
+                              const result = await apiRequest<{lat: number; lng: number; displayName: string; name: string}>("/api/geocode", {
+                                method: "POST",
+                                body: JSON.stringify({ query: mainLocationName }),
+                              });
+                              setMainLocationLat(result.lat);
+                              setMainLocationLng(result.lng);
+                              setMainLocationName(result.name || result.displayName);
+                            } catch (error) {
+                              toast({
+                                title: "Location not found",
+                                description: "Please try a different search term",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                          data-testid="button-search-main-location"
+                        >
+                          Search
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    {mainLocationLat && mainLocationLng && (
+                      <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                        <div className="flex items-start gap-3">
+                          <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="font-medium text-slate-900">{mainLocationName}</p>
+                            <p className="text-sm text-slate-500 mt-1">
+                              {mainLocationLat.toFixed(4)}, {mainLocationLng.toFixed(4)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => updateProfileMutation.mutate({
+                          locationLat: mainLocationLat,
+                          locationLng: mainLocationLng,
+                          preferredLocationName: mainLocationName
+                        })}
+                        disabled={!mainLocationName || !mainLocationLat || !mainLocationLng || updateProfileMutation.isPending}
+                        data-testid="button-save-location"
+                      >
+                        {updateProfileMutation.isPending ? "Saving..." : "Save Location"}
+                      </Button>
+                      
+                      {mainLocationLat && mainLocationLng && (
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setMainLocationName("");
+                            setMainLocationLat(null);
+                            setMainLocationLng(null);
+                          }}
+                          data-testid="button-clear-location"
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="phoneNumber">Phone Number</Label>
-                    <Input
-                      id="phoneNumber"
-                      type="tel"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      placeholder="+41 44 123 4567"
-                      className={phoneNumber && !validateSwissPhoneNumber(phoneNumber) ? "border-red-500" : ""}
-                      data-testid="input-profile-phoneNumber"
-                    />
-                    {phoneNumber && !validateSwissPhoneNumber(phoneNumber) && (
-                      <p className="text-sm text-red-500 mt-1">
-                        Phone number must start with +41 (e.g., +41 44 123 4567)
-                      </p>
+                </CardContent>
+              </Card>
+
+              {/* Addresses Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Addresses</CardTitle>
+                  <CardDescription>Manage your saved addresses</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {addresses.length === 0 && !showAddressForm && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <MapPin className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p>No addresses saved yet</p>
+                      </div>
+                    )}
+
+                    {addresses.map((address) => (
+                      <div 
+                        key={address.id} 
+                        className="border rounded-lg p-4 space-y-2"
+                        data-testid={`address-card-${address.id}`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            {address.label && (
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="font-semibold">{address.label}</span>
+                                {address.isPrimary && (
+                                  <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded">
+                                    Primary
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            <p className="text-sm">{address.street}</p>
+                            <p className="text-sm">
+                              {address.postalCode} {address.city}
+                              {address.canton && `, ${address.canton}`}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditingAddress(address)}
+                              data-testid={`button-edit-address-${address.id}`}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setAddressToDelete(address.id)}
+                              className="text-destructive hover:text-destructive"
+                              data-testid={`button-delete-address-${address.id}`}
+                            >
+                              <Trash className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {editingAddress ? (
+                      <form onSubmit={handleAddressSubmit} className="border rounded-lg p-4 space-y-4 bg-slate-50">
+                        <div>
+                          <Label htmlFor="label">Label</Label>
+                          <Input
+                            id="label"
+                            value={addressForm.label}
+                            onChange={(e) => setAddressForm({...addressForm, label: e.target.value})}
+                            placeholder="e.g., Home, Office"
+                            data-testid="input-address-label"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="street">Street Address</Label>
+                          <Input
+                            id="street"
+                            value={addressForm.street}
+                            onChange={(e) => setAddressForm({...addressForm, street: e.target.value})}
+                            placeholder="Street address"
+                            data-testid="input-address-street"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="postalCode">Postal Code</Label>
+                            <Input
+                              id="postalCode"
+                              value={addressForm.postalCode}
+                              onChange={(e) => setAddressForm({...addressForm, postalCode: e.target.value})}
+                              placeholder="e.g., 8000"
+                              data-testid="input-address-postalCode"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="city">City</Label>
+                            <Input
+                              id="city"
+                              value={addressForm.city}
+                              onChange={(e) => setAddressForm({...addressForm, city: e.target.value})}
+                              placeholder="e.g., Zurich"
+                              data-testid="input-address-city"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label htmlFor="canton">Canton</Label>
+                          <Input
+                            id="canton"
+                            value={addressForm.canton}
+                            onChange={(e) => setAddressForm({...addressForm, canton: e.target.value})}
+                            placeholder="e.g., Zurich"
+                            data-testid="input-address-canton"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            id="isPrimary"
+                            type="checkbox"
+                            checked={addressForm.isPrimary}
+                            onChange={(e) => setAddressForm({...addressForm, isPrimary: e.target.checked})}
+                            className="w-4 h-4"
+                            data-testid="checkbox-address-isPrimary"
+                          />
+                          <Label htmlFor="isPrimary">Set as primary address</Label>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button 
+                            type="submit" 
+                            disabled={!addressForm.street || !addressForm.city || updateAddressMutation.isPending}
+                            data-testid="button-save-address"
+                          >
+                            {updateAddressMutation.isPending ? "Saving..." : "Save Address"}
+                          </Button>
+                          <Button
+                            type="button" 
+                            variant="outline" 
+                            onClick={cancelAddressForm}
+                            data-testid="button-cancel-address"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </form>
+                    ) : (
+                      <Button 
+                        onClick={() => setShowAddressForm(true)}
+                        className="w-full"
+                        variant="outline"
+                        data-testid="button-add-address"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add New Address
+                      </Button>
                     )}
                   </div>
+                </CardContent>
+              </Card>
+
+              {/* Account Information Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Account Information</CardTitle>
+                  <CardDescription>Your account details managed by Replit</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <div>
-                    <Label htmlFor="email">Email (managed by Replit)</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={user?.email || ""}
-                      disabled
-                      className="bg-muted"
-                      data-testid="input-profile-email-readonly"
-                    />
+                    <Label>Email</Label>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Input 
+                        value={user.email || ""} 
+                        disabled 
+                        className="bg-muted"
+                        data-testid="input-email-readonly"
+                      />
+                      <Button 
+                        variant="outline" 
+                        onClick={() => window.open('https://replit.com/account', '_blank')}
+                        data-testid="button-manage-email"
+                      >
+                        Manage on Replit
+                      </Button>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Email is managed through your Replit account
+                    </p>
                   </div>
-                  <Button 
-                    type="submit"
-                    disabled={updateProfileMutation.isPending}
-                    className="w-full"
-                    data-testid="button-save-profile"
-                  >
-                    {updateProfileMutation.isPending ? "Saving..." : "Save Changes"}
-                  </Button>
-                </form>
-              </div>
+                  <div>
+                    <Label>Password</Label>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Input 
+                        type="password" 
+                        value="••••••••" 
+                        disabled 
+                        className="bg-muted"
+                        data-testid="input-password-readonly"
+                      />
+                      <Button 
+                        variant="outline" 
+                        onClick={() => window.open('https://replit.com/account', '_blank')}
+                        data-testid="button-manage-password"
+                      >
+                        Manage on Replit
+                      </Button>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Password is managed through your Replit account
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
             
             <TabsContent value="services" data-testid="panel-my-services" className="space-y-6">
@@ -821,459 +1166,6 @@ export default function Profile() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="settings" data-testid="panel-settings" className="space-y-6">
-              {/* Profile Picture Card */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Profile Picture</CardTitle>
-                  <CardDescription>Upload and customize your profile picture</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col items-center gap-6">
-                    <Avatar className="w-32 h-32 ring-4 ring-slate-100">
-                      <AvatarImage 
-                        src={user?.profileImageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.id}`}
-                        alt={`${user?.firstName} ${user?.lastName}`}
-                      />
-                      <AvatarFallback>
-                        <UserIcon className="w-16 h-16 text-muted-foreground" />
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex gap-3">
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileSelect}
-                        className="hidden"
-                        data-testid="input-profile-picture"
-                      />
-                      <Button
-                        variant="outline"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={updateProfileMutation.isPending}
-                        data-testid="button-change-photo"
-                      >
-                        <Camera className="w-4 h-4 mr-2" />
-                        Change Photo
-                      </Button>
-                    </div>
-                    <p className="text-sm text-muted-foreground text-center max-w-md">
-                      Recommended: Square image, at least 400x400 pixels. JPG, PNG, or GIF.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Personal Information</CardTitle>
-                  <CardDescription>Update your personal details</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleProfileSubmit} className="space-y-4">
-                    <div>
-                      <Label htmlFor="firstName">First Name</Label>
-                      <Input
-                        id="firstName"
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
-                        placeholder="Enter your first name"
-                        data-testid="input-firstName"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="lastName">Last Name</Label>
-                      <Input
-                        id="lastName"
-                        value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
-                        placeholder="Enter your last name"
-                        data-testid="input-lastName"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="phoneNumber">Phone Number</Label>
-                      <Input
-                        id="phoneNumber"
-                        type="tel"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        placeholder="+41 44 123 4567"
-                        className={phoneNumber && !validateSwissPhoneNumber(phoneNumber) ? "border-red-500" : ""}
-                        data-testid="input-phoneNumber"
-                      />
-                      {phoneNumber && !validateSwissPhoneNumber(phoneNumber) && (
-                        <p className="text-sm text-red-500 mt-1">
-                          Phone number must start with +41 (e.g., +41 44 123 4567)
-                        </p>
-                      )}
-                    </div>
-                    <Button 
-                      type="submit" 
-                      disabled={updateProfileMutation.isPending}
-                      data-testid="button-save-profile"
-                    >
-                      {updateProfileMutation.isPending ? "Saving..." : "Save Changes"}
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Location of Interest</CardTitle>
-                  <CardDescription>Set your main location to auto-load services on the home page</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="relative">
-                      <Label htmlFor="main-location-search">Search Location</Label>
-                      <div className="flex gap-2 mt-2">
-                        <Input
-                          id="main-location-search"
-                          type="text"
-                          placeholder="Enter postcode, city, or address..."
-                          value={mainLocationName}
-                          onChange={(e) => setMainLocationName(e.target.value)}
-                          data-testid="input-main-location"
-                        />
-                        <Button
-                          onClick={async () => {
-                            if (!mainLocationName.trim()) return;
-                            try {
-                              const result = await apiRequest<{lat: number; lng: number; displayName: string; name: string}>("/api/geocode", {
-                                method: "POST",
-                                body: JSON.stringify({ query: mainLocationName }),
-                              });
-                              setMainLocationLat(result.lat);
-                              setMainLocationLng(result.lng);
-                              setMainLocationName(result.name || result.displayName);
-                            } catch (error) {
-                              toast({
-                                title: "Location not found",
-                                description: "Please try a different search term",
-                                variant: "destructive",
-                              });
-                            }
-                          }}
-                          data-testid="button-search-main-location"
-                        >
-                          Search
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    {mainLocationLat && mainLocationLng && (
-                      <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                        <div className="flex items-start gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                          <div>
-                            <p className="font-medium text-slate-900">{mainLocationName}</p>
-                            <p className="text-sm text-slate-500 mt-1">
-                              {mainLocationLat.toFixed(4)}, {mainLocationLng.toFixed(4)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => updateProfileMutation.mutate({
-                          locationLat: mainLocationLat,
-                          locationLng: mainLocationLng,
-                          preferredLocationName: mainLocationName
-                        })}
-                        disabled={!mainLocationName || !mainLocationLat || !mainLocationLng || updateProfileMutation.isPending}
-                        data-testid="button-save-location"
-                      >
-                        {updateProfileMutation.isPending ? "Saving..." : "Save Location"}
-                      </Button>
-                      
-                      {mainLocationLat && mainLocationLng && (
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setMainLocationName("");
-                            setMainLocationLat(null);
-                            setMainLocationLng(null);
-                          }}
-                          data-testid="button-clear-location"
-                        >
-                          Clear
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Addresses</CardTitle>
-                  <CardDescription>Manage your saved addresses</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {addresses.length === 0 && !showAddressForm && (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <MapPin className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p>No addresses saved yet</p>
-                      </div>
-                    )}
-
-                    {addresses.map((address) => (
-                      <div 
-                        key={address.id} 
-                        className="border rounded-lg p-4 space-y-2"
-                        data-testid={`address-card-${address.id}`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            {address.label && (
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className="font-semibold">{address.label}</span>
-                                {address.isPrimary && (
-                                  <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded">
-                                    Primary
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                            <p className="text-sm">{address.street}</p>
-                            <p className="text-sm">
-                              {address.postalCode} {address.city}
-                              {address.canton && `, ${address.canton}`}
-                            </p>
-                            <p className="text-sm text-muted-foreground">{address.country}</p>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => startEditAddress(address)}
-                              data-testid={`button-edit-${address.id}`}
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setAddressToDelete(address.id)}
-                              data-testid={`button-delete-${address.id}`}
-                            >
-                              <Trash2 className="w-4 h-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-
-                    {showAddressForm ? (
-                      <form onSubmit={handleAddressSubmit} className="border rounded-lg p-4 space-y-4 bg-muted/30">
-                        <h3 className="font-semibold">
-                          {editingAddress ? "Edit Address" : "Add New Address"}
-                        </h3>
-                        <div className="space-y-4">
-                          <div>
-                            <Label htmlFor="label">Label (optional)</Label>
-                            <Input
-                              id="label"
-                              value={addressForm.label}
-                              onChange={(e) => setAddressForm({ ...addressForm, label: e.target.value })}
-                              placeholder="e.g., Home, Work, Business"
-                              data-testid="input-address-label"
-                            />
-                          </div>
-                          
-                          <AddressAutocomplete
-                            onAddressSelect={(address) => {
-                              if (address) {
-                                setAddressForm({
-                                  ...addressForm,
-                                  street: address.street,
-                                  city: address.city,
-                                  postalCode: address.postalCode,
-                                  canton: address.canton,
-                                });
-                                setIsAddressValidated(true);
-                              } else {
-                                // Address cleared
-                                setAddressForm({
-                                  ...addressForm,
-                                  street: "",
-                                  city: "",
-                                  postalCode: "",
-                                  canton: "",
-                                });
-                                setIsAddressValidated(false);
-                              }
-                            }}
-                            label="Search Swiss Address"
-                            required
-                          />
-                          
-                          {isAddressValidated && (
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="col-span-2">
-                                <Label htmlFor="street">Street *</Label>
-                                <Input
-                                  id="street"
-                                  value={addressForm.street}
-                                  disabled
-                                  className="bg-muted"
-                                  data-testid="input-address-street"
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="postalCode">Postal Code *</Label>
-                                <Input
-                                  id="postalCode"
-                                  value={addressForm.postalCode}
-                                  disabled
-                                  className="bg-muted"
-                                  data-testid="input-address-postalCode"
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="city">City *</Label>
-                                <Input
-                                  id="city"
-                                  value={addressForm.city}
-                                  disabled
-                                  className="bg-muted"
-                                  data-testid="input-address-city"
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="canton">Canton</Label>
-                                <Input
-                                  id="canton"
-                                  value={addressForm.canton}
-                                  disabled
-                                  className="bg-muted"
-                                  data-testid="input-address-canton"
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="country">Country</Label>
-                                <Input
-                                  id="country"
-                                  value={addressForm.country}
-                                  disabled
-                                  className="bg-muted cursor-not-allowed"
-                                  data-testid="input-address-country"
-                                />
-                              </div>
-                            </div>
-                          )}
-                          
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              id="isPrimary"
-                              checked={addressForm.isPrimary}
-                              onChange={(e) => setAddressForm({ ...addressForm, isPrimary: e.target.checked })}
-                              className="rounded"
-                              data-testid="checkbox-address-isPrimary"
-                            />
-                            <Label htmlFor="isPrimary" className="cursor-pointer">
-                              Set as primary address
-                            </Label>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button 
-                            type="submit"
-                            disabled={createAddressMutation.isPending || updateAddressMutation.isPending}
-                            data-testid="button-save-address"
-                          >
-                            {createAddressMutation.isPending || updateAddressMutation.isPending
-                              ? "Saving..."
-                              : editingAddress
-                              ? "Update Address"
-                              : "Add Address"}
-                          </Button>
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            onClick={cancelAddressForm}
-                            data-testid="button-cancel-address"
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </form>
-                    ) : (
-                      <Button 
-                        onClick={() => setShowAddressForm(true)}
-                        className="w-full"
-                        variant="outline"
-                        data-testid="button-add-address"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add New Address
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="account" data-testid="panel-account">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Account Information</CardTitle>
-                  <CardDescription>Your account details managed by Replit</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label>Email</Label>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Input 
-                        value={user.email || ""} 
-                        disabled 
-                        className="bg-muted"
-                        data-testid="input-email-readonly"
-                      />
-                      <Button 
-                        variant="outline" 
-                        onClick={() => window.open('https://replit.com/account', '_blank')}
-                        data-testid="button-manage-email"
-                      >
-                        Manage on Replit
-                      </Button>
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Email is managed through your Replit account
-                    </p>
-                  </div>
-                  <div>
-                    <Label>Password</Label>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Input 
-                        type="password" 
-                        value="••••••••" 
-                        disabled 
-                        className="bg-muted"
-                        data-testid="input-password-readonly"
-                      />
-                      <Button 
-                        variant="outline" 
-                        onClick={() => window.open('https://replit.com/account', '_blank')}
-                        data-testid="button-manage-password"
-                      >
-                        Manage on Replit
-                      </Button>
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Password is managed through your Replit account
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
           </Tabs>
         </div>
       </div>
