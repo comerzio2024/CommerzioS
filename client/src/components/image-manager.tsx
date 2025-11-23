@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { X, Upload, Edit, Star } from "lucide-react";
+import { X, Upload, Edit, Star, Image as ImageIcon } from "lucide-react";
 import { ImageEditor } from "@/components/image-editor";
 import { uploadImage } from "@/lib/imageUpload";
 import { useToast } from "@/hooks/use-toast";
@@ -34,6 +34,9 @@ interface ImageManagerProps {
   onMainImageChange: (index: number) => void;
 }
 
+const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
 export function ImageManager({
   images,
   imageMetadata,
@@ -47,13 +50,52 @@ export function ImageManager({
   const [uploadingImage, setUploadingImage] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [dragCounter, setDragCounter] = useState(0);
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
+  const validateFiles = (files: File[]): { validFiles: File[]; errors: string[] } => {
+    const validFiles: File[] = [];
+    const errors: string[] = [];
+
+    for (const file of files) {
+      // Check file type
+      if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+        errors.push(`${file.name}: Invalid file type. Only JPG, PNG, WebP, and GIF images are allowed.`);
+        continue;
+      }
+
+      // Check file size
+      if (file.size > MAX_FILE_SIZE) {
+        const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+        errors.push(`${file.name}: File too large (${sizeMB}MB). Maximum size is 10MB.`);
+        continue;
+      }
+
+      validFiles.push(file);
+    }
+
+    return { validFiles, errors };
+  };
+
+  const processFiles = async (files: File[]) => {
     if (files.length === 0) return;
 
+    // Validate files
+    const { validFiles, errors } = validateFiles(files);
+
+    // Show validation errors
+    if (errors.length > 0) {
+      toast({
+        title: "Some files were rejected",
+        description: errors.join("\n"),
+        variant: "destructive",
+      });
+    }
+
+    if (validFiles.length === 0) return;
+
     // Check if adding these files would exceed the limit
-    const totalAfterUpload = images.length + files.length;
+    const totalAfterUpload = images.length + validFiles.length;
     if (totalAfterUpload > maxImages) {
       const remainingSlots = maxImages - images.length;
       toast({
@@ -61,9 +103,17 @@ export function ImageManager({
         description: `You can only upload ${remainingSlots} more image(s) with your current plan (${maxImages} total).`,
         variant: "destructive",
       });
+      // Only upload up to the limit
+      const filesToUpload = validFiles.slice(0, remainingSlots);
+      if (filesToUpload.length === 0) return;
+      await uploadFiles(filesToUpload);
       return;
     }
 
+    await uploadFiles(validFiles);
+  };
+
+  const uploadFiles = async (files: File[]) => {
     setUploadingImage(true);
     try {
       // Upload all files in parallel
@@ -94,8 +144,13 @@ export function ImageManager({
       });
     } finally {
       setUploadingImage(false);
-      e.target.value = "";
     }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = ""; // Reset input
+    await processFiles(files);
   };
 
   const removeImage = (index: number) => {
@@ -188,6 +243,54 @@ export function ImageManager({
     onMainImageChange(0); // Main image is now at index 0
   };
 
+  // Drag and drop handlers for file upload
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragCounter(prev => prev + 1);
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDraggingOver(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragCounter(prev => {
+      const newCounter = prev - 1;
+      if (newCounter === 0) {
+        setIsDraggingOver(false);
+      }
+      return newCounter;
+    });
+  };
+
+  const handleDragOverUpload = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+    setDragCounter(0);
+
+    if (uploadingImage) {
+      toast({
+        title: "Upload in progress",
+        description: "Please wait for the current upload to complete",
+      });
+      return;
+    }
+
+    const files = Array.from(e.dataTransfer.files);
+    await processFiles(files);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -199,12 +302,26 @@ export function ImageManager({
         )}
       </div>
 
-      {/* Upload area */}
+      {/* Upload area with drag and drop */}
       {images.length < maxImages && (
-        <div className="border-2 border-dashed rounded-lg p-6 text-center">
+        <div
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOverUpload}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`
+            border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200
+            ${isDraggingOver 
+              ? 'border-primary bg-primary/5 scale-[1.02]' 
+              : 'border-muted-foreground/25 hover:border-primary/50 hover:bg-accent/30'
+            }
+            ${uploadingImage ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+          `}
+          data-testid="image-upload-dropzone"
+        >
           <input
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
             multiple
             onChange={handleImageUpload}
             className="hidden"
@@ -214,12 +331,40 @@ export function ImageManager({
           />
           <label 
             htmlFor="image-upload" 
-            className={`cursor-pointer flex flex-col items-center gap-2 ${uploadingImage ? 'opacity-50' : ''}`}
+            className={`flex flex-col items-center gap-3 ${uploadingImage ? 'pointer-events-none' : 'cursor-pointer'}`}
           >
-            <Upload className="w-8 h-8 text-muted-foreground" />
-            <span className="text-sm">
-              {uploadingImage ? 'Uploading...' : 'Click to upload images'}
-            </span>
+            <div className="relative">
+              <Upload className={`w-12 h-12 transition-colors ${isDraggingOver ? 'text-primary' : 'text-muted-foreground'}`} />
+              {isDraggingOver && (
+                <ImageIcon className="w-6 h-6 text-primary absolute -right-2 -bottom-1 animate-bounce" />
+              )}
+            </div>
+            
+            <div className="space-y-1">
+              <p className={`text-base font-medium transition-colors ${isDraggingOver ? 'text-primary' : 'text-foreground'}`}>
+                {uploadingImage 
+                  ? 'Uploading...' 
+                  : isDraggingOver 
+                  ? 'Drop images here!' 
+                  : 'Drag and drop images here'
+                }
+              </p>
+              {!uploadingImage && !isDraggingOver && (
+                <p className="text-sm text-muted-foreground">
+                  or click to browse
+                </p>
+              )}
+            </div>
+            
+            {!uploadingImage && (
+              <div className="flex flex-col items-center gap-1 text-xs text-muted-foreground">
+                <p>Supports: JPG, PNG, WebP, GIF</p>
+                <p>Max size: 10MB per file</p>
+                <p className="font-medium">
+                  {maxImages - images.length} {maxImages - images.length === 1 ? 'slot' : 'slots'} remaining
+                </p>
+              </div>
+            )}
           </label>
         </div>
       )}
