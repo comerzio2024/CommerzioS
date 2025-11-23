@@ -35,6 +35,9 @@ export default function Home() {
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [isNearbyExpanded, setIsNearbyExpanded] = useState(true);
   const [isFavoritesExpanded, setIsFavoritesExpanded] = useState(true);
+  const [hasSearchedLocation, setHasSearchedLocation] = useState(false);
+  const [addressSuggestions, setAddressSuggestions] = useState<Array<{lat: number; lng: number; displayName: string; name: string}>>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
   const { data: categories = [], isLoading: categoriesLoading } = useQuery<CategoryWithTemporary[]>({
     queryKey: ["/api/categories"],
@@ -66,8 +69,9 @@ export default function Home() {
     return map;
   }, [newServiceCounts]);
 
+  // Only auto-detect location if user has searched or explicitly enabled it
   useEffect(() => {
-    if (isAuthenticated && navigator.geolocation && !customLocation) {
+    if (isAuthenticated && navigator.geolocation && !customLocation && hasSearchedLocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setUserLocation({
@@ -82,37 +86,76 @@ export default function Home() {
         }
       );
     }
-  }, [isAuthenticated, customLocation]);
+  }, [isAuthenticated, customLocation, hasSearchedLocation]);
 
-  const handleLocationSearch = async () => {
-    if (!locationSearchQuery.trim()) {
+  // Get address suggestions as user types
+  const handleLocationInputChange = async (value: string) => {
+    setLocationSearchQuery(value);
+    
+    if (value.trim().length < 2) {
+      setAddressSuggestions([]);
+      return;
+    }
+
+    setIsLoadingSuggestions(true);
+    try {
+      const results = await apiRequest<Array<{lat: number; lng: number; displayName: string; name: string}>>("/api/geocode-suggestions", {
+        method: "POST",
+        body: JSON.stringify({ query: value }),
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+      setAddressSuggestions(results);
+    } catch (error) {
+      console.error("Error getting suggestions:", error);
+      setAddressSuggestions([]);
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  };
+
+  const handleLocationSearch = async (location?: {lat: number; lng: number; displayName: string; name: string}) => {
+    const selectedLocation = location || (addressSuggestions.length > 0 ? addressSuggestions[0] : null);
+    
+    if (!locationSearchQuery.trim() && !selectedLocation) {
       toast({
         title: "Location required",
-        description: "Please enter a postcode or city name",
+        description: "Please enter a postcode, city, or address",
         variant: "destructive",
       });
       return;
     }
 
+    setHasSearchedLocation(true);
     setIsGeocoding(true);
     try {
-      const result = await apiRequest<{lat: number; lng: number; displayName: string; name: string}>("/api/geocode", {
-        method: "POST",
-        body: JSON.stringify({ location: locationSearchQuery }),
-        headers: {
-          "Content-Type": "application/json"
-        }
-      });
+      let result: {lat: number; lng: number; displayName: string; name: string};
+      
+      if (selectedLocation) {
+        result = selectedLocation;
+      } else {
+        result = await apiRequest<{lat: number; lng: number; displayName: string; name: string}>("/api/geocode", {
+          method: "POST",
+          body: JSON.stringify({ location: locationSearchQuery }),
+          headers: {
+            "Content-Type": "application/json"
+          }
+        });
+      }
 
       setCustomLocation({
         lat: result.lat,
         lng: result.lng,
         name: result.name || result.displayName
       });
+      
+      setAddressSuggestions([]);
+      setLocationSearchQuery("");
 
       toast({
         title: "Location found",
-        description: `Searching near ${result.name}`,
+        description: `Searching near ${result.name || result.displayName}`,
       });
     } catch (error: any) {
       console.error("Geocoding error:", error);
@@ -129,6 +172,7 @@ export default function Home() {
   const handleClearLocation = () => {
     setCustomLocation(null);
     setLocationSearchQuery("");
+    setAddressSuggestions([]);
   };
 
   const activeLocation = customLocation || userLocation;
@@ -237,7 +281,7 @@ export default function Home() {
         newCounts={newCountsMap}
       />
 
-      {isAuthenticated && (
+      {isAuthenticated && hasSearchedLocation && (
         <section className="py-12 container mx-auto px-4">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold flex items-center gap-2">
@@ -276,37 +320,70 @@ export default function Home() {
               >
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 mb-6">
             <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
+              <div className="flex-1 relative">
                 <Label htmlFor="location-search" className="text-sm font-medium mb-2 block">
                   Search Location
                 </Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="location-search"
-                    type="text"
-                    placeholder="Enter postcode or city (e.g., 8001, Zürich)..."
-                    value={locationSearchQuery}
-                    onChange={(e) => setLocationSearchQuery(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        handleLocationSearch();
-                      }
-                    }}
-                    disabled={isGeocoding}
-                    className="flex-1"
-                    data-testid="input-location-search"
-                  />
-                  <Button
-                    onClick={handleLocationSearch}
-                    disabled={isGeocoding || !locationSearchQuery.trim()}
-                    data-testid="button-search-location"
-                  >
-                    {isGeocoding ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Search className="w-4 h-4" />
-                    )}
-                  </Button>
+                <div className="relative">
+                  <div className="flex gap-2">
+                    <Input
+                      id="location-search"
+                      type="text"
+                      placeholder="Enter postcode, city, or street address (e.g., 8001, Zürich or Bahnhofstrasse 1, Zurich)..."
+                      value={locationSearchQuery}
+                      onChange={(e) => handleLocationInputChange(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && locationSearchQuery.trim()) {
+                          handleLocationSearch();
+                        }
+                      }}
+                      disabled={isGeocoding}
+                      className="flex-1"
+                      data-testid="input-location-search"
+                      autoComplete="off"
+                    />
+                    <Button
+                      onClick={() => handleLocationSearch()}
+                      disabled={isGeocoding || !locationSearchQuery.trim()}
+                      data-testid="button-search-location"
+                    >
+                      {isGeocoding ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Search className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                  
+                  {addressSuggestions.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+                      {addressSuggestions.map((suggestion, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => handleLocationSearch(suggestion)}
+                          className="w-full text-left px-4 py-2 hover:bg-slate-50 border-b border-slate-100 last:border-b-0 transition-colors"
+                          data-testid={`suggestion-address-${idx}`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <MapPin className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-slate-900 truncate">{suggestion.name || suggestion.displayName}</p>
+                              <p className="text-xs text-slate-500 truncate">{suggestion.displayName}</p>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {isLoadingSuggestions && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 p-3">
+                      <div className="flex items-center gap-2 text-sm text-slate-500">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Loading suggestions...
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -317,7 +394,7 @@ export default function Home() {
                 <Select 
                   value={radiusKm.toString()} 
                   onValueChange={(value) => setRadiusKm(parseInt(value, 10))}
-                  disabled={!activeLocation}
+                  disabled={!customLocation}
                 >
                   <SelectTrigger id="radius-select" data-testid="select-radius">
                     <SelectValue />
@@ -353,17 +430,7 @@ export default function Home() {
             )}
           </div>
 
-          {locationError && !customLocation ? (
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-8 text-center">
-              <MapPin className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                Search for a location to see services
-              </h3>
-              <p className="text-slate-500 text-sm">
-                Enter a Swiss postcode or city name above to find nearby services
-              </p>
-            </div>
-          ) : !activeLocation ? (
+          {!customLocation ? (
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-8 text-center">
               <Loader2 className="w-12 h-12 text-slate-400 mx-auto mb-4 animate-spin" />
               <h3 className="text-lg font-semibold text-slate-900 mb-2">
@@ -413,6 +480,80 @@ export default function Home() {
               </motion.div>
             )}
           </AnimatePresence>
+        </section>
+      )}
+
+      {isAuthenticated && !hasSearchedLocation && (
+        <section className="py-12 container mx-auto px-4 bg-slate-50">
+          <div className="max-w-2xl mx-auto">
+            <h2 className="text-2xl font-bold text-center mb-2">Find Services Near You</h2>
+            <p className="text-center text-slate-600 mb-6">
+              Search for a location to discover services in your area
+            </p>
+            <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
+              <div className="relative">
+                <Label htmlFor="initial-location-search" className="text-sm font-medium mb-2 block">
+                  Search Location
+                </Label>
+                <div className="relative">
+                  <div className="flex gap-2">
+                    <Input
+                      id="initial-location-search"
+                      type="text"
+                      placeholder="Enter postcode, city, or street address..."
+                      value={locationSearchQuery}
+                      onChange={(e) => handleLocationInputChange(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && locationSearchQuery.trim()) {
+                          handleLocationSearch();
+                        }
+                      }}
+                      className="flex-1"
+                      data-testid="input-initial-location-search"
+                      autoComplete="off"
+                    />
+                    <Button
+                      onClick={() => handleLocationSearch()}
+                      disabled={!locationSearchQuery.trim()}
+                      data-testid="button-initial-search-location"
+                    >
+                      <Search className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  
+                  {addressSuggestions.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+                      {addressSuggestions.map((suggestion, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => handleLocationSearch(suggestion)}
+                          className="w-full text-left px-4 py-2 hover:bg-slate-50 border-b border-slate-100 last:border-b-0 transition-colors"
+                          data-testid={`initial-suggestion-address-${idx}`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <MapPin className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-slate-900 truncate">{suggestion.name || suggestion.displayName}</p>
+                              <p className="text-xs text-slate-500 truncate">{suggestion.displayName}</p>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {isLoadingSuggestions && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 p-3">
+                      <div className="flex items-center gap-2 text-sm text-slate-500">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Loading suggestions...
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
       )}
 
