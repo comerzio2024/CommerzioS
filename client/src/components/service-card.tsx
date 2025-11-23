@@ -189,17 +189,19 @@ export function ServiceCard({ service, compact = false, isSaved: initialIsSaved 
           </Tooltip>
         </TooltipProvider>
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 pt-12">
-          <div className="flex items-center gap-2 text-white/90 text-xs font-medium">
-            <MapPin className="w-3.5 h-3.5" />
-            {service.locations?.[0] || (service as any).location || "Location not specified"}
+          <div className="flex items-center gap-2 text-white/90 text-xs font-medium min-w-0">
+            <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="truncate">
+              {service.locations?.[0] || (service as any).location || "Location not specified"}
+            </span>
           </div>
         </div>
       </div>
 
       <CardContent className="p-5 flex-1 flex flex-col">
         <div className="flex justify-between items-start gap-4 mb-3">
-          <Link href={`/service/${service.id}`}>
-            <h3 className="font-bold text-lg leading-tight text-foreground hover:text-primary cursor-pointer line-clamp-2">
+          <Link href={`/service/${service.id}`} className="min-w-0 flex-1">
+            <h3 className="font-bold text-base sm:text-lg leading-tight text-foreground hover:text-primary cursor-pointer line-clamp-2">
               {service.title}
             </h3>
           </Link>
@@ -233,22 +235,22 @@ export function ServiceCard({ service, compact = false, isSaved: initialIsSaved 
       </CardContent>
 
       {/* Pricing section - FULL WIDTH, separate line with responsive font sizing */}
-      <div className="flex items-center justify-between px-3 sm:px-4 md:px-5 py-3 border-t border-border/50 bg-muted/30">
-        <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+      <div className="flex items-center justify-between gap-3 px-3 sm:px-4 md:px-5 py-3 border-t border-border/50 bg-muted/30 min-w-0">
+        <div className="flex items-baseline gap-1.5 flex-wrap min-w-0 flex-1">
           {service.priceType === 'fixed' && (
             <>
-              <span className="text-base sm:text-xl md:text-2xl lg:text-2xl font-bold text-primary" style={{ fontSize: 'clamp(1rem, 2vw + 0.5rem, 1.5rem)' }}>CHF {service.price}</span>
-              <span className="text-xs sm:text-sm md:text-base text-muted-foreground">/{service.priceUnit}</span>
+              <span className="text-lg sm:text-xl md:text-2xl font-bold text-primary whitespace-nowrap">CHF {service.price}</span>
+              <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">/{service.priceUnit}</span>
             </>
           )}
           {service.priceType === 'text' && (
-            <span className="text-sm sm:text-base md:text-lg font-medium text-foreground line-clamp-1">{service.priceText}</span>
+            <span className="text-sm sm:text-base md:text-lg font-medium text-foreground line-clamp-2 break-words">{service.priceText}</span>
           )}
           {service.priceType === 'list' && (
-            <span className="text-sm sm:text-base md:text-lg font-medium text-foreground">From CHF {(service.priceList as any)?.[0]?.price || 'N/A'}</span>
+            <span className="text-sm sm:text-base md:text-lg font-medium text-foreground whitespace-nowrap">From CHF {(service.priceList as any)?.[0]?.price || 'N/A'}</span>
           )}
         </div>
-        <Badge variant="secondary" className="text-[10px] sm:text-xs md:text-sm shrink-0">{service.priceType}</Badge>
+        <Badge variant="secondary" className="text-[10px] sm:text-xs shrink-0">{service.priceType}</Badge>
       </div>
 
       {/* User section - FULL WIDTH, separate line */}
