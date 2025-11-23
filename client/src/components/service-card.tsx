@@ -26,7 +26,6 @@ export function ServiceCard({ service, compact = false, isFavorited: initialIsFa
   const queryClient = useQueryClient();
   const [isFavorited, setIsFavorited] = useState(initialIsFavorited ?? false);
   const [showUnfavoriteDialog, setShowUnfavoriteDialog] = useState(false);
-  const isMutatingRef = useRef(false);
   const daysRemaining = Math.ceil((new Date(service.expiresAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
   const isExpired = daysRemaining <= 0;
 
@@ -47,11 +46,7 @@ export function ServiceCard({ service, compact = false, isFavorited: initialIsFa
   });
 
   // Update local state when favorite status is fetched or prop changes
-  // Skip updates during active mutations to preserve optimistic state
-  // Only update if the new value is different to avoid unnecessary re-renders
   useEffect(() => {
-    if (isMutatingRef.current) return;
-    
     let newValue: boolean | undefined;
     
     if (initialIsFavorited !== undefined) {
@@ -64,7 +59,7 @@ export function ServiceCard({ service, compact = false, isFavorited: initialIsFa
     if (newValue !== undefined && newValue !== isFavorited) {
       setIsFavorited(newValue);
     }
-  }, [favoriteStatus, initialIsFavorited, isFavorited]);
+  }, [favoriteStatus, initialIsFavorited]);
 
   // Toggle favorite mutation with optimistic updates
   const toggleFavorite = useMutation({
@@ -76,40 +71,28 @@ export function ServiceCard({ service, compact = false, isFavorited: initialIsFa
       }
     },
     onMutate: async ({ action }) => {
-      // Set mutation flag to prevent useEffect from overwriting optimistic state
-      isMutatingRef.current = true;
-      
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/favorites", service.id, "status"] });
       
       // Snapshot the previous value
       const previousState = isFavorited;
       
-      // Optimistically update the UI based on action
+      // Optimistically update the UI immediately
       const newState = action === 'add';
       setIsFavorited(newState);
       
       // Return context with previous state for rollback
-      return { previousState, action };
+      return { previousState };
     },
-    onSuccess: async (_data, variables) => {
-      // Keep the optimistic state, invalidate queries for fresh data
+    onSuccess: (_data, variables) => {
+      // Invalidate queries for fresh data (don't wait for refetch)
       queryClient.invalidateQueries({ queryKey: ["/api/favorites"] });
-      
-      // Wait for the specific service status query to refetch and settle
-      await queryClient.invalidateQueries({ 
-        queryKey: ["/api/favorites", service.id, "status"],
-        refetchType: 'active'
-      });
-      
-      // Clear mutation flag after queries have settled
-      isMutatingRef.current = false;
+      queryClient.invalidateQueries({ queryKey: ["/api/favorites", service.id, "status"] });
       
       setShowUnfavoriteDialog(false);
       
-      // Use the action to determine the toast message
+      // Show feedback toast
       const wasAdded = variables.action === 'add';
-      
       toast({
         title: wasAdded ? "Added to favorites" : "Removed from favorites",
         description: wasAdded 
@@ -118,9 +101,6 @@ export function ServiceCard({ service, compact = false, isFavorited: initialIsFa
       });
     },
     onError: (error: any, _variables, context) => {
-      // Clear mutation flag
-      isMutatingRef.current = false;
-      
       // Revert to previous state on error
       if (context?.previousState !== undefined) {
         setIsFavorited(context.previousState);
@@ -195,7 +175,7 @@ export function ServiceCard({ service, compact = false, isFavorited: initialIsFa
               >
                 <Heart 
                   className={cn(
-                    "w-5 h-5 transition-all duration-200",
+                    "w-5 h-5 transition-all duration-100",
                     isFavorited ? "fill-red-500 text-red-500" : "text-gray-400"
                   )}
                 />
