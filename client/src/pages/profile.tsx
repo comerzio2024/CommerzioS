@@ -862,27 +862,47 @@ export default function Profile() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <AddressAutocomplete
-                      onAddressSelect={(address) => {
-                        if (address) {
-                          setMainLocationName(address.city || address.displayName);
-                          setMainLocationLat(address.lat);
-                          setMainLocationLng(address.lng);
-                        } else {
-                          setMainLocationName("");
-                          setMainLocationLat(null);
-                          setMainLocationLng(null);
-                        }
-                      }}
-                      label="Search for your location"
-                      initialValue={mainLocationName}
-                      required={false}
-                    />
+                    <div className="relative">
+                      <Label htmlFor="main-location-search">Search Location</Label>
+                      <div className="flex gap-2 mt-2">
+                        <Input
+                          id="main-location-search"
+                          type="text"
+                          placeholder="Enter postcode, city, or address..."
+                          value={mainLocationName}
+                          onChange={(e) => setMainLocationName(e.target.value)}
+                          data-testid="input-main-location"
+                        />
+                        <Button
+                          onClick={async () => {
+                            if (!mainLocationName.trim()) return;
+                            try {
+                              const result = await apiRequest<{lat: number; lng: number; displayName: string; name: string}>("/api/geocode", {
+                                method: "POST",
+                                body: JSON.stringify({ query: mainLocationName }),
+                              });
+                              setMainLocationLat(result.lat);
+                              setMainLocationLng(result.lng);
+                              setMainLocationName(result.name || result.displayName);
+                            } catch (error) {
+                              toast({
+                                title: "Location not found",
+                                description: "Please try a different search term",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                          data-testid="button-search-main-location"
+                        >
+                          Search
+                        </Button>
+                      </div>
+                    </div>
                     
-                    {mainLocationName && mainLocationLat && mainLocationLng && (
+                    {mainLocationLat && mainLocationLng && (
                       <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
                         <div className="flex items-start gap-3">
-                          <MapPin className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                          <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
                           <div>
                             <p className="font-medium text-slate-900">{mainLocationName}</p>
                             <p className="text-sm text-slate-500 mt-1">
@@ -900,13 +920,13 @@ export default function Profile() {
                           locationLng: mainLocationLng,
                           preferredLocationName: mainLocationName
                         })}
-                        disabled={!mainLocationName || updateProfileMutation.isPending}
+                        disabled={!mainLocationName || !mainLocationLat || !mainLocationLng || updateProfileMutation.isPending}
                         data-testid="button-save-location"
                       >
                         {updateProfileMutation.isPending ? "Saving..." : "Save Location"}
                       </Button>
                       
-                      {mainLocationName && (
+                      {mainLocationLat && mainLocationLng && (
                         <Button
                           variant="outline"
                           onClick={() => {
