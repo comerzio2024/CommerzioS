@@ -4,15 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-
-interface LocationSuggestion {
-  display_name: string;
-  lat: number;
-  lon: number;
-  city: string;
-  postcode: string;
-  street: string;
-}
+import { useGeocoding } from "@/hooks/useGeocoding";
+import type { GeocodingSuggestion } from "@/lib/geocoding";
 
 interface LocationAutocompleteProps {
   locations: string[];
@@ -34,9 +27,13 @@ export function LocationAutocomplete({
   testIdPrefix = "location",
 }: LocationAutocompleteProps) {
   const { toast } = useToast();
-  const [query, setQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { query, setQuery, suggestions, isLoading, error, clearSuggestions } = useGeocoding({
+    minQueryLength: 2,
+    debounceMs: 300,
+    limit: 10,
+    autoSearch: true,
+  });
+  
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const autocompleteRef = useRef<HTMLDivElement>(null);
@@ -44,6 +41,7 @@ export function LocationAutocomplete({
 
   const canAddMore = locations.length < maxLocations;
 
+  // Handle click outside to close dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (autocompleteRef.current && !autocompleteRef.current.contains(event.target as Node)) {
@@ -56,62 +54,28 @@ export function LocationAutocomplete({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Show dropdown when suggestions are available
   useEffect(() => {
-    if (!query.trim() || query.length < 2) {
-      setSuggestions([]);
+    if (suggestions.length > 0 && query.length >= 2) {
+      setIsOpen(true);
+      setSelectedIndex(-1);
+    } else {
       setIsOpen(false);
-      setIsLoading(false);
-      return;
     }
+  }, [suggestions, query]);
 
-    setIsLoading(true);
-    const abortController = new AbortController();
-    const timeoutId = setTimeout(async () => {
-      try {
-        const response = await fetch('/api/geocode/search', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            query: query,
-            limit: 10,
-          }),
-          signal: abortController.signal,
-        });
+  // Show error toast if geocoding fails
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: "Location search unavailable",
+        description: "You can still type your location manually and press Enter.",
+        variant: "default",
+      });
+    }
+  }, [error, toast]);
 
-        if (!response.ok) {
-          throw new Error(`Location search failed: ${response.status}`);
-        }
-
-        const data = await response.json();
-        setSuggestions(data);
-        setIsOpen(data.length > 0);
-        setSelectedIndex(-1);
-      } catch (error: any) {
-        if (error.name !== 'AbortError') {
-          console.error("Location search error:", error);
-          toast({
-            title: "Location search unavailable",
-            description: "You can still type your location manually and press Enter.",
-            variant: "default",
-          });
-          setSuggestions([]);
-          setIsOpen(false);
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    }, 300);
-
-    return () => {
-      clearTimeout(timeoutId);
-      abortController.abort();
-      setIsLoading(false);
-    };
-  }, [query, toast]);
-
-  const addLocation = (location: string, suggestion?: LocationSuggestion) => {
+  const addLocation = (location: string, suggestion?: GeocodingSuggestion) => {
     const trimmedLocation = location.trim();
     
     if (!trimmedLocation) return;
@@ -135,7 +99,7 @@ export function LocationAutocomplete({
     }
     
     setQuery("");
-    setSuggestions([]);
+    clearSuggestions();
     setIsOpen(false);
     setSelectedIndex(-1);
     inputRef.current?.focus();
