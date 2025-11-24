@@ -2,159 +2,95 @@
 
 ## Overview
 
-ServeMkt is a full-stack service marketplace application that connects service providers with customers. The platform enables users to browse, post, and review local services across multiple categories. Built with a modern tech stack, it features AI-powered service categorization, user authentication via Replit Auth, and a comprehensive review system.
+ServeMkt is a full-stack service marketplace connecting service providers with customers. It enables users to browse, post, and review local services across various categories, featuring AI-powered categorization, user authentication, and a comprehensive review system. The platform aims to be a modern, professional, and trustworthy solution for local service discovery.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
 
-## Critical Requirements
-
-**⚠️ LOCATION FIELDS MUST HAVE GEOLOCATION VERIFICATION**
-- **Every single location field** in the application must have:
-  - Address autocomplete dropdown with geolocation search
-  - Address verification through Nominatim API (OpenStreetMap)
-  - Display of verified address components (street, city, postal code, canton)
-  - Verified badge indicator
-  - Uses `/api/geocode/search` endpoint
-- **Implementation**: Use `AddressAutocomplete` component for single locations or `AddressMultiInput` for multiple locations
-- **Check this requirement EVERY TIME working on location fields** - this is non-negotiable
-- Examples of location fields that need this: service locations, user preferred locations, admin editing location fields
-
 ## System Architecture
 
 ### Frontend Architecture
 
-**Technology Stack:**
-- **Framework**: React with TypeScript
-- **Routing**: Wouter (lightweight client-side router)
-- **State Management**: TanStack Query (React Query) for server state
-- **UI Components**: Radix UI primitives with shadcn/ui component library
-- **Styling**: Tailwind CSS v4 with custom design tokens
-- **Build Tool**: Vite
+**Technology Stack:** React with TypeScript, Wouter for routing, TanStack Query for server state, Radix UI primitives with shadcn/ui for UI, Tailwind CSS v4, and Vite for building.
 
 **Design Decisions:**
-- **Component Library Choice**: Uses shadcn/ui (customizable Radix UI components) for consistent, accessible UI patterns. The "new-york" style variant provides a modern, professional aesthetic suitable for a marketplace.
-- **Styling Approach**: Tailwind CSS with CSS variables enables theme customization while maintaining type safety. Custom design tokens define a "Trustworthy Blue" color scheme to establish credibility.
-- **State Management Strategy**: TanStack Query handles all server state, eliminating need for global state management. Custom query functions with 401 handling provide seamless authentication state.
-- **Type Safety**: Full TypeScript implementation with shared types between client and server via the `@shared` namespace ensures API contract consistency.
-- **Geocoding Centralization**: All location fields use shared geocoding infrastructure (`lib/geocoding.ts` service and `hooks/useGeocoding.ts` hook) for consistent address autocomplete, debouncing (300ms), and AbortController-based race condition prevention. This eliminates duplicate geocoding logic across components.
-- **Home Page Auto-Load**: Home page automatically loads and displays services near the user's saved main address (from profile) when the page loads. Users can change the search location inline within the "Find Services Near You" section without navigating away.
-- **Google Maps Everywhere**: All map displays throughout the application use Google Maps exclusively. The admin-configurable API key (stored in database settings) powers home page service discovery maps, service detail page location maps, and any toggleable map views. Markers use consistent styling with numbered red markers for services and blue markers for user locations, with automatic spreading to prevent overlaps.
-- **Image Carousel on Cards** (2025-11-24): All service cards feature interactive image carousels allowing users to browse multiple service images directly on cards using left/right arrow buttons and dot indicators. Powered by embla-carousel-react with loop functionality. Controls only appear when service has 2+ images.
-- **Platform-wide Text Overflow Prevention** (2025-11-24): Global CSS rules ensure text elements use `overflow-wrap: break-word` to prevent text from overflowing containers. Long URLs and email links use `word-break: break-all` for proper wrapping while preserving normal word breaks for regular text.
-- **Equal Height Service Cards** (2025-11-24): All service cards maintain consistent heights regardless of title length or pricing type through fixed height (h-[4.5rem]) on pricing sections with vertical centering. This ensures clean grid alignment.
-- **Hashtag System** (2025-11-24): Services support both tags and hashtags fields. Hashtags are clickable links on service detail pages that navigate to hashtag results pages showing all services with that hashtag. The hashtag search uses SQL array matching (`= ANY()`) on the hashtags field. Duplicate non-clickable tags section has been removed from service detail pages.
-- **Home Page Tabbed Navigation** (2025-11-24): The home page features a tabbed interface with "All Listings" and "Saved Listings" tabs. Each tab maintains completely independent state for category filtering and sorting. The Saved Listings tab is always visible but shows a login CTA for unauthenticated users. Category filtering and sorting controls appear under the tabs (not on a separate /services page). Hero section category buttons are connected to the All Listings tab, instantly filtering visible services. Both tabs include CategoryFilterBar components with service counts and expand/collapse functionality powered by ServiceResultsRail (3 rows of 4 cards, expandable to show all). The /services route has been removed in favor of this unified home page experience. Tab switching preserves filter and sort selections, enabling seamless navigation between all services and saved favorites.
-- **Unified Service Form Component** (2025-11-24): Refactored service creation and editing into a single ServiceFormModal component that handles both modes. CreateServiceModal and EditServiceModal are now thin wrapper components (~15 lines each) that call ServiceFormModal with appropriate props. The unified component detects mode based on the presence of a `service` prop: create mode when null, edit mode when provided. This eliminates code duplication (reduced from ~1,640 to ~1,050 lines, 36% reduction) while ensuring all form improvements automatically benefit both creation and editing workflows. The component includes proper TypeScript interfaces (FormData, PriceItem, ImageMetadata) and supports immediate form initialization in edit mode with async contact enrichment.
-- **Header Dropdown Navigation** (2025-11-24): User avatar dropdown menu updated with Profile and Reviews options. Removed "My Public Profile" in favor of direct "Profile" navigation. Profile page supports URL query parameter for deep-linking to specific tabs (e.g., /profile?tab=reviews). A useEffect hook watches location changes to keep tab state synchronized with URL, enabling dropdown-driven navigation, browser back/forward support, and direct URL entry to specific tabs.
+- **UI/UX:** Utilizes shadcn/ui with the "new-york" style variant for a modern, accessible interface. Styling uses Tailwind CSS with custom design tokens for a "Trustworthy Blue" color scheme.
+- **State Management:** TanStack Query manages all server-side state, integrating 401 handling for authentication.
+- **Type Safety:** Full TypeScript implementation with shared types (`@shared` namespace) ensures consistent API contracts.
+- **Geolocation:** All location fields use centralized geocoding (OpenStreetMap Nominatim API via `lib/geocoding.ts` and `hooks/useGeocoding.ts`) with address autocomplete, verification, and display of verified components. This includes automatic geocoding for service locations using the first location in a service's locations array, ensuring accurate map placements.
+- **Mapping:** Google Maps is exclusively used for all map displays, powered by an admin-configurable API key. Markers are consistently styled (numbered red for services, blue for user locations) with automatic spreading.
+- **Service Display:** Service cards feature interactive image carousels (embla-carousel-react) and maintain equal heights for clean grid alignment.
+- **Text Handling:** Global CSS ensures text overflow prevention with `overflow-wrap: break-word` and `word-break: break-all` for long links.
+- **Hashtags:** Services support clickable hashtags that link to search results pages using SQL array matching.
+- **Home Page:** Features a tabbed interface ("All Listings," "Saved Listings") with independent state for filtering and sorting. Category filtering and sorting controls are integrated, and hero section category buttons instantly filter services. The `/services` route is removed in favor of this unified home page experience.
+- **Unified Forms:** Service creation and editing are handled by a single `ServiceFormModal` component, reducing code duplication.
+- **Header Navigation:** User avatar dropdown menu includes "Profile" and "Reviews" options, with deep-linking support for profile tabs via URL query parameters.
 
 ### Backend Architecture
 
-**Technology Stack:**
-- **Runtime**: Node.js with TypeScript (ESM modules)
-- **Framework**: Express.js
-- **Database ORM**: Drizzle ORM
-- **Database**: PostgreSQL (via Neon serverless)
-- **Authentication**: Replit Auth with OpenID Connect
-- **Session Storage**: PostgreSQL-backed sessions (connect-pg-simple)
-- **AI Integration**: OpenAI API (GPT-5)
+**Technology Stack:** Node.js with TypeScript (ESM), Express.js, Drizzle ORM, PostgreSQL (Neon serverless), Replit Auth (OpenID Connect), connect-pg-simple for session storage, and OpenAI API (GPT-5).
 
 **Design Decisions:**
-- **ORM Selection**: Drizzle ORM chosen for type-safe SQL queries, excellent TypeScript integration, and lightweight footprint. Provides flexibility to write raw SQL when needed while maintaining type safety.
-- **Session Management**: PostgreSQL-backed sessions ensure session persistence across server restarts and enable horizontal scaling. Uses the standardized `sessions` table schema compatible with connect-pg-simple.
-- **Authentication Pattern**: Replit Auth integration provides OAuth-based authentication with minimal configuration. The `isAuthenticated` middleware protects routes requiring user login.
-- **Storage Layer Abstraction**: The `IStorage` interface in `server/storage.ts` abstracts database operations, making it easy to swap implementations or add caching layers without modifying route handlers.
-- **AI Service Integration**: OpenAI integration provides intelligent service categorization to improve user experience when posting services. The categorization service suggests categories based on title and description with confidence scores.
+- **ORM:** Drizzle ORM provides type-safe SQL queries and lightweight database interaction.
+- **Authentication:** Replit Auth with `isAuthenticated` middleware protects routes.
+- **Session Management:** PostgreSQL-backed sessions ensure persistence and scalability.
+- **Storage Abstraction:** An `IStorage` interface (`server/storage.ts`) abstracts database operations.
+- **AI Integration:** OpenAI API is used for intelligent service categorization based on service title and description.
 
 ### Database Schema
 
-**Core Tables:**
-- **users**: Extended user profiles with verification status and marketing package tiers
-- **categories**: Service categories with slugs for URL-friendly routing
-- **services**: Service listings with status tracking, expiration dates, and view counts
-- **reviews**: User reviews with ratings linked to both services and reviewers
-- **favorites**: User-favorited services for bookmarking functionality
-- **sessions**: Express session storage (required for Replit Auth)
+**Core Tables:** `users`, `categories`, `services`, `reviews`, `favorites`, `sessions`.
 
 **Design Decisions:**
-- **Service Lifecycle**: Services have status tracking (draft, active, expired) and automatic expiration dates to keep listings fresh. The `expiresAt` field enables automatic cleanup of stale listings.
-- **Soft References**: Uses string-based IDs rather than numeric auto-incrementing IDs for better distribution in scaled systems and UUID compatibility.
-- **Composite Relationships**: Services link to both owners (users) and categories, enabling efficient filtering by category or user.
-- **Review System**: Separate reviews table with ratings enables aggregate calculations for service quality scoring.
+- **Service Lifecycle:** Services have `draft`, `active`, `expired` statuses and `expiresAt` for automatic cleanup.
+- **IDs:** Uses string-based IDs (UUID compatible) for scalability.
+- **Relationships:** Services link to owners and categories.
+- **Reviews:** Separate `reviews` table supports aggregate calculations.
+- **Service Location Coordinates:** Services now store their own `locationLat`, `locationLng`, and `preferredLocationName` for accurate mapping, independent of the owner's profile location.
 
 ### API Structure
 
-**Route Organization:**
-- **Authentication Routes** (`/api/auth/*`): User authentication and session management
-- **Category Routes** (`/api/categories`): Category listing and creation
-- **Service Routes** (`/api/services/*`): CRUD operations for services, view tracking, renewal
-- **Review Routes** (`/api/services/:id/reviews`): Service-specific review management
-- **Favorite Routes** (`/api/favorites`): User favorite management
+**Route Organization:** `/api/auth/*`, `/api/categories`, `/api/services/*`, `/api/services/:id/reviews`, `/api/favorites`.
 
 **Design Decisions:**
-- **RESTful Conventions**: Standard HTTP methods (GET, POST, PATCH, DELETE) map to CRUD operations
-- **Nested Resources**: Reviews are nested under services (`/services/:id/reviews`) to maintain resource hierarchy
-- **Query Parameter Filtering**: Service listing supports multiple filters (category, owner, status, search) via query params
-- **Authentication Middleware**: Protected routes use `isAuthenticated` middleware to enforce authentication before handler execution
-- **Validation Layer**: Zod schemas from Drizzle provide request validation with helpful error messages via zod-validation-error
+- **RESTful:** Standard HTTP methods for CRUD operations.
+- **Nested Resources:** Reviews nested under services.
+- **Filtering:** Service listing supports query parameter filtering.
+- **Security:** `isAuthenticated` middleware for protected routes.
+- **Validation:** Zod schemas via Drizzle provide request validation.
 
 ### Development Environment
 
-**Build Configuration:**
-- **Dev Server**: Vite dev server on port 5000 for frontend with HMR
-- **API Server**: Express server with tsx for TypeScript execution in development
-- **Production Build**: Vite builds frontend to `dist/public`, esbuild bundles server to `dist`
-- **Database Migrations**: Drizzle Kit handles schema migrations with push command
+**Build Configuration:** Vite for frontend dev server (HMR) and production build, tsx for backend dev server hot-reloading, esbuild for backend production build. Drizzle Kit for database migrations.
 
 **Design Decisions:**
-- **Monorepo Structure**: Client, server, and shared code coexist in single repository with TypeScript path mapping
-- **Hot Reload**: Development mode uses tsx for server hot-reloading and Vite for client HMR
-- **Build Optimization**: Separate build tools (Vite for client, esbuild for server) optimize for each target environment
+- **Monorepo:** Client, server, and shared code in a single repository with TypeScript path mapping.
+- **Optimization:** Separate build tools for client (Vite) and server (esbuild).
 
 ## External Dependencies
 
 ### Third-Party Services
 
-**Replit Auth (OpenID Connect):**
-- **Purpose**: User authentication and session management
-- **Integration Point**: `server/replitAuth.ts` handles OAuth flow and session persistence
-- **Configuration**: Requires `ISSUER_URL`, `REPL_ID`, and `SESSION_SECRET` environment variables
-
-**Neon Serverless PostgreSQL:**
-- **Purpose**: Primary database with WebSocket support for serverless environments
-- **Integration Point**: `server/db.ts` configures connection pooling and Drizzle ORM
-- **Configuration**: Requires `DATABASE_URL` environment variable
-- **Design Choice**: Neon's serverless architecture provides auto-scaling and connection pooling suited for edge deployments
-
-**OpenAI API:**
-- **Purpose**: AI-powered service categorization
-- **Integration Point**: `server/aiService.ts` handles GPT-5 completion requests
-- **Configuration**: Requires `OPENAI_API_KEY` environment variable
-- **API Usage**: Uses structured JSON output mode for reliable categorization results
+- **Replit Auth (OpenID Connect):** User authentication and session management. Configured via `ISSUER_URL`, `REPL_ID`, `SESSION_SECRET`.
+- **Neon Serverless PostgreSQL:** Primary database. Configured via `DATABASE_URL`.
+- **OpenAI API:** AI-powered service categorization. Configured via `OPENAI_API_KEY`.
 
 ### Development Tools
 
-**Replit-Specific Plugins:**
-- **@replit/vite-plugin-runtime-error-modal**: Displays runtime errors in development
-- **@replit/vite-plugin-cartographer**: Code navigation and visualization
-- **@replit/vite-plugin-dev-banner**: Development environment indicator
+- **@replit/vite-plugin-runtime-error-modal:** Displays runtime errors.
+- **@replit/vite-plugin-cartographer:** Code navigation.
+- **@replit/vite-plugin-dev-banner:** Development environment indicator.
 
 ### UI Component Libraries
 
-**Radix UI Primitives:**
-- Comprehensive set of unstyled, accessible components (dialogs, dropdowns, tooltips, etc.)
-- Provides accessibility features (ARIA attributes, keyboard navigation) out of the box
-
-**shadcn/ui:**
-- Customizable component implementations built on Radix UI
-- Components copied into project for full customization control
-- "new-york" variant selected for clean, modern aesthetic
+- **Radix UI Primitives:** Accessible, unstyled components.
+- **shadcn/ui:** Customizable components built on Radix UI (using "new-york" variant).
 
 ### Utility Libraries
 
-- **Drizzle Zod**: Generates Zod validation schemas from Drizzle table definitions
-- **TanStack Query**: Handles API request caching, background refetching, and optimistic updates
-- **date-fns**: Date manipulation and formatting utilities
-- **class-variance-authority (CVA)**: Type-safe variant-based component styling
-- **nanoid**: Compact, URL-safe unique ID generation
+- **Drizzle Zod:** Generates Zod schemas from Drizzle.
+- **TanStack Query:** API request caching, refetching, optimistic updates.
+- **date-fns:** Date manipulation.
+- **class-variance-authority (CVA):** Type-safe variant styling.
+- **nanoid:** Unique ID generation.
