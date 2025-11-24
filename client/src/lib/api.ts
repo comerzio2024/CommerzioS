@@ -7,6 +7,9 @@ export interface CategoryWithTemporary extends Category {
 }
 
 export interface ServiceWithDetails extends Service {
+  locationLat: string | null;
+  locationLng: string | null;
+  preferredLocationName: string | null;
   owner: User;
   category: Category;
   rating: number;

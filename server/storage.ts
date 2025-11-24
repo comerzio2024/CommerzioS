@@ -81,6 +81,7 @@ export interface IStorage {
     status?: string;
     search?: string;
   }): Promise<Array<Service & { owner: User; category: Category; rating: number; reviewCount: number }>>;
+  getAllServices(): Promise<Service[]>;
   getService(id: string): Promise<(Service & { owner: User; category: Category; rating: number; reviewCount: number }) | undefined>;
   createService(service: InsertService): Promise<Service>;
   updateService(id: string, service: Partial<InsertService>): Promise<Service | undefined>;
@@ -276,6 +277,10 @@ export class DatabaseStorage implements IStorage {
       rating: Number(row.rating) || 0,
       reviewCount: Number(row.reviewCount) || 0,
     }));
+  }
+
+  async getAllServices(): Promise<Service[]> {
+    return await db.select().from(services);
   }
 
   async getService(id: string): Promise<(Service & { owner: User; category: Category; rating: number; reviewCount: number }) | undefined> {
