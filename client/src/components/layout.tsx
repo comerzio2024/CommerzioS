@@ -153,9 +153,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div>
               <h4 className="font-semibold mb-4">Platform</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-primary">Browse Services</a></li>
-                <li><a href="#" className="hover:text-primary">Post a Service</a></li>
-                <li><a href="#" className="hover:text-primary">Pricing</a></li>
+                <li><Link href="/"><span className="hover:text-primary cursor-pointer">Browse Services</span></Link></li>
+                <li><a href="/api/login" className="hover:text-primary cursor-pointer">Post a Service</a></li>
+                <li><Link href="/how-it-works"><span className="hover:text-primary cursor-pointer">How it Works</span></Link></li>
               </ul>
             </div>
             <div>

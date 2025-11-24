@@ -37,6 +37,7 @@ export default function Home() {
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [isNearbyExpanded, setIsNearbyExpanded] = useState(false);
   const [isAllListingsExpanded, setIsAllListingsExpanded] = useState(false);
+  const [isSavedListingsExpanded, setIsSavedListingsExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("all");
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [useLocationPermissions, setUseLocationPermissions] = useState(false);
@@ -841,16 +842,6 @@ export default function Home() {
                           Clear Filter
                         </Button>
                       )}
-                      <Link href="/services">
-                        <Button 
-                          variant="default" 
-                          size="sm"
-                          className="gap-1"
-                          data-testid="button-see-more-services"
-                        >
-                          See More <ArrowRight className="w-4 h-4" />
-                        </Button>
-                      </Link>
                     </div>
                   </div>
                 </div>
@@ -940,11 +931,6 @@ export default function Home() {
                               Clear Filter
                             </Button>
                           )}
-                          <Link href="/favorites">
-                            <Button variant="ghost" className="gap-1" data-testid="button-view-all-favorites">
-                              View All <ArrowRight className="w-4 h-4" />
-                            </Button>
-                          </Link>
                         </div>
                       </div>
                     </div>
@@ -957,6 +943,8 @@ export default function Home() {
                         isLoading={false}
                         emptyMessage="No saved services"
                         emptyDescription="Start saving services you like to see them here"
+                        isExpanded={isSavedListingsExpanded}
+                        onExpandChange={setIsSavedListingsExpanded}
                         dataTestIdPrefix="saved-listings"
                         maxRows={3}
                         columnsPerRow={4}
