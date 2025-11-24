@@ -655,15 +655,13 @@ export default function Home() {
       {searchLocation && (
         <section className="py-12 container mx-auto px-4">
           <div className="space-y-6">
-            {mapsConfig.isConfigured && mapsConfig.apiKey && (
-              <GoogleMaps 
-                services={nearbyServices}
-                userLocation={searchLocation}
-                maxServices={5}
-                defaultExpanded={false}
-                apiKey={mapsConfig.apiKey}
-              />
-            )}
+            <GoogleMaps 
+              services={nearbyServices}
+              userLocation={searchLocation}
+              maxServices={5}
+              defaultExpanded={false}
+              apiKey={mapsConfig?.apiKey || ""}
+            />
             
             <ServiceResultsRail
               services={nearbyServices}
