@@ -2177,6 +2177,14 @@ function SettingsManagement() {
         enableSwissAddressValidation: settings.enableSwissAddressValidation ?? true,
         enableAiCategoryValidation: settings.enableAiCategoryValidation ?? true,
       });
+      
+      // Load saved Google Maps API key
+      if (settings.googleMapsApiKey) {
+        setApiKeys(prev => ({
+          ...prev,
+          googleMapsApiKey: settings.googleMapsApiKey,
+        }));
+      }
     }
   }, [settings]);
 
@@ -2223,17 +2231,9 @@ function SettingsManagement() {
         }),
       });
 
-      setApiKeys({
-        twilioAccountSid: "",
-        twilioAuthToken: "",
-        twilioPhoneNumber: "",
-        emailServiceProvider: "",
-        emailServiceApiKey: "",
-        googleMapsApiKey: "",
-      });
-
       queryClient.invalidateQueries({ queryKey: ["/api/admin/env-status"] });
       queryClient.invalidateQueries({ queryKey: ["/api/maps/config"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
       
       toast({
         title: "Success",
