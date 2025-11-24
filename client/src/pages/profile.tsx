@@ -380,6 +380,17 @@ export default function Profile() {
   const handleAddressSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate street contains a number
+    const hasStreetNumber = /\d/.test(addressForm.street);
+    if (!hasStreetNumber) {
+      toast({
+        title: "Invalid Street Address",
+        description: "Street address must include a number",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     // Enforce validated address for new addresses
     if (!editingAddress && !isAddressValidated) {
       toast({
