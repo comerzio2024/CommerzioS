@@ -50,10 +50,10 @@ export function ServiceMap({ service, userLocation }: ServiceMapProps) {
 
   useEffect(() => {
     if (!mapContainerRef.current || isInitializedRef.current || !apiKey) return;
-    if (!service.owner.locationLat || !service.owner.locationLng) return;
+    if (!service.locationLat || !service.locationLng) return;
 
-    const serviceLat = parseFloat(service.owner.locationLat);
-    const serviceLng = parseFloat(service.owner.locationLng);
+    const serviceLat = parseFloat(service.locationLat);
+    const serviceLng = parseFloat(service.locationLng);
 
     const win = window as GoogleMapsWindow;
 
@@ -164,7 +164,7 @@ export function ServiceMap({ service, userLocation }: ServiceMapProps) {
     };
   }, [apiKey, service, userLocation]);
 
-  if (!service.owner.locationLat || !service.owner.locationLng) {
+  if (!service.locationLat || !service.locationLng) {
     return (
       <div className="text-center py-8 bg-slate-50 rounded-lg border border-dashed border-slate-200">
         <MapPin className="w-12 h-12 text-slate-300 mx-auto mb-2" />
@@ -178,8 +178,8 @@ export function ServiceMap({ service, userLocation }: ServiceMapProps) {
     );
   }
 
-  const serviceLat = parseFloat(service.owner.locationLat);
-  const serviceLng = parseFloat(service.owner.locationLng);
+  const serviceLat = parseFloat(service.locationLat);
+  const serviceLng = parseFloat(service.locationLng);
 
   return (
     <>

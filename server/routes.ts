@@ -435,11 +435,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 14);
 
+      // Geocode first location if provided
+      let locationLat = null;
+      let locationLng = null;
+      let preferredLocationName = null;
+
+      if (validated.locations && validated.locations.length > 0) {
+        const firstLocation = validated.locations[0];
+        try {
+          const geocodeUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(firstLocation)}&format=json&countrycodes=ch&limit=1`;
+          const geocodeResponse = await fetch(geocodeUrl, {
+            headers: { 'User-Agent': 'ServiceMarketplace/1.0' }
+          });
+          
+          if (geocodeResponse.ok) {
+            const results = await geocodeResponse.json();
+            if (results && results.length > 0) {
+              locationLat = parseFloat(results[0].lat);
+              locationLng = parseFloat(results[0].lon);
+              preferredLocationName = firstLocation;
+            }
+          }
+        } catch (error) {
+          console.error('Failed to geocode service location:', error);
+        }
+      }
+
       const service = await storage.createService({
         ...validated,
         categoryId,
         ownerId: userId,
         expiresAt,
+        locationLat: locationLat ? locationLat.toString() : null,
+        locationLng: locationLng ? locationLng.toString() : null,
+        preferredLocationName,
       });
 
       res.status(201).json(service);
@@ -465,7 +494,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Not authorized" });
       }
 
-      const service = await storage.updateService(req.params.id, req.body);
+      // Geocode first location if locations are being updated
+      let updateData = { ...req.body };
+      
+      if (req.body.locations && req.body.locations.length > 0) {
+        const firstLocation = req.body.locations[0];
+        try {
+          const geocodeUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(firstLocation)}&format=json&countrycodes=ch&limit=1`;
+          const geocodeResponse = await fetch(geocodeUrl, {
+            headers: { 'User-Agent': 'ServiceMarketplace/1.0' }
+          });
+          
+          if (geocodeResponse.ok) {
+            const results = await geocodeResponse.json();
+            if (results && results.length > 0) {
+              updateData.locationLat = parseFloat(results[0].lat).toString();
+              updateData.locationLng = parseFloat(results[0].lon).toString();
+              updateData.preferredLocationName = firstLocation;
+            }
+          }
+        } catch (error) {
+          console.error('Failed to geocode service location:', error);
+        }
+      }
+
+      const service = await storage.updateService(req.params.id, updateData);
       res.json(service);
     } catch (error) {
       console.error("Error updating service:", error);
@@ -763,6 +816,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting service:", error);
       res.status(500).json({ message: "Failed to delete service" });
+    }
+  });
+
+  app.post('/api/admin/geocode-all-services', isAdmin, async (req: any, res) => {
+    try {
+      const allServices = await storage.getAllServices();
+      let geocoded = 0;
+      let failed = 0;
+      
+      for (const service of allServices) {
+        if (service.locationLat && service.locationLng) {
+          continue;
+        }
+        
+        if (!service.locations || service.locations.length === 0) {
+          continue;
+        }
+        
+        const firstLocation = service.locations[0];
+        try {
+          const geocodeUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(firstLocation)}&format=json&countrycodes=ch&limit=1`;
+          const geocodeResponse = await fetch(geocodeUrl, {
+            headers: { 'User-Agent': 'ServiceMarketplace/1.0' }
+          });
+          
+          if (geocodeResponse.ok) {
+            const results = await geocodeResponse.json();
+            if (results && results.length > 0) {
+              const locationLat = parseFloat(results[0].lat);
+              const locationLng = parseFloat(results[0].lon);
+              
+              await storage.updateService(service.id, {
+                locationLat: locationLat.toString(),
+                locationLng: locationLng.toString(),
+                preferredLocationName: firstLocation,
+              });
+              
+              geocoded++;
+            } else {
+              failed++;
+            }
+          } else {
+            failed++;
+          }
+          
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (error) {
+          console.error(`Failed to geocode service ${service.id}:`, error);
+          failed++;
+        }
+      }
+      
+      res.json({ 
+        message: "Geocoding complete",
+        geocoded,
+        failed,
+      });
+    } catch (error: any) {
+      console.error("Error geocoding services:", error);
+      res.status(500).json({ message: "Failed to geocode services" });
     }
   });
 
