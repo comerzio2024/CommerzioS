@@ -15,6 +15,7 @@ interface ServiceResultsRailProps {
   dataTestIdPrefix?: string;
   isExpanded?: boolean;
   onExpandChange?: (expanded: boolean) => void;
+  onShowServiceOnMap?: (serviceId: string) => void;
 }
 
 export function ServiceResultsRail({
@@ -26,6 +27,7 @@ export function ServiceResultsRail({
   dataTestIdPrefix = "service",
   isExpanded: controlledIsExpanded,
   onExpandChange,
+  onShowServiceOnMap,
 }: ServiceResultsRailProps) {
   const [internalExpanded, setInternalExpanded] = useState(defaultExpanded);
   const isExpanded = controlledIsExpanded ?? internalExpanded;
@@ -76,7 +78,10 @@ export function ServiceResultsRail({
                     transition={{ duration: 0.3 }}
                     data-testid={`${dataTestIdPrefix}-card-${service.id}`}
                   >
-                    <ServiceCard service={service} />
+                    <ServiceCard 
+                      service={service} 
+                      onShowOnMap={onShowServiceOnMap ? () => onShowServiceOnMap(service.id) : undefined}
+                    />
                   </motion.div>
                 ))}
               </div>
@@ -99,7 +104,10 @@ export function ServiceResultsRail({
                   transition={{ duration: 0.3, delay: index * 0.05 }}
                   data-testid={`${dataTestIdPrefix}-card-${service.id}`}
                 >
-                  <ServiceCard service={service} />
+                  <ServiceCard 
+                    service={service}
+                    onShowOnMap={onShowServiceOnMap ? () => onShowServiceOnMap(service.id) : undefined}
+                  />
                 </motion.div>
               ))}
             </div>

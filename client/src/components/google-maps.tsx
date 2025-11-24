@@ -10,6 +10,7 @@ interface GoogleMapsProps {
   maxServices?: number;
   defaultExpanded?: boolean;
   apiKey?: string;
+  highlightedServiceId?: string | null;
 }
 
 interface GoogleMapsWindow extends Window {
@@ -22,6 +23,7 @@ export function GoogleMaps({
   maxServices = 5,
   defaultExpanded = false,
   apiKey,
+  highlightedServiceId,
 }: GoogleMapsProps) {
   if (!userLocation || !apiKey) return null;
 
@@ -29,6 +31,7 @@ export function GoogleMaps({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const markersByServiceRef = useRef<Record<string, any>>({});
 
   // Filter and sort services
   const closestServices = services
@@ -150,6 +153,12 @@ export function GoogleMaps({
       });
 
       markersRef.current.push(serviceMarker);
+      // Store marker and infoWindow for later access
+      markersByServiceRef.current[service.id] = {
+        marker: serviceMarker,
+        infoWindow: serviceInfoWindow,
+        getPosition: () => serviceMarker.getPosition(),
+      };
       bounds.extend({ lat: serviceLat, lng: serviceLng });
     });
 
@@ -165,6 +174,23 @@ export function GoogleMaps({
       updateMarkers();
     }
   }, [closestServices, isMapVisible, userLocation]);
+
+  // Highlight service when selected
+  useEffect(() => {
+    if (highlightedServiceId && markersByServiceRef.current[highlightedServiceId] && isMapVisible && mapRef.current) {
+      const markerData = markersByServiceRef.current[highlightedServiceId];
+      // Zoom to marker
+      mapRef.current.setZoom(15);
+      mapRef.current.panTo(markerData.getPosition());
+      // Auto-open info window if available
+      Object.values(markersByServiceRef.current).forEach((m: any) => {
+        if (m.infoWindow) m.infoWindow.close();
+      });
+      if (markerData.infoWindow) {
+        markerData.infoWindow.open(mapRef.current, markerData.marker);
+      }
+    }
+  }, [highlightedServiceId, isMapVisible]);
 
   // Cleanup on unmount
   useEffect(() => {
