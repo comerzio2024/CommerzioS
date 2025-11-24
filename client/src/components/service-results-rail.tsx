@@ -125,25 +125,41 @@ export function ServiceResultsRail({
 
       {services.length > 0 && (
         <div className="flex justify-center pt-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleExpandChange(!isExpanded)}
-            className="gap-2"
-            data-testid={`${dataTestIdPrefix}-toggle-expand`}
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
-            {isExpanded ? (
-              <>
-                <ChevronUp className="w-4 h-4" />
-                Collapse
-              </>
-            ) : (
-              <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExpandChange(!isExpanded)}
+              className="gap-2 group relative overflow-hidden"
+              data-testid={`${dataTestIdPrefix}-toggle-expand`}
+            >
+              <motion.div
+                animate={{ rotate: isExpanded ? 180 : 0 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="flex items-center"
+              >
                 <ChevronDown className="w-4 h-4" />
-                Expand ({services.length} services)
-              </>
-            )}
-          </Button>
+              </motion.div>
+              <motion.span
+                key={isExpanded ? 'collapse' : 'expand'}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {isExpanded ? 'Collapse' : `Expand (${services.length} services)`}
+              </motion.span>
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/10 to-primary/0"
+                initial={{ x: '-100%' }}
+                whileHover={{ x: '100%' }}
+                transition={{ duration: 0.6, ease: "easeInOut" }}
+              />
+            </Button>
+          </motion.div>
         </div>
       )}
     </div>
