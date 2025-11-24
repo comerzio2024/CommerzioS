@@ -77,6 +77,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         <User className="w-4 h-4 mr-2" />
                         Profile
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setLocation("/profile?tab=services")} data-testid="link-my-listings">
+                        <PlusCircle className="w-4 h-4 mr-2" />
+                        My Listings
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setLocation("/profile?tab=reviews")} data-testid="menu-item-reviews">
                         <Star className="w-4 h-4 mr-2" />
                         Reviews
