@@ -126,7 +126,10 @@ export function GoogleMaps({
       // Generate pricing display based on priceType
       let priceDisplay = '';
       if (service.priceType === 'fixed') {
-        priceDisplay = `<span style="color: #3b82f6; font-weight: 600;">CHF ${service.price} <span style="font-size: 0.75rem; color: #6b7280;">/ ${service.priceUnit}</span></span>`;
+        priceDisplay = `<div style="display: flex; flex-direction: column; gap: 0;">
+          <span style="color: #3b82f6; font-weight: 700; font-size: 1rem;">CHF ${service.price}</span>
+          <span style="color: #6b7280; font-size: 0.75rem;">per ${service.priceUnit}</span>
+        </div>`;
       } else if (service.priceType === 'text') {
         priceDisplay = `<a href="/service/${service.id}" style="color: #3b82f6; font-weight: 600; text-decoration: underline;">Visit Listing</a>`;
       } else if (service.priceType === 'list') {
@@ -136,9 +139,9 @@ export function GoogleMaps({
 
       const serviceInfoWindow = new google.maps.InfoWindow({
         content: `<div style="min-width: 200px; padding: 8px;">
-          <strong>${service.title}</strong><br/>
+          <strong style="display: block; margin-bottom: 6px;">${service.title}</strong>
           ${priceDisplay}
-          ${service.distance ? `<br/><small style="color: #64748b;">${service.distance.toFixed(1)} km away</small>` : ''}
+          ${service.distance ? `<small style="color: #64748b; display: block; margin-top: 6px;">${service.distance.toFixed(1)} km away</small>` : ''}
         </div>`,
       });
 
