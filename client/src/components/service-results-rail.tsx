@@ -73,7 +73,7 @@ export function ServiceResultsRail({
                 {services.length} result{services.length !== 1 ? 's' : ''}
               </span>
             </div>
-            <div className="overflow-x-auto overflow-y-hidden -mx-4 px-4">
+            <div className="overflow-x-auto overflow-y-hidden -mx-4 px-4 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:border-2 [&::-webkit-scrollbar-thumb]:border-slate-200 hover:[&::-webkit-scrollbar-thumb]:bg-primary/80 [&::-webkit-scrollbar-thumb]:transition-colors">
               <div className="flex gap-4 pb-4 min-w-min" data-testid={`${dataTestIdPrefix}-rail-compact`}>
                 {services.map((service) => (
                   <motion.div
