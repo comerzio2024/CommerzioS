@@ -17,26 +17,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   // Smart navigation function for profile tabs
   const navigateToProfile = (tab?: string) => {
-    const currentPath = window.location.pathname;
-    const isOnProfile = currentPath === '/profile';
-    
-    if (isOnProfile) {
-      // Already on profile page
-      const url = new URL(window.location.href);
-      if (tab) {
-        url.searchParams.set('tab', tab);
-      } else {
-        url.searchParams.delete('tab'); // Clear tab parameter for default
-      }
-      window.history.pushState({}, '', url.toString());
-      window.dispatchEvent(new Event('popstate'));
+    // Use wouter's setLocation to ensure proper tab switching
+    if (tab) {
+      setLocation(`/profile?tab=${tab}`);
     } else {
-      // Navigate to profile page
-      if (tab) {
-        window.location.href = `/profile?tab=${tab}`;
-      } else {
-        window.location.href = '/profile';
-      }
+      setLocation('/profile');
     }
   };
 
