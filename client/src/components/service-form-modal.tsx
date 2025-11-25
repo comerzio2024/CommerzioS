@@ -89,6 +89,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
   const [suggestedHashtags, setSuggestedHashtags] = useState<string[]>([]);
   const [loadingHashtags, setLoadingHashtags] = useState(false);
   const [generatingDescription, setGeneratingDescription] = useState(false);
+  const [generatingTitle, setGeneratingTitle] = useState(false);
   const [showAccountPlans, setShowAccountPlans] = useState(false);
 
   const maxImages = user?.plan?.maxImages || 4;
@@ -494,18 +495,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
     }));
   };
 
-  // Handle auto-select when new category is created
-  useEffect(() => {
-    if (onCategoryCreated && categories.length > 0 && !formData?.categoryId && !isEditMode) {
-      // Look for the most recently created category (the new one)
-      const newestCategory = categories[0];
-      if (newestCategory && newestCategory.isTemporary) {
-        // Auto-select the new temporary category
-        const callback = onCategoryCreated as any;
-        callback?.(newestCategory.id);
-      }
-    }
-  }, [categories, isEditMode]);
+  // This effect is not needed - category auto-selection is handled via callback
 
   const handleAISuggestHashtags = async () => {
     if (formData.images.length === 0) {
@@ -565,6 +555,59 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
 
   const selectSuggestedHashtag = (tag: string) => {
     addHashtag(tag);
+  };
+
+  const handleGenerateTitle = async () => {
+    if (formData.images.length === 0) {
+      toast({
+        title: "Images Required",
+        description: "Please upload at least one image to generate a title suggestion",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setGeneratingTitle(true);
+    try {
+      const validImages = formData.images.filter(img => 
+        typeof img === 'string' && (img.startsWith('http') || img.startsWith('/'))
+      );
+
+      if (validImages.length === 0) {
+        toast({
+          title: "Images Not Ready",
+          description: "Please wait for images to upload before generating a title",
+          variant: "destructive",
+        });
+        setGeneratingTitle(false);
+        return;
+      }
+
+      const response = await apiRequest("/api/ai/generate-title", {
+        method: "POST",
+        body: JSON.stringify({ 
+          imageUrls: validImages,
+          currentTitle: formData.title || undefined
+        }),
+      });
+
+      if (response.title) {
+        setFormData({ ...formData, title: response.title });
+        toast({
+          title: "Title Generated!",
+          description: "AI has suggested a title based on your images",
+        });
+      }
+    } catch (error: any) {
+      console.error("Title generation error:", error);
+      toast({
+        title: "Generation Failed",
+        description: "Couldn't generate a title. Try entering one manually.",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingTitle(false);
+    }
   };
 
   const handleGenerateDescription = async () => {
@@ -763,7 +806,21 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                 onMainImageChange={(index: number) => setFormData((prev: FormData | null) => ({ ...prev!, mainImageIndex: index }))}
               />
               <div className="space-y-2">
-                <Label htmlFor="title">Service Title *</Label>
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="title">Service Title *</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleGenerateTitle}
+                    disabled={formData.images.length === 0 || generatingTitle}
+                    className="gap-2"
+                    data-testid="button-ai-generate-title"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    {generatingTitle ? "Generating..." : "AI Suggest"}
+                  </Button>
+                </div>
                 <Input
                   id="title"
                   placeholder="e.g., Professional House Cleaning"
@@ -771,6 +828,11 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   data-testid="input-service-title"
                 />
+                {formData.images.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Upload images first to generate AI title
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">

@@ -114,9 +114,25 @@ export function findSimilarCategoryName(categoryName: string, existingCategories
       return { category: existing, similarity: 1.0 };
     }
     
-    // Substring match
+    // Strong substring match - catches "Childcare Parenting" vs "Childcare Parenting Services"
+    const inputWords = normalizedInput.split(' ').filter(w => w.length > 2);
+    const existingWords = normalizedExisting.split(' ').filter(w => w.length > 2);
+    
+    // Check if one contains most of the other's significant words
+    const commonWords = inputWords.filter(w => existingWords.includes(w));
+    const minWords = Math.min(inputWords.length, existingWords.length);
+    const wordSimilarity = minWords > 0 ? commonWords.length / minWords : 0;
+    
+    if (wordSimilarity >= 0.8) {
+      // Very high word overlap - these are likely the same category
+      return { category: existing, similarity: 0.95 };
+    }
+    
+    // Regular substring match
     if (normalizedInput.includes(normalizedExisting) || normalizedExisting.includes(normalizedInput)) {
-      bestMatch = { category: existing, similarity: 0.9 };
+      if (bestMatch.similarity < 0.85) {
+        bestMatch = { category: existing, similarity: 0.85 };
+      }
       continue;
     }
     
