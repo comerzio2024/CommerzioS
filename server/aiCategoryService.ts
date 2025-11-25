@@ -170,3 +170,150 @@ function levenshteinDistance(str1: string, str2: string): number {
 
   return dp[m][n];
 }
+
+export interface CategorySubcategorySuggestion {
+  categorySlug: string;
+  subcategoryId: string | null;
+  confidence: number;
+}
+
+export async function suggestCategoryAndSubcategory(
+  title: string,
+  description: string,
+  imageUrls?: string[]
+): Promise<CategorySubcategorySuggestion> {
+  const categoriesAndSubcategories = `
+**Categories and their Subcategories:**
+
+1. home-services (Home Services)
+   - cleaning-housekeeping (Cleaning & Housekeeping)
+   - plumbing-electrical (Plumbing & Electrical)
+   - painting-renovation (Painting & Renovation)
+   - garden-landscaping (Garden & Landscaping)
+   - moving-delivery (Moving & Delivery)
+   - handyman (Handyman Services)
+
+2. design-creative (Design & Creative)
+   - logo-branding (Logo & Branding)
+   - web-app-design (Web & App Design)
+   - graphic-design (Graphic Design)
+   - photography (Photography)
+   - video-production (Video Production)
+   - interior-design (Interior Design)
+
+3. education (Education & Tutoring)
+   - language-lessons (Language Lessons)
+   - math-science (Math & Science)
+   - music-lessons (Music Lessons)
+   - exam-prep (Exam Preparation)
+   - adult-education (Adult Education)
+   - children-tutoring (Children's Tutoring)
+
+4. wellness (Wellness & Fitness)
+   - personal-training (Personal Training)
+   - yoga-pilates (Yoga & Pilates)
+   - massage-therapy (Massage Therapy)
+   - nutrition-coaching (Nutrition & Coaching)
+   - mental-health (Mental Health Support)
+
+5. business (Business Support)
+   - bookkeeping-accounting (Bookkeeping & Accounting)
+   - consulting-strategy (Consulting & Strategy)
+   - marketing-seo (Marketing & SEO)
+   - translation-writing (Translation & Writing)
+   - hr-recruitment (HR & Recruitment)
+
+6. automotive (Automotive Services)
+   - repair-maintenance (Repair & Maintenance)
+   - car-detailing (Car Detailing & Cleaning)
+   - tire-services (Tire Services)
+   - pre-purchase-inspection (Pre-Purchase Inspection)
+   - mobile-mechanics (Mobile Mechanics)
+
+7. pets (Pet Care & Animals)
+   - dog-walking (Dog Walking)
+   - pet-grooming (Pet Grooming)
+   - veterinary-care (Veterinary Care)
+   - pet-sitting-boarding (Pet Sitting & Boarding)
+   - training-behavior (Training & Behavior)
+
+8. events (Events & Entertainment)
+   - event-photo-video (Photography & Video)
+   - catering (Catering)
+   - dj-music (DJ & Music)
+   - event-planning (Event Planning)
+   - entertainment-performers (Entertainment & Performers)
+
+9. legal-financial (Legal & Financial)
+   - legal-consulting (Legal Consulting)
+   - immigration-permits (Immigration & Work Permits)
+   - financial-planning (Financial Planning)
+   - tax-preparation (Tax Preparation)
+   - notary-services (Notary Services)
+
+10. technology (Technology & IT)
+    - computer-repair (Computer Repair)
+    - software-development (Software Development)
+    - network-security (Network & Security)
+    - website-maintenance (Website Maintenance)
+    - cloud-devops (Cloud & DevOps)
+`;
+
+  const prompt = `Analyze this service listing and suggest the most appropriate category and subcategory:
+
+Title: "${title}"
+Description: "${description}"
+${imageUrls && imageUrls.length > 0 ? `Number of images: ${imageUrls.length}` : ''}
+
+${categoriesAndSubcategories}
+
+Instructions:
+1. Choose the MOST SPECIFIC category slug that matches this service
+2. If a subcategory is a very close match (confidence > 0.7), include the subcategory SLUG
+3. If no subcategory is a strong match, set subcategoryId to null
+4. Provide a confidence score (0-1) for your overall categorization
+
+Examples:
+- "Piano lessons for children" → {"categorySlug": "education", "subcategoryId": "music-lessons", "confidence": 0.95}
+- "Home cleaning service" → {"categorySlug": "home-services", "subcategoryId": "cleaning-housekeeping", "confidence": 0.9}
+- "Dog walking in Zurich" → {"categorySlug": "pets", "subcategoryId": "dog-walking", "confidence": 0.95}
+- "General handyman work" → {"categorySlug": "home-services", "subcategoryId": "handyman", "confidence": 0.85}
+
+Respond in JSON format:
+{
+  "categorySlug": "string",
+  "subcategoryId": "string or null",
+  "confidence": number
+}`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "You are an AI that categorizes service listings. Be precise and only suggest subcategories when there's a strong match (confidence > 0.7). Use the exact slugs provided.",
+        },
+        { role: "user", content: prompt },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.3,
+      max_tokens: 200,
+    });
+
+    const result = JSON.parse(completion.choices[0]?.message?.content || "{}");
+    
+    return {
+      categorySlug: result.categorySlug || "home-services",
+      subcategoryId: result.confidence > 0.7 ? result.subcategoryId : null,
+      confidence: result.confidence || 0.5,
+    };
+  } catch (error) {
+    console.error("Error suggesting category and subcategory:", error);
+    return {
+      categorySlug: "home-services",
+      subcategoryId: null,
+      confidence: 0,
+    };
+  }
+}

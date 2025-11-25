@@ -20,7 +20,7 @@ import {
 import { categorizeService } from "./aiService";
 import { getAdminAssistance } from "./aiAdminService";
 import { getUserSupport } from "./aiUserSupportService";
-import { validateCategoryName, suggestCategoryAlternative, findSimilarCategoryName } from "./aiCategoryService";
+import { validateCategoryName, suggestCategoryAlternative, findSimilarCategoryName, suggestCategoryAndSubcategory } from "./aiCategoryService";
 import { 
   analyzeImagesForHashtags, 
   generateServiceTitle, 
@@ -1119,6 +1119,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error suggesting category alternative:", error);
       res.status(500).json({ message: "Failed to suggest alternatives" });
+    }
+  });
+
+  app.post('/api/ai/suggest-category-subcategory', async (req, res) => {
+    try {
+      const schema = z.object({
+        title: z.string().min(1, "Title is required"),
+        description: z.string().default(""),
+        imageUrls: z.array(z.string()).optional(),
+      });
+
+      const validated = schema.parse(req.body);
+      const suggestion = await suggestCategoryAndSubcategory(
+        validated.title,
+        validated.description,
+        validated.imageUrls
+      );
+
+      const allCategories = await storage.getCategories();
+      const category = allCategories.find(c => c.slug === suggestion.categorySlug);
+
+      if (!category) {
+        return res.status(404).json({ 
+          message: "Suggested category not found",
+          suggestion 
+        });
+      }
+
+      let subcategory = null;
+      if (suggestion.subcategoryId) {
+        const allSubcategories = await storage.getSubcategories();
+        subcategory = allSubcategories.find(s => s.slug === suggestion.subcategoryId);
+      }
+
+      res.json({
+        categoryId: category.id,
+        categorySlug: category.slug,
+        categoryName: category.name,
+        subcategoryId: subcategory?.id || null,
+        subcategorySlug: subcategory?.slug || null,
+        subcategoryName: subcategory?.name || null,
+        confidence: suggestion.confidence,
+      });
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      console.error("Error suggesting category and subcategory:", error);
+      res.status(500).json({ message: "Failed to suggest category and subcategory" });
     }
   });
 

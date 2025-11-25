@@ -1,4 +1,4 @@
-import type { Service, Review, Category, User, Favorite } from "@shared/schema";
+import type { Service, Review, Category, User, Favorite, Subcategory } from "@shared/schema";
 
 // Extended Category type to handle temporary categories with additional fields
 export interface CategoryWithTemporary extends Category {
@@ -12,6 +12,7 @@ export interface ServiceWithDetails extends Service {
   preferredLocationName: string | null;
   owner: User;
   category: Category;
+  subcategory?: Subcategory | null;
   rating: number;
   reviewCount: number;
 }
