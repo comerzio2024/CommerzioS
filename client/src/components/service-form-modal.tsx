@@ -17,6 +17,7 @@ import { ImageManager } from "@/components/image-manager";
 import { ContactInput, type Contact } from "@/components/contact-input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { LocationAutocomplete } from "@/components/location-autocomplete";
+import { CategorySubcategorySelector } from "@/components/category-subcategory-selector";
 
 interface ServiceFormModalProps {
   open: boolean;
@@ -43,6 +44,7 @@ interface FormData {
   title: string;
   description: string;
   categoryId: string;
+  subcategoryId: string | null;
   priceType: PricingType;
   price: string;
   priceText: string;
@@ -69,6 +71,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
     title: "",
     description: "",
     categoryId: "",
+    subcategoryId: null,
     priceType: "fixed" as PricingType,
     price: "",
     priceText: "",
@@ -92,6 +95,10 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
   const [generatingDescription, setGeneratingDescription] = useState(false);
   const [generatingTitle, setGeneratingTitle] = useState(false);
   const [showAccountPlans, setShowAccountPlans] = useState(false);
+  const [isManualOverride, setIsManualOverride] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<{ categoryId: string; subcategoryId: string | null } | null>(null);
+  const [isAiCategoryLoading, setIsAiCategoryLoading] = useState(false);
+  const aiSuggestionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const maxImages = user?.plan?.maxImages || 4;
 
@@ -172,7 +179,8 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
       setFormData({
         title: service.title,
         description: service.description,
-        categoryId: service.categoryId, // Bug Fix #1: Include categoryId
+        categoryId: service.categoryId,
+        subcategoryId: service.subcategoryId || null,
         priceType: service.priceType || "fixed",
         price: service.price || "",
         priceText: service.priceText || "",
@@ -287,6 +295,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
           title: data.title,
           description: data.description,
           categoryId: data.categoryId,
+          subcategoryId: data.subcategoryId || undefined,
           priceType: data.priceType,
           price: data.priceType === "fixed" ? data.price : undefined,
           priceText: data.priceType === "text" ? data.priceText : undefined,
@@ -346,6 +355,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
           title: data.title,
           description: data.description,
           categoryId: data.categoryId,
+          subcategoryId: data.subcategoryId || undefined,
           priceType: data.priceType,
           price: data.priceType === "fixed" ? data.price : undefined,
           priceText: data.priceType === "text" ? data.priceText : undefined,
@@ -412,6 +422,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
       title: "",
       description: "",
       categoryId: "",
+      subcategoryId: null,
       priceType: "fixed",
       price: "",
       priceText: "",
@@ -429,6 +440,9 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
     setHashtagInput("");
     setSuggestedHashtags([]);
     setShowHashtagSuggestions(false);
+    setIsManualOverride(false);
+    setAiSuggestion(null);
+    setIsAiCategoryLoading(false);
   };
 
 
@@ -508,6 +522,84 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
       }
     }
   }, [preselectedCategoryId, isEditMode]);
+
+  // Debounced AI category/subcategory suggestion
+  useEffect(() => {
+    if (!formData || isEditMode || isManualOverride || !formData.title.trim()) {
+      return;
+    }
+
+    if (aiSuggestionTimeoutRef.current) {
+      clearTimeout(aiSuggestionTimeoutRef.current);
+    }
+
+    aiSuggestionTimeoutRef.current = setTimeout(async () => {
+      setIsAiCategoryLoading(true);
+      try {
+        const response = await apiRequest("/api/ai/suggest-category-subcategory", {
+          method: "POST",
+          body: JSON.stringify({
+            title: formData.title,
+            description: formData.description || "",
+            imageUrls: formData.images,
+          }),
+        });
+
+        setAiSuggestion({
+          categoryId: response.categoryId,
+          subcategoryId: response.subcategoryId,
+        });
+
+        setFormData((prev: FormData | null) => ({
+          ...prev!,
+          categoryId: response.categoryId,
+          subcategoryId: response.subcategoryId,
+        }));
+      } catch (error) {
+        console.error("AI category suggestion failed:", error);
+      } finally {
+        setIsAiCategoryLoading(false);
+      }
+    }, 500);
+
+    return () => {
+      if (aiSuggestionTimeoutRef.current) {
+        clearTimeout(aiSuggestionTimeoutRef.current);
+      }
+    };
+  }, [formData?.title, formData?.description, formData?.images, isEditMode, isManualOverride]);
+
+  const handleCategoryChange = (categoryId: string) => {
+    setIsManualOverride(true);
+    setFormData((prev: FormData | null) => {
+      const newSubcategoryId = prev!.subcategoryId;
+      return {
+        ...prev!,
+        categoryId,
+        subcategoryId: newSubcategoryId,
+      };
+    });
+  };
+
+  const handleSubcategoryChange = (subcategoryId: string | null) => {
+    setIsManualOverride(true);
+    const finalSubcategoryId = subcategoryId === "none" ? null : subcategoryId;
+    setFormData((prev: FormData | null) => ({
+      ...prev!,
+      subcategoryId: finalSubcategoryId,
+    }));
+  };
+
+  const handleResetToAI = () => {
+    setIsManualOverride(false);
+    if (aiSuggestion) {
+      setFormData((prev: FormData | null) => ({
+        ...prev!,
+        categoryId: aiSuggestion.categoryId,
+        subcategoryId: aiSuggestion.subcategoryId,
+      }));
+    }
+  };
 
   const handleAISuggestHashtags = async () => {
     if (formData.images.length === 0) {
@@ -886,36 +978,29 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="category">Category *</Label>
-                <select
-                  id="category"
-                  value={formData.categoryId}
-                  onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                  className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  data-testid="select-service-category"
-                >
-                  <option value="">Select a category</option>
-                  {categories.map((cat: CategoryWithTemporary) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-                {onSuggestCategory && !isEditMode && (
-                  <p className="text-sm text-muted-foreground">
-                    Can't find the right category?{" "}
-                    <button
-                      type="button"
-                      onClick={onSuggestCategory}
-                      className="text-primary hover:underline font-medium"
-                      data-testid="button-suggest-category-inline"
-                    >
-                      Suggest a new one
-                    </button>
-                  </p>
-                )}
-              </div>
+              <CategorySubcategorySelector
+                categoryId={formData.categoryId}
+                subcategoryId={formData.subcategoryId}
+                onCategoryChange={handleCategoryChange}
+                onSubcategoryChange={handleSubcategoryChange}
+                isManualOverride={isManualOverride}
+                aiSuggestion={aiSuggestion}
+                onResetToAI={handleResetToAI}
+                isAiLoading={isAiCategoryLoading}
+              />
+              {onSuggestCategory && !isEditMode && (
+                <p className="text-sm text-muted-foreground">
+                  Can't find the right category?{" "}
+                  <button
+                    type="button"
+                    onClick={onSuggestCategory}
+                    className="text-primary hover:underline font-medium"
+                    data-testid="button-suggest-category-inline"
+                  >
+                    Suggest a new one
+                  </button>
+                </p>
+              )}
 
               {/* Hashtags Section */}
               <div className="space-y-4">
