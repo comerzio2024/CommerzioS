@@ -482,7 +482,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const service = await storage.createService({
+      const createdService = await storage.createService({
         ...validated,
         categoryId,
         ownerId: userId,
@@ -492,7 +492,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         preferredLocationName,
       });
 
-      res.status(201).json(service);
+      // Return enriched service data with all relations including subcategory
+      const enrichedService = await storage.getService(createdService.id);
+      res.status(201).json(enrichedService);
     } catch (error: any) {
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: fromZodError(error).message });
@@ -539,8 +541,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const service = await storage.updateService(req.params.id, updateData);
-      res.json(service);
+      await storage.updateService(req.params.id, updateData);
+      
+      // Return enriched service data with all relations including subcategory
+      const enrichedService = await storage.getService(req.params.id);
+      res.json(enrichedService);
     } catch (error) {
       console.error("Error updating service:", error);
       res.status(500).json({ message: "Failed to update service" });

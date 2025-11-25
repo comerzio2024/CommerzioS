@@ -48,6 +48,15 @@ import {
 import { db } from "./db";
 import { eq, and, desc, sql, ilike, or } from "drizzle-orm";
 
+// Type alias for service with all its relations
+export type ServiceWithRelations = Service & {
+  owner: User;
+  category: Category;
+  subcategory: Subcategory | null;
+  rating: number;
+  reviewCount: number;
+};
+
 export interface IStorage {
   // Plan operations
   getPlans(): Promise<Plan[]>;
@@ -86,9 +95,9 @@ export interface IStorage {
     ownerId?: string;
     status?: string;
     search?: string;
-  }): Promise<Array<Service & { owner: User; category: Category; rating: number; reviewCount: number }>>;
+  }): Promise<ServiceWithRelations[]>;
   getAllServices(): Promise<Service[]>;
-  getService(id: string): Promise<(Service & { owner: User; category: Category; rating: number; reviewCount: number }) | undefined>;
+  getService(id: string): Promise<ServiceWithRelations | undefined>;
   createService(service: InsertService): Promise<Service>;
   updateService(id: string, service: Partial<InsertService>): Promise<Service | undefined>;
   deleteService(id: string): Promise<void>;
@@ -101,7 +110,7 @@ export interface IStorage {
   createReview(review: InsertReview): Promise<Review>;
   
   // Favorites operations
-  getUserFavorites(userId: string): Promise<Array<Favorite & { service: Service & { owner: User; category: Category } }>>;
+  getUserFavorites(userId: string): Promise<Array<Favorite & { service: ServiceWithRelations }>>;
   addFavorite(userId: string, serviceId: string): Promise<Favorite>;
   removeFavorite(userId: string, serviceId: string): Promise<void>;
   isFavorite(userId: string, serviceId: string): Promise<boolean>;
@@ -137,14 +146,14 @@ export interface IStorage {
   
   // New user profile operations
   getUserById(userId: string): Promise<UserWithPlan | undefined>;
-  getUserServices(userId: string, includeExpired: boolean): Promise<Array<Service & { owner: User; category: Category; rating: number; reviewCount: number }>>;
-  getUserReviews(userId: string): Promise<Array<Review & { user: User; service: Service & { owner: User; category: Category } }>>;
+  getUserServices(userId: string, includeExpired: boolean): Promise<ServiceWithRelations[]>;
+  getUserReviews(userId: string): Promise<Array<Review & { user: User; service: ServiceWithRelations }>>;
   
   // Hashtag operations
-  getServicesByHashtag(hashtag: string): Promise<Array<Service & { owner: User; category: Category; rating: number; reviewCount: number }>>;
+  getServicesByHashtag(hashtag: string): Promise<ServiceWithRelations[]>;
   
   // Location-based operations
-  getNearbyServices(lat: number, lng: number, radiusKm: number, categoryId?: string, limit?: number): Promise<Array<Service & { owner: User; category: Category; rating: number; reviewCount: number; distance: number }>>;
+  getNearbyServices(lat: number, lng: number, radiusKm: number, categoryId?: string, limit?: number): Promise<Array<ServiceWithRelations & { distance: number }>>;
   updateUserLocation(userId: string, data: { locationLat?: string; locationLng?: string; preferredLocationName?: string; preferredSearchRadiusKm?: number }): Promise<User | undefined>;
   
   // New services indicator operations
@@ -239,20 +248,22 @@ export class DatabaseStorage implements IStorage {
     ownerId?: string;
     status?: string;
     search?: string;
-  }): Promise<Array<Service & { owner: User; category: Category; rating: number; reviewCount: number }>> {
+  }): Promise<ServiceWithRelations[]> {
     let query = db
       .select({
         service: services,
         owner: users,
         category: categories,
+        subcategory: subcategories,
         rating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`,
         reviewCount: sql<number>`COUNT(${reviews.id})`,
       })
       .from(services)
       .leftJoin(users, eq(services.ownerId, users.id))
       .leftJoin(categories, eq(services.categoryId, categories.id))
+      .leftJoin(subcategories, eq(services.subcategoryId, subcategories.id))
       .leftJoin(reviews, eq(services.id, reviews.serviceId))
-      .groupBy(services.id, users.id, categories.id)
+      .groupBy(services.id, users.id, categories.id, subcategories.id)
       .orderBy(desc(services.createdAt))
       .$dynamic();
 
@@ -289,6 +300,7 @@ export class DatabaseStorage implements IStorage {
       ...row.service,
       owner: row.owner!,
       category: row.category!,
+      subcategory: row.subcategory || null,
       rating: Number(row.rating) || 0,
       reviewCount: Number(row.reviewCount) || 0,
     }));
@@ -298,21 +310,23 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(services);
   }
 
-  async getService(id: string): Promise<(Service & { owner: User; category: Category; rating: number; reviewCount: number }) | undefined> {
+  async getService(id: string): Promise<ServiceWithRelations | undefined> {
     const results = await db
       .select({
         service: services,
         owner: users,
         category: categories,
+        subcategory: subcategories,
         rating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`,
         reviewCount: sql<number>`COUNT(${reviews.id})`,
       })
       .from(services)
       .leftJoin(users, eq(services.ownerId, users.id))
       .leftJoin(categories, eq(services.categoryId, categories.id))
+      .leftJoin(subcategories, eq(services.subcategoryId, subcategories.id))
       .leftJoin(reviews, eq(services.id, reviews.serviceId))
       .where(eq(services.id, id))
-      .groupBy(services.id, users.id, categories.id);
+      .groupBy(services.id, users.id, categories.id, subcategories.id);
 
     if (results.length === 0) return undefined;
 
@@ -321,6 +335,7 @@ export class DatabaseStorage implements IStorage {
       ...row.service,
       owner: row.owner!,
       category: row.category!,
+      subcategory: row.subcategory || null,
       rating: Number(row.rating) || 0,
       reviewCount: Number(row.reviewCount) || 0,
     };
@@ -403,19 +418,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Favorites operations
-  async getUserFavorites(userId: string): Promise<Array<Favorite & { service: Service & { owner: User; category: Category } }>> {
+  async getUserFavorites(userId: string): Promise<Array<Favorite & { service: ServiceWithRelations }>> {
     const results = await db
       .select({
         favorite: favorites,
         service: services,
         owner: users,
         category: categories,
+        subcategory: subcategories,
+        rating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`,
+        reviewCount: sql<number>`COUNT(${reviews.id})`,
       })
       .from(favorites)
       .leftJoin(services, eq(favorites.serviceId, services.id))
       .leftJoin(users, eq(services.ownerId, users.id))
       .leftJoin(categories, eq(services.categoryId, categories.id))
+      .leftJoin(subcategories, eq(services.subcategoryId, subcategories.id))
+      .leftJoin(reviews, eq(services.id, reviews.serviceId))
       .where(eq(favorites.userId, userId))
+      .groupBy(favorites.id, services.id, users.id, categories.id, subcategories.id)
       .orderBy(desc(favorites.createdAt));
 
     return results.map((row) => ({
@@ -424,6 +445,9 @@ export class DatabaseStorage implements IStorage {
         ...row.service!,
         owner: row.owner!,
         category: row.category!,
+        subcategory: row.subcategory || null,
+        rating: Number(row.rating) || 0,
+        reviewCount: Number(row.reviewCount) || 0,
       },
     }));
   }
@@ -768,7 +792,7 @@ export class DatabaseStorage implements IStorage {
     return this.getUser(userId);
   }
 
-  async getUserServices(userId: string, includeExpired: boolean): Promise<Array<Service & { owner: User; category: Category; rating: number; reviewCount: number }>> {
+  async getUserServices(userId: string, includeExpired: boolean): Promise<ServiceWithRelations[]> {
     const filters: any = { ownerId: userId };
     
     if (!includeExpired) {
@@ -778,46 +802,76 @@ export class DatabaseStorage implements IStorage {
     return this.getServices(filters);
   }
 
-  async getUserReviews(userId: string): Promise<Array<Review & { user: User; service: Service & { owner: User; category: Category } }>> {
-    const results = await db
-      .select({
-        review: reviews,
-        user: users,
-        service: services,
-        serviceOwner: { id: users.id, email: users.email, firstName: users.firstName, lastName: users.lastName, profileImageUrl: users.profileImageUrl },
-        category: categories,
-      })
+  async getUserReviews(userId: string): Promise<Array<Review & { user: User; service: ServiceWithRelations }>> {
+    // First get the user's reviews with basic service info
+    const userReviews = await db
+      .select()
       .from(reviews)
-      .leftJoin(users, eq(reviews.userId, users.id))
-      .leftJoin(services, eq(reviews.serviceId, services.id))
-      .leftJoin(categories, eq(services.categoryId, categories.id))
       .where(eq(reviews.userId, userId))
       .orderBy(desc(reviews.createdAt));
 
-    return results.map((row) => ({
-      ...row.review,
-      user: row.user!,
-      service: {
-        ...row.service!,
-        owner: row.serviceOwner as User,
-        category: row.category!,
-      },
-    }));
-  }
+    if (userReviews.length === 0) {
+      return [];
+    }
 
-  // Hashtag operations
-  async getServicesByHashtag(hashtag: string): Promise<Array<Service & { owner: User; category: Category; rating: number; reviewCount: number }>> {
-    const results = await db
+    // Get full service details with relations for each review
+    const serviceIds = userReviews.map(r => r.serviceId);
+    const servicesData = await db
       .select({
         service: services,
         owner: users,
         category: categories,
+        subcategory: subcategories,
         rating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`,
         reviewCount: sql<number>`COUNT(${reviews.id})`,
       })
       .from(services)
       .leftJoin(users, eq(services.ownerId, users.id))
       .leftJoin(categories, eq(services.categoryId, categories.id))
+      .leftJoin(subcategories, eq(services.subcategoryId, subcategories.id))
+      .leftJoin(reviews, eq(services.id, reviews.serviceId))
+      .where(sql`${services.id} = ANY(${serviceIds})`)
+      .groupBy(services.id, users.id, categories.id, subcategories.id);
+
+    const servicesMap = new Map(
+      servicesData.map(s => [
+        s.service.id,
+        {
+          ...s.service,
+          owner: s.owner!,
+          category: s.category!,
+          subcategory: s.subcategory || null,
+          rating: Number(s.rating) || 0,
+          reviewCount: Number(s.reviewCount) || 0,
+        }
+      ])
+    );
+
+    // Get user info
+    const [reviewUser] = await db.select().from(users).where(eq(users.id, userId));
+
+    return userReviews.map((review) => ({
+      ...review,
+      user: reviewUser!,
+      service: servicesMap.get(review.serviceId)!,
+    }));
+  }
+
+  // Hashtag operations
+  async getServicesByHashtag(hashtag: string): Promise<ServiceWithRelations[]> {
+    const results = await db
+      .select({
+        service: services,
+        owner: users,
+        category: categories,
+        subcategory: subcategories,
+        rating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`,
+        reviewCount: sql<number>`COUNT(${reviews.id})`,
+      })
+      .from(services)
+      .leftJoin(users, eq(services.ownerId, users.id))
+      .leftJoin(categories, eq(services.categoryId, categories.id))
+      .leftJoin(subcategories, eq(services.subcategoryId, subcategories.id))
       .leftJoin(reviews, eq(services.id, reviews.serviceId))
       .where(
         and(
@@ -825,13 +879,14 @@ export class DatabaseStorage implements IStorage {
           eq(services.status, 'active')
         )
       )
-      .groupBy(services.id, users.id, categories.id)
+      .groupBy(services.id, users.id, categories.id, subcategories.id)
       .orderBy(desc(services.createdAt));
 
     return results.map((row) => ({
       ...row.service,
       owner: row.owner!,
       category: row.category!,
+      subcategory: row.subcategory || null,
       rating: Number(row.rating) || 0,
       reviewCount: Number(row.reviewCount) || 0,
     }));
@@ -844,7 +899,7 @@ export class DatabaseStorage implements IStorage {
     radiusKm: number,
     categoryId?: string,
     limit: number = 20
-  ): Promise<Array<Service & { owner: User; category: Category; rating: number; reviewCount: number; distance: number }>> {
+  ): Promise<Array<ServiceWithRelations & { distance: number }>> {
     const conditions = [eq(services.status, 'active')];
     
     if (categoryId) {
@@ -856,15 +911,17 @@ export class DatabaseStorage implements IStorage {
         service: services,
         owner: users,
         category: categories,
+        subcategory: subcategories,
         rating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`,
         reviewCount: sql<number>`COUNT(${reviews.id})`,
       })
       .from(services)
       .leftJoin(users, eq(services.ownerId, users.id))
       .leftJoin(categories, eq(services.categoryId, categories.id))
+      .leftJoin(subcategories, eq(services.subcategoryId, subcategories.id))
       .leftJoin(reviews, eq(services.id, reviews.serviceId))
       .where(and(...conditions))
-      .groupBy(services.id, users.id, categories.id);
+      .groupBy(services.id, users.id, categories.id, subcategories.id);
 
     const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
       const R = 6371;
@@ -896,6 +953,7 @@ export class DatabaseStorage implements IStorage {
           ...row.service,
           owner: row.owner!,
           category: row.category!,
+          subcategory: row.subcategory || null,
           rating: Number(row.rating) || 0,
           reviewCount: Number(row.reviewCount) || 0,
           distance: Math.round(distance * 10) / 10,

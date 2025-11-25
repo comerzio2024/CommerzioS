@@ -41,25 +41,29 @@ Preferred communication style: Simple, everyday language.
 
 ### Database Schema
 
-**Core Tables:** `users`, `categories`, `services`, `reviews`, `favorites`, `sessions`.
+**Core Tables:** `users`, `categories`, `subcategories`, `services`, `reviews`, `favorites`, `sessions`.
 
 **Design Decisions:**
 - **Service Lifecycle:** Services have `draft`, `active`, `expired` statuses and `expiresAt` for automatic cleanup.
 - **IDs:** Uses string-based IDs (UUID compatible) for scalability.
-- **Relationships:** Services link to owners and categories.
+- **Relationships:** Services link to owners, categories, and optionally subcategories.
 - **Reviews:** Separate `reviews` table supports aggregate calculations.
 - **Service Location Coordinates:** Services now store their own `locationLat`, `locationLng`, and `preferredLocationName` for accurate mapping, independent of the owner's profile location.
+- **Subcategories:** Each category has 5-6 subcategories (58 total) for refined service classification. Services can optionally reference a subcategory via nullable `subcategoryId` field, ensuring full backward compatibility with existing listings.
 
 ### API Structure
 
-**Route Organization:** `/api/auth/*`, `/api/categories`, `/api/services/*`, `/api/services/:id/reviews`, `/api/favorites`.
+**Route Organization:** `/api/auth/*`, `/api/categories`, `/api/categories/:categoryId/subcategories`, `/api/subcategories`, `/api/services/*`, `/api/services/:id/reviews`, `/api/favorites`.
 
 **Design Decisions:**
 - **RESTful:** Standard HTTP methods for CRUD operations.
-- **Nested Resources:** Reviews nested under services.
+- **Nested Resources:** Reviews nested under services, subcategories nested under categories.
 - **Filtering:** Service listing supports query parameter filtering.
 - **Security:** `isAuthenticated` middleware for protected routes.
 - **Validation:** Zod schemas via Drizzle provide request validation.
+- **Subcategory Endpoints:** 
+  - `GET /api/subcategories` - Fetch all subcategories
+  - `GET /api/categories/:categoryId/subcategories` - Fetch subcategories for a specific category
 
 ### Development Environment
 
