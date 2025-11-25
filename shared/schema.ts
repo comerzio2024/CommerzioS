@@ -190,6 +190,26 @@ export const categories = pgTable("categories", {
 
 export const categoriesRelations = relations(categories, ({ many }) => ({
   services: many(services),
+  subcategories: many(subcategories),
+}));
+
+// Subcategories table
+export const subcategories = pgTable("subcategories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  categoryId: varchar("category_id").notNull().references(() => categories.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 100 }).notNull(),
+  slug: varchar("slug", { length: 100 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_subcategories_category").on(table.categoryId),
+]);
+
+export const subcategoriesRelations = relations(subcategories, ({ one, many }) => ({
+  category: one(categories, {
+    fields: [subcategories.categoryId],
+    references: [categories.id],
+  }),
+  services: many(services),
 }));
 
 // Temporary categories (AI-suggested, auto-expire after 24 hours)
@@ -257,6 +277,7 @@ export const services = pgTable("services", {
   title: varchar("title", { length: 200 }).notNull(),
   description: text("description").notNull(),
   categoryId: varchar("category_id").notNull().references(() => categories.id),
+  subcategoryId: varchar("subcategory_id").references(() => subcategories.id),
   priceType: varchar("price_type", { enum: ["fixed", "list", "text"] }).default("fixed").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }),
   priceText: text("price_text"),
@@ -292,6 +313,10 @@ export const servicesRelations = relations(services, ({ one, many }) => ({
   category: one(categories, {
     fields: [services.categoryId],
     references: [categories.id],
+  }),
+  subcategory: one(subcategories, {
+    fields: [services.subcategoryId],
+    references: [subcategories.id],
   }),
   reviews: many(reviews),
   favorites: many(favorites),
@@ -405,6 +430,9 @@ export type UserWithPlan = User & { plan?: Plan };
 
 export type Category = typeof categories.$inferSelect;
 export type InsertCategory = typeof categories.$inferInsert;
+
+export type Subcategory = typeof subcategories.$inferSelect;
+export type InsertSubcategory = typeof subcategories.$inferInsert;
 
 export type TemporaryCategory = typeof temporaryCategories.$inferSelect;
 export type InsertTemporaryCategory = typeof temporaryCategories.$inferInsert;
