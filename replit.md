@@ -37,6 +37,7 @@ Preferred communication style: Simple, everyday language.
 - **Session Management:** PostgreSQL-backed sessions ensure persistence and scalability.
 - **Storage Abstraction:** An `IStorage` interface (`server/storage.ts`) abstracts database operations.
 - **AI Integration:** OpenAI API is used for intelligent service categorization based on service title and description.
+- **Object Storage:** Images stored in Google Cloud Storage with `/objects/uploads/...` paths. `ObjectStorageService.getSignedObjectUrl()` generates temporary signed URLs for external access (e.g., AI features).
 
 ### Database Schema
 
@@ -78,6 +79,7 @@ Preferred communication style: Simple, everyday language.
   - Description generator with GPT-4o integration
   - Hashtag suggestions from image analysis
   - Category duplicate detection via AI validation
+  - **Image Handling:** AI features accept uploaded images via `/objects/uploads/...` paths, which are automatically converted to temporary signed URLs server-side before sending to OpenAI API
 - **Swiss Address Validation:** Fixed validation for addresses with 4-digit postal codes (e.g., "Farman-Strasse, 8152, Glattbrugg")
 - **Smart Error Messages:** Error toasts now point users to specific form tabs and field issues
 - **Phone Number Guidance:** Specific format guidance for Swiss phone numbers (+41 format)
