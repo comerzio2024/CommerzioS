@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Lightbulb } from "lucide-react";
 import { CategoryValidationDialog } from "./category-validation-dialog";
+import type { Category } from "@shared/schema";
 
 interface CategorySuggestionModalProps {
   open: boolean;
@@ -31,6 +32,21 @@ export function CategorySuggestionModal({ open, onOpenChange, onCategoryCreated 
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [showValidationDialog, setShowValidationDialog] = useState(false);
 
+  // Fetch all categories to check for duplicates
+  const { data: allCategories = [] } = useQuery<Category[]>({
+    queryKey: ["/api/categories"],
+    queryFn: () => apiRequest("/api/categories"),
+  });
+
+  // Helper function to normalize category names for comparison
+  const normalize = (str: string) => str.toLowerCase().trim().replace(/[&,]/g, '').replace(/\s+/g, ' ');
+  
+  // Helper to find exact or very similar category
+  const findExistingCategory = (name: string) => {
+    const normalized = normalize(name);
+    return allCategories.find(cat => normalize(cat.name) === normalized);
+  };
+
   // Helper function to generate unique slug with timestamp
   const generateUniqueSlug = (name: string) => {
     const baseSlug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
@@ -46,7 +62,22 @@ export function CategorySuggestionModal({ open, onOpenChange, onCategoryCreated 
       }),
     onSuccess: (result) => {
       if (result.isValid && result.confidence > 0.7) {
-        // AI says it's valid - create temporary category directly
+        // AI says it's valid - check if category already exists first
+        const existing = findExistingCategory(categoryName.trim());
+        if (existing) {
+          toast({
+            title: "Category Found!",
+            description: `We found an existing category "${existing.name}". Using it instead.`,
+          });
+          if (onCategoryCreated) {
+            onCategoryCreated(existing.id);
+          }
+          resetForm();
+          onOpenChange(false);
+          return;
+        }
+        
+        // Category doesn't exist, create it
         createTemporaryCategoryMutation.mutate({
           name: categoryName.trim(),
           slug: generateUniqueSlug(categoryName.trim()),
@@ -135,7 +166,22 @@ export function CategorySuggestionModal({ open, onOpenChange, onCategoryCreated 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (categoryName.trim() && categoryDescription.trim()) {
-      // First validate with AI
+      // First check if category already exists (exact match)
+      const existing = findExistingCategory(categoryName.trim());
+      if (existing) {
+        toast({
+          title: "Category Found!",
+          description: `We found an existing category "${existing.name}". Using it instead of creating a duplicate.`,
+        });
+        if (onCategoryCreated) {
+          onCategoryCreated(existing.id);
+        }
+        resetForm();
+        onOpenChange(false);
+        return;
+      }
+      
+      // No exact match found, validate with AI
       validateCategoryMutation.mutate({ 
         categoryName: categoryName.trim(),
         description: categoryDescription.trim()
@@ -146,6 +192,23 @@ export function CategorySuggestionModal({ open, onOpenChange, onCategoryCreated 
   const handleUseSuggestedName = () => {
     if (!validationResult?.suggestedName) return;
     
+    // First check if this category already exists
+    const existing = findExistingCategory(validationResult.suggestedName);
+    if (existing) {
+      toast({
+        title: "Category Found!",
+        description: `Using the existing category "${existing.name}".`,
+      });
+      if (onCategoryCreated) {
+        onCategoryCreated(existing.id);
+      }
+      resetForm();
+      onOpenChange(false);
+      setShowValidationDialog(false);
+      return;
+    }
+    
+    // Otherwise create new category
     createTemporaryCategoryMutation.mutate({
       name: validationResult.suggestedName,
       slug: generateUniqueSlug(validationResult.suggestedName),
