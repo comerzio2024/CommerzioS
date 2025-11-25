@@ -88,6 +88,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, servic
   const [suggestedHashtags, setSuggestedHashtags] = useState<string[]>([]);
   const [loadingHashtags, setLoadingHashtags] = useState(false);
   const [generatingDescription, setGeneratingDescription] = useState(false);
+  const [showAccountPlans, setShowAccountPlans] = useState(false);
 
   const maxImages = user?.plan?.maxImages || 4;
 
@@ -1093,12 +1094,45 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, servic
                   </div>
                 </div>
 
-                {/* Account Plans Info */}
-                <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg mt-4">
-                  <p className="text-sm font-medium mb-2">💡 Pro Tip: Account-wide Packages</p>
-                  <p className="text-sm text-muted-foreground">
-                    Upgrade your account to Professional or Pro Plan to boost ALL your services and get priority support. Available in account settings.
-                  </p>
+                {/* Account Plans Info - Collapsible */}
+                <div className="mt-6 pt-6 border-t">
+                  <button
+                    type="button"
+                    onClick={() => setShowAccountPlans(!showAccountPlans)}
+                    className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors"
+                    data-testid="button-toggle-account-plans"
+                  >
+                    <span>{showAccountPlans ? "▼" : "▶"}</span>
+                    💡 Account-wide Packages (See more)
+                  </button>
+
+                  {showAccountPlans && (
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Professional Badge */}
+                      <div className="p-4 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-800">
+                        <div className="font-semibold text-amber-900 dark:text-amber-100">Professional Badge</div>
+                        <div className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-2">CHF 5/mo</div>
+                        <ul className="text-sm text-amber-800 dark:text-amber-200 mt-3 space-y-1">
+                          <li>✓ Badge on all services</li>
+                          <li>✓ Build trust & credibility</li>
+                          <li>✓ Higher customer confidence</li>
+                          <li>✓ Account-wide visibility boost</li>
+                        </ul>
+                      </div>
+
+                      {/* Pro Account */}
+                      <div className="p-4 rounded-lg border border-purple-200 bg-purple-50 dark:bg-purple-950 dark:border-purple-800">
+                        <div className="font-semibold text-purple-900 dark:text-purple-100">Pro Account</div>
+                        <div className="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-2">CHF 29/mo</div>
+                        <ul className="text-sm text-purple-800 dark:text-purple-200 mt-3 space-y-1">
+                          <li>✓ Everything in Professional</li>
+                          <li>✓ Featured in category</li>
+                          <li>✓ Priority customer support</li>
+                          <li>✓ Advanced analytics (coming soon)</li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </TabsContent>
