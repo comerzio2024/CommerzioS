@@ -16,12 +16,12 @@ export default function Terms() {
               <section>
                 <h2 className="text-2xl font-bold text-foreground mb-4">1. Introduction</h2>
                 <p className="mb-4">
-                  These Terms of Service ("Terms") govern your access to and use of ServeMkt AG's marketplace platform 
+                  These Terms of Service ("Terms") govern your access to and use of Commerzio Services AG's marketplace platform 
                   ("Platform", "Service", "we", "us", or "our"). By accessing or using our Platform, you agree to be 
                   bound by these Terms and all applicable laws and regulations.
                 </p>
                 <p className="mb-4">
-                  ServeMkt AG is a Swiss company registered in Zürich, Switzerland. These Terms are governed by Swiss 
+                  Commerzio Services AG is a Swiss company registered in Zürich, Switzerland. These Terms are governed by Swiss 
                   law, specifically the Swiss Code of Obligations (Obligationenrecht, "OR").
                 </p>
                 <p>
@@ -35,7 +35,7 @@ export default function Terms() {
               <section>
                 <h2 className="text-2xl font-bold text-foreground mb-4">2. Services Provided</h2>
                 <p className="mb-4">
-                  ServeMkt operates an online marketplace that connects service providers with customers seeking services 
+                  Commerzio Services operates an online marketplace that connects service providers with customers seeking services 
                   within Switzerland. We provide:
                 </p>
                 <ul className="list-disc list-inside space-y-2 ml-4 mb-4">
@@ -45,7 +45,7 @@ export default function Terms() {
                   <li>Communication facilitation between users</li>
                 </ul>
                 <p className="font-semibold text-foreground">
-                  Important: ServeMkt is a platform only. We are not a party to any agreements between service providers 
+                  Important: Commerzio Services is a platform only. We are not a party to any agreements between service providers 
                   and customers. All transactions, payments, and service delivery occur directly between users.
                 </p>
               </section>
@@ -101,7 +101,7 @@ export default function Terms() {
                 </ul>
                 <p className="font-semibold text-foreground">
                   Service providers are solely responsible for the quality, legality, and delivery of their services. 
-                  ServeMkt assumes no responsibility for services provided through the Platform.
+                  Commerzio Services assumes no responsibility for services provided through the Platform.
                 </p>
               </section>
 
@@ -134,7 +134,7 @@ export default function Terms() {
 
                 <h3 className="text-xl font-semibold text-foreground mb-3">6.2 Service Transactions</h3>
                 <p>
-                  Payment for services is handled directly between customers and service providers. ServeMkt does not 
+                  Payment for services is handled directly between customers and service providers. Commerzio Services does not 
                   process, hold, or take commission on payments for services. Users are responsible for:
                 </p>
                 <ul className="list-disc list-inside space-y-2 ml-4 mt-2">
@@ -151,11 +151,11 @@ export default function Terms() {
               <section>
                 <h2 className="text-2xl font-bold text-foreground mb-4">7. Intellectual Property</h2>
                 <p className="mb-4">
-                  The Platform and its content (excluding user-generated content) are owned by ServeMkt AG and are 
+                  The Platform and its content (excluding user-generated content) are owned by Commerzio Services AG and are 
                   protected by Swiss and international copyright, trademark, and other intellectual property laws.
                 </p>
                 <p className="mb-4">
-                  By posting content on the Platform, you grant ServeMkt a non-exclusive, worldwide, royalty-free license 
+                  By posting content on the Platform, you grant Commerzio Services a non-exclusive, worldwide, royalty-free license 
                   to use, display, and distribute your content in connection with operating the Platform.
                 </p>
                 <p>
@@ -173,7 +173,7 @@ export default function Terms() {
                   In accordance with Article 100 of the Swiss Code of Obligations (OR):
                 </p>
                 <ul className="list-disc list-inside space-y-2 ml-4 mb-4">
-                  <li>ServeMkt AG acts solely as an intermediary platform connecting users</li>
+                  <li>Commerzio Services AG acts solely as an intermediary platform connecting users</li>
                   <li>We are not liable for the quality, safety, legality, or delivery of services offered through the Platform</li>
                   <li>We are not liable for actions, omissions, or conduct of any users</li>
                   <li>We are not responsible for disputes between users</li>
@@ -192,7 +192,7 @@ export default function Terms() {
               <section>
                 <h2 className="text-2xl font-bold text-foreground mb-4">9. Indemnification</h2>
                 <p>
-                  You agree to indemnify and hold harmless ServeMkt AG, its officers, directors, employees, and agents 
+                  You agree to indemnify and hold harmless Commerzio Services AG, its officers, directors, employees, and agents 
                   from any claims, damages, losses, liabilities, and expenses (including legal fees) arising from:
                 </p>
                 <ul className="list-disc list-inside space-y-2 ml-4 mt-2">
@@ -290,7 +290,7 @@ export default function Terms() {
               <section>
                 <h2 className="text-2xl font-bold text-foreground mb-4">14. Contact Information</h2>
                 <div className="bg-slate-50 rounded-lg p-6">
-                  <p className="font-semibold text-foreground mb-2">ServeMkt AG</p>
+                  <p className="font-semibold text-foreground mb-2">Commerzio Services AG</p>
                   <p>Bahnhofstrasse 1</p>
                   <p>8001 Zürich</p>
                   <p>Switzerland</p>
@@ -323,7 +323,7 @@ export default function Terms() {
 
               <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 mt-8">
                 <p className="text-sm text-foreground">
-                  <strong>Acknowledgment:</strong> By using ServeMkt, you acknowledge that you have read, understood, 
+                  <strong>Acknowledgment:</strong> By using Commerzio Services, you acknowledge that you have read, understood, 
                   and agree to be bound by these Terms of Service.
                 </p>
               </div>

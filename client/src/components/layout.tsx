@@ -9,6 +9,7 @@ import { CreateServiceModal } from "@/components/create-service-modal";
 import { CategorySuggestionModal } from "@/components/category-suggestion-modal";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useState } from "react";
+import { BRAND } from "@/lib/brand";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [, setLocation] = useLocation();
@@ -33,11 +34,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
           {/* Logo */}
           <Link href="/">
-            <div className="flex items-center gap-2 text-primary font-bold text-xl tracking-tight cursor-pointer flex-shrink-0">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white">
-                <span className="text-lg">S</span>
+            <div className="flex items-center gap-2.5 cursor-pointer flex-shrink-0 group">
+              {/* Logo Icon */}
+              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#1a56db] to-[#2ba89c] flex items-center justify-center shadow-md shadow-primary/20 group-hover:shadow-lg group-hover:shadow-primary/30 transition-shadow">
+                <svg width="24" height="24" viewBox="0 0 32 32" fill="none" className="text-white">
+                  <path d="M16 4C9.373 4 4 9.373 4 16s5.373 12 12 12c4.125 0 7.763-2.085 9.924-5.256" 
+                        stroke="currentColor" strokeWidth="3" strokeLinecap="round" fill="none"/>
+                  <circle cx="23" cy="9" r="2.5" fill="currentColor"/>
+                  <circle cx="26.5" cy="16" r="2.5" fill="currentColor"/>
+                  <circle cx="23" cy="23" r="2.5" fill="currentColor"/>
+                </svg>
               </div>
-              <span className="hidden sm:inline">ServeMkt</span>
+              {/* Brand Name */}
+              <div className="hidden sm:flex flex-col leading-tight">
+                <span className="text-lg font-bold text-foreground tracking-tight">Commerzio</span>
+                <span className="text-xs font-medium text-primary -mt-0.5">Services</span>
+              </div>
             </div>
           </Link>
 
@@ -222,12 +234,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                <div className="w-6 h-6 bg-primary rounded-md flex items-center justify-center text-white text-xs">S</div>
-                ServeMkt
-              </h3>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#1a56db] to-[#2ba89c] flex items-center justify-center">
+                  <svg width="20" height="20" viewBox="0 0 32 32" fill="none" className="text-white">
+                    <path d="M16 4C9.373 4 4 9.373 4 16s5.373 12 12 12c4.125 0 7.763-2.085 9.924-5.256" 
+                          stroke="currentColor" strokeWidth="3" strokeLinecap="round" fill="none"/>
+                    <circle cx="23" cy="9" r="2.5" fill="currentColor"/>
+                    <circle cx="26.5" cy="16" r="2.5" fill="currentColor"/>
+                    <circle cx="23" cy="23" r="2.5" fill="currentColor"/>
+                  </svg>
+                </div>
+                <div className="flex flex-col leading-tight">
+                  <span className="font-bold text-foreground">Commerzio</span>
+                  <span className="text-xs font-medium text-primary -mt-0.5">Services</span>
+                </div>
+              </div>
               <p className="text-muted-foreground text-sm leading-relaxed">
-                Connecting trusted professionals with people who need their skills. Simple, secure, and fast.
+                {BRAND.description}
+              </p>
+              <p className="text-xs text-muted-foreground/60 mt-3">
+                A <span className="font-medium">{BRAND.parentCompany}</span> company
               </p>
             </div>
             <div>
@@ -255,7 +281,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div className="border-t mt-12 pt-8 text-center text-sm text-muted-foreground">
-            © 2024 ServeMkt Inc. All rights reserved.
+            {BRAND.copyright}
           </div>
         </div>
       </footer>

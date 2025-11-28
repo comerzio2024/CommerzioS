@@ -20,7 +20,7 @@ export interface AdminAssistRequest {
 }
 
 export async function getAdminAssistance(request: AdminAssistRequest): Promise<string> {
-  const systemPrompt = `You are an AI assistant helping a platform administrator manage a Swiss service marketplace called ServeMkt.
+  const systemPrompt = `You are an AI assistant helping a platform administrator manage a Swiss service marketplace called Commerzio Services (part of the Commerzio company).
 
 Your capabilities include:
 - Analyzing platform metrics and user behavior

@@ -1,8 +1,8 @@
-# ServeMkt - Service Marketplace Platform
+# Commerzio Services - Service Marketplace Platform
 
 ## Overview
 
-ServeMkt is a full-stack service marketplace connecting service providers with customers. It enables users to browse, post, and review local services across various categories, featuring AI-powered categorization, user authentication, and a comprehensive review system. The platform aims to be a modern, professional, and trustworthy solution for local service discovery.
+Commerzio Services is a full-stack service marketplace connecting service providers with customers. It enables users to browse, post, and review local services across various categories, featuring AI-powered categorization, user authentication, and a comprehensive review system. The platform is part of the Commerzio company and aims to be a modern, professional, and trustworthy solution for local service discovery in Switzerland.
 
 ## User Preferences
 

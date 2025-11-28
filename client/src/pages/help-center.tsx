@@ -10,7 +10,7 @@ export default function HelpCenter() {
         <div className="max-w-4xl mx-auto">
           <h1 className="text-4xl font-bold text-center mb-4">Help Center</h1>
           <p className="text-lg text-muted-foreground text-center mb-12">
-            Find answers to common questions about using ServeMkt
+            Find answers to common questions about using Commerzio Services
           </p>
 
           <Accordion type="single" collapsible className="space-y-4">
@@ -20,7 +20,7 @@ export default function HelpCenter() {
                 How do I post a service?
               </AccordionTrigger>
               <AccordionContent className="text-muted-foreground space-y-3">
-                <p>Posting a service on ServeMkt is quick and easy:</p>
+                <p>Posting a service on Commerzio Services is quick and easy:</p>
                 <ol className="list-decimal list-inside space-y-2 ml-4">
                   <li>Log in to your account or create a new one</li>
                   <li>Click the "Post Service" button in the navigation bar</li>
@@ -61,9 +61,9 @@ export default function HelpCenter() {
                 How does payment and pricing work?
               </AccordionTrigger>
               <AccordionContent className="text-muted-foreground space-y-3">
-                <p>All prices on ServeMkt are displayed in Swiss Francs (CHF):</p>
+                <p>All prices on Commerzio Services are displayed in Swiss Francs (CHF):</p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
-                  <li><strong>For Customers:</strong> Payment is handled directly between you and the service provider. ServeMkt does not process payments.</li>
+                  <li><strong>For Customers:</strong> Payment is handled directly between you and the service provider. Commerzio Services does not process payments.</li>
                   <li><strong>For Providers:</strong> You set your own prices and payment terms. Discuss payment methods with customers directly.</li>
                   <li><strong>Listing Fees:</strong> Basic listings are free for 14 days. Premium marketing packages are available for increased visibility.</li>
                   <li><strong>No Commission:</strong> We don't take a commission on transactions between customers and providers.</li>
@@ -80,7 +80,7 @@ export default function HelpCenter() {
                 How do I manage my account?
               </AccordionTrigger>
               <AccordionContent className="text-muted-foreground space-y-3">
-                <p>Managing your ServeMkt account is easy through your dashboard:</p>
+                <p>Managing your Commerzio Services account is easy through your dashboard:</p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
                   <li><strong>Profile Settings:</strong> Update your personal information, contact details, and profile picture</li>
                   <li><strong>My Services:</strong> View, edit, renew, or delete your service listings</li>

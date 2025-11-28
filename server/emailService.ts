@@ -26,9 +26,17 @@ const smtpConfig = {
   },
 };
 
-const emailFrom = process.env.EMAIL_FROM || "noreply@example.com";
+const emailFrom = process.env.EMAIL_FROM || "noreply@commerzio.online";
 const appUrl = process.env.APP_URL || "http://localhost:5000";
-const appName = "ServeMkt";
+const appName = "Commerzio Services";
+
+// Brand colors for email templates
+const brandColors = {
+  primary: "#1a56db",
+  accent: "#2ba89c",
+  gradientStart: "#1a56db",
+  gradientEnd: "#2ba89c",
+};
 
 // Create reusable transporter
 let transporter: nodemailer.Transporter | null = null;
@@ -95,31 +103,36 @@ function wrapEmailTemplate(content: string): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${appName}</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
-    .container { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    .header { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 30px; text-align: center; }
-    .header h1 { margin: 0; font-size: 28px; font-weight: 600; }
-    .content { padding: 40px 30px; }
-    .button { display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white !important; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; margin: 20px 0; }
-    .button:hover { opacity: 0.9; }
-    .footer { background: #f9fafb; padding: 20px 30px; text-align: center; color: #6b7280; font-size: 12px; }
-    .footer a { color: #6366f1; text-decoration: none; }
-    .code { background: #f3f4f6; padding: 15px 25px; font-size: 24px; font-weight: bold; letter-spacing: 4px; text-align: center; border-radius: 8px; margin: 20px 0; }
-    .warning { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0; }
-    p { margin: 0 0 15px 0; }
+    body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #0f172a; margin: 0; padding: 0; background-color: #f1f5f9; }
+    .container { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(26, 86, 219, 0.1); }
+    .header { background: linear-gradient(135deg, ${brandColors.gradientStart} 0%, ${brandColors.gradientEnd} 100%); color: white; padding: 32px; text-align: center; }
+    .header h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+    .header p { margin: 8px 0 0 0; font-size: 14px; opacity: 0.9; }
+    .content { padding: 40px 32px; }
+    .button { display: inline-block; background: linear-gradient(135deg, ${brandColors.gradientStart} 0%, ${brandColors.gradientEnd} 100%); color: white !important; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; margin: 20px 0; box-shadow: 0 4px 12px rgba(26, 86, 219, 0.3); }
+    .button:hover { opacity: 0.95; }
+    .footer { background: #f8fafc; padding: 24px 32px; text-align: center; color: #64748b; font-size: 12px; border-top: 1px solid #e2e8f0; }
+    .footer a { color: ${brandColors.primary}; text-decoration: none; }
+    .footer .brand { font-weight: 600; color: #0f172a; }
+    .code { background: linear-gradient(135deg, #f0f9ff 0%, #f0fdf4 100%); padding: 16px 28px; font-size: 28px; font-weight: bold; letter-spacing: 6px; text-align: center; border-radius: 10px; margin: 24px 0; color: ${brandColors.primary}; border: 2px dashed ${brandColors.accent}; }
+    .warning { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+    p { margin: 0 0 16px 0; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
       <h1>${appName}</h1>
+      <p>Trusted Local Services</p>
     </div>
     <div class="content">
       ${content}
     </div>
     <div class="footer">
-      <p>&copy; ${new Date().getFullYear()} ${appName}. All rights reserved.</p>
-      <p>If you didn't request this email, you can safely ignore it.</p>
+      <p class="brand">Commerzio Services</p>
+      <p>A Commerzio company</p>
+      <p>&copy; ${new Date().getFullYear()} Commerzio Services AG. All rights reserved.</p>
+      <p style="margin-top: 12px; font-size: 11px;">If you didn't request this email, you can safely ignore it.</p>
     </div>
   </div>
 </body>

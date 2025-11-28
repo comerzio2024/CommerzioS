@@ -1,0 +1,28 @@
+<svg width="200" height="40" viewBox="0 0 200 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="brandGradientDark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6"/>
+      <stop offset="100%" style="stop-color:#5eead4"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Logo Mark - Stylized C with connection nodes -->
+  <g transform="translate(0, 4)">
+    <!-- Main C shape -->
+    <path d="M16 0C7.163 0 0 7.163 0 16s7.163 16 16 16c5.5 0 10.35-2.78 13.23-7.01" 
+          stroke="url(#brandGradientDark)" stroke-width="4" stroke-linecap="round" fill="none"/>
+    <!-- Connection dots representing services -->
+    <circle cx="26" cy="8" r="3" fill="#3b82f6"/>
+    <circle cx="30" cy="16" r="3" fill="#38bdf8"/>
+    <circle cx="26" cy="24" r="3" fill="#5eead4"/>
+    <!-- Connecting lines -->
+    <path d="M26 8 L30 16 L26 24" stroke="url(#brandGradientDark)" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.6"/>
+  </g>
+  
+  <!-- Brand Text -->
+  <text x="42" y="26" font-family="Plus Jakarta Sans, Inter, sans-serif" font-size="20" font-weight="700" fill="#f8fafc">
+    <tspan>Commerzio</tspan>
+    <tspan fill="#5eead4" font-weight="500"> Services</tspan>
+  </text>
+</svg>
+

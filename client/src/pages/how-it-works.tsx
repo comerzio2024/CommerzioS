@@ -7,7 +7,7 @@ export default function HowItWorks() {
     <Layout>
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl font-bold text-center mb-4">How ServeMkt Works</h1>
+          <h1 className="text-4xl font-bold text-center mb-4">How Commerzio Services Works</h1>
           <p className="text-lg text-muted-foreground text-center mb-12">
             Connect with trusted service providers in Switzerland in four simple steps
           </p>

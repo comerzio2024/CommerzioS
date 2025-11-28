@@ -310,7 +310,7 @@ export function FloatingChatWidget({ pageContext }: FloatingChatWidgetProps) {
             {/* Header */}
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 border-b">
               <CardTitle className="text-lg font-semibold" data-testid="text-chat-title">
-                ServeMkt Support
+                Commerzio Support
               </CardTitle>
               <Button
                 variant="ghost"
@@ -332,7 +332,7 @@ export function FloatingChatWidget({ pageContext }: FloatingChatWidgetProps) {
                     <div className="text-center text-muted-foreground text-sm py-8" data-testid="text-welcome">
                       <Sparkles className="h-8 w-8 mx-auto mb-2 text-blue-500" />
                       <p>Hi! How can I help you today?</p>
-                      <p className="mt-1 text-xs">Ask me anything about ServeMkt!</p>
+                      <p className="mt-1 text-xs">Ask me anything about Commerzio Services!</p>
                     </div>
                   )}
 

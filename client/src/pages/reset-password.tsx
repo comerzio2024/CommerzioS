@@ -191,7 +191,7 @@ export default function ResetPasswordPage() {
               <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-xl flex items-center justify-center text-white shadow-lg">
                 <span className="text-xl">S</span>
               </div>
-              <span>ServeMkt</span>
+              <span>Commerzio Services</span>
             </div>
           </Link>
           <CardTitle className="text-2xl font-bold">Set new password</CardTitle>

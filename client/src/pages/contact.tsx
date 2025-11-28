@@ -79,7 +79,7 @@ export default function Contact() {
                 </CardHeader>
                 <CardContent>
                   <address className="not-italic text-muted-foreground" data-testid="text-address">
-                    <strong className="text-foreground">ServeMkt AG</strong><br />
+                    <strong className="text-foreground">Commerzio Services AG</strong><br />
                     Bahnhofstrasse 1<br />
                     8001 Zürich<br />
                     Switzerland
