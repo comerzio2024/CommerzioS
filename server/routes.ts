@@ -2279,6 +2279,172 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get who referred the current user
+  app.get('/api/referral/my-referrer', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      
+      // Get current user's referredBy
+      const [user] = await db
+        .select({
+          referredBy: users.referredBy,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      
+      if (!user?.referredBy) {
+        return res.json({ hasReferrer: false, referrer: null });
+      }
+      
+      // Get referrer info
+      const [referrer] = await db
+        .select({
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          profileImageUrl: users.profileImageUrl,
+          referralCode: users.referralCode,
+        })
+        .from(users)
+        .where(eq(users.id, user.referredBy))
+        .limit(1);
+      
+      res.json({
+        hasReferrer: true,
+        referrer: referrer ? {
+          id: referrer.id,
+          firstName: referrer.firstName,
+          lastName: referrer.lastName ? referrer.lastName.charAt(0) + '.' : null,
+          profileImageUrl: referrer.profileImageUrl,
+          referralCode: referrer.referralCode,
+        } : null,
+      });
+    } catch (error) {
+      console.error("Error fetching referrer:", error);
+      res.status(500).json({ message: "Failed to fetch referrer" });
+    }
+  });
+
+  // Get multi-level referrals (L1, L2, L3)
+  app.get('/api/referral/my-network', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const config = await getReferralConfig();
+      const maxLevels = config.maxLevels || 3;
+      
+      // Get L1 referrals (direct)
+      const l1Referrals = await getDirectReferrals(userId, 100);
+      
+      // Get L2 referrals (referrals of L1)
+      const l2Referrals: any[] = [];
+      const l3Referrals: any[] = [];
+      
+      if (maxLevels >= 2) {
+        for (const l1 of l1Referrals.slice(0, 50)) {
+          const l2 = await getDirectReferrals(l1.id, 20);
+          l2Referrals.push(...l2.map(r => ({
+            ...r,
+            lastName: r.lastName ? r.lastName.charAt(0) + '.' : null,
+            referredByName: `${l1.firstName || ''} ${(l1.lastName || '').charAt(0)}.`.trim(),
+          })));
+        }
+      }
+      
+      // Get L3 referrals (optional, only first few)
+      if (maxLevels >= 3 && l2Referrals.length < 100) {
+        for (const l2 of l2Referrals.slice(0, 20)) {
+          const l3 = await getDirectReferrals(l2.id, 10);
+          l3Referrals.push(...l3.map(r => ({
+            ...r,
+            lastName: r.lastName ? r.lastName.charAt(0) + '.' : null,
+            referredByName: `${l2.firstName || ''} ${(l2.lastName || '').charAt(0) || ''}.`.trim(),
+          })));
+        }
+      }
+      
+      res.json({
+        maxLevels,
+        level1: {
+          count: l1Referrals.length,
+          referrals: l1Referrals.map(r => ({
+            id: r.id,
+            firstName: r.firstName,
+            lastName: r.lastName ? r.lastName.charAt(0) + '.' : null,
+            createdAt: r.createdAt,
+            status: r.status,
+          })),
+        },
+        level2: {
+          count: l2Referrals.length,
+          referrals: l2Referrals.slice(0, 50),
+        },
+        level3: {
+          count: l3Referrals.length,
+          referrals: l3Referrals.slice(0, 30),
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching network:", error);
+      res.status(500).json({ message: "Failed to fetch network" });
+    }
+  });
+
+  // Get user's commission events
+  app.get('/api/referral/my-commissions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const limit = parseInt(req.query.limit as string) || 50;
+      
+      const commissions = await db
+        .select({
+          id: referralTransactions.id,
+          fromUserId: referralTransactions.fromUserId,
+          level: referralTransactions.level,
+          pointsEarned: referralTransactions.pointsEarned,
+          commissionEarned: referralTransactions.commissionEarned,
+          triggerType: referralTransactions.triggerType,
+          triggerId: referralTransactions.triggerId,
+          triggerAmount: referralTransactions.triggerAmount,
+          status: referralTransactions.status,
+          createdAt: referralTransactions.createdAt,
+        })
+        .from(referralTransactions)
+        .where(eq(referralTransactions.toUserId, userId))
+        .orderBy(referralTransactions.createdAt)
+        .limit(limit);
+      
+      // Get names for the fromUsers
+      const fromUserIds = [...new Set(commissions.map(c => c.fromUserId))];
+      const fromUsersMap: Record<string, { firstName: string | null; lastName: string | null }> = {};
+      
+      if (fromUserIds.length > 0) {
+        const fromUsers = await db
+          .select({
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName,
+          })
+          .from(users)
+          .where(sql`${users.id} IN ${fromUserIds}`);
+        
+        for (const u of fromUsers) {
+          fromUsersMap[u.id] = { firstName: u.firstName, lastName: u.lastName };
+        }
+      }
+      
+      res.json(commissions.map(c => ({
+        ...c,
+        fromUserName: fromUsersMap[c.fromUserId] 
+          ? `${fromUsersMap[c.fromUserId].firstName || ''} ${(fromUsersMap[c.fromUserId].lastName || '').charAt(0)}.`.trim()
+          : 'Unknown',
+      })));
+    } catch (error) {
+      console.error("Error fetching commissions:", error);
+      res.status(500).json({ message: "Failed to fetch commissions" });
+    }
+  });
+
   // Get user's points balance and summary
   app.get('/api/points/summary', isAuthenticated, async (req: any, res) => {
     try {
