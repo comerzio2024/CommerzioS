@@ -7,7 +7,7 @@
     "dev:client": "vite dev --port 5000",
     "dev": "dotenv -e .env -- cross-env NODE_ENV=development tsx server/index.ts",
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "start": "dotenv -e .env -- cross-env NODE_ENV=production node dist/index.js",
+    "start": "cross-env NODE_ENV=production node dist/index.js",
     "check": "tsc",
     "db:push": "dotenv -e .env -- drizzle-kit push"
   },
