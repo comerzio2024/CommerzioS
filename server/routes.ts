@@ -17,7 +17,37 @@ import {
   insertTemporaryCategorySchema,
   insertAiConversationSchema,
   insertAddressSchema,
+  referralCodeSchema,
+  redeemPointsSchema,
+  adminReferralAdjustmentSchema,
+  updateReferralConfigSchema,
+  referralTransactions,
+  pointsLog,
 } from "@shared/schema";
+import {
+  validateReferralCode,
+  getOrCreateReferralCode,
+  getReferralStatsForUser,
+  getDirectReferrals,
+  getReferralChain,
+  getTopReferrers,
+  getReferralSystemStats,
+  getReferralConfig,
+  updateReferralConfig,
+  initializeReferralConfig,
+  adminAdjustPoints,
+  generateReferralLink,
+  processReferralReward,
+} from "./referralService";
+import {
+  getPointsBalance,
+  getPointsHistory,
+  getPointsSummary,
+  redeemPoints,
+  awardPoints,
+  getPointsLeaderboard,
+  calculateDiscountValue,
+} from "./pointsService";
 import { categorizeService } from "./aiService";
 import { getAdminAssistance } from "./aiAdminService";
 import { getUserSupport } from "./aiUserSupportService";
@@ -2186,6 +2216,305 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting review:", error);
       res.status(500).json({ message: "Failed to delete review" });
+    }
+  });
+
+  // ===========================================
+  // REFERRAL SYSTEM ROUTES
+  // ===========================================
+  
+  // Initialize referral config on startup
+  initializeReferralConfig().catch(console.error);
+
+  // Get referral code validation
+  app.get('/api/referral/validate/:code', async (req, res) => {
+    try {
+      const { code } = req.params;
+      const result = await validateReferralCode(code);
+      res.json(result);
+    } catch (error) {
+      console.error("Error validating referral code:", error);
+      res.status(500).json({ message: "Failed to validate referral code" });
+    }
+  });
+
+  // Get current user's referral info
+  app.get('/api/referral/my-stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const stats = await getReferralStatsForUser(userId);
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const referralLink = generateReferralLink(baseUrl, stats.referralCode);
+      
+      res.json({
+        ...stats,
+        referralLink,
+      });
+    } catch (error) {
+      console.error("Error fetching referral stats:", error);
+      res.status(500).json({ message: "Failed to fetch referral stats" });
+    }
+  });
+
+  // Get user's direct referrals
+  app.get('/api/referral/my-referrals', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const referrals = await getDirectReferrals(userId, limit);
+      
+      // Hide email addresses for privacy
+      const sanitizedReferrals = referrals.map(r => ({
+        id: r.id,
+        firstName: r.firstName,
+        lastName: r.lastName ? r.lastName.charAt(0) + '.' : null, // Only show initial
+        createdAt: r.createdAt,
+        status: r.status,
+      }));
+      
+      res.json(sanitizedReferrals);
+    } catch (error) {
+      console.error("Error fetching referrals:", error);
+      res.status(500).json({ message: "Failed to fetch referrals" });
+    }
+  });
+
+  // Get user's points balance and summary
+  app.get('/api/points/summary', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const summary = await getPointsSummary(userId);
+      res.json(summary);
+    } catch (error) {
+      console.error("Error fetching points summary:", error);
+      res.status(500).json({ message: "Failed to fetch points summary" });
+    }
+  });
+
+  // Get user's points history
+  app.get('/api/points/history', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const history = await getPointsHistory(userId, limit, offset);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching points history:", error);
+      res.status(500).json({ message: "Failed to fetch points history" });
+    }
+  });
+
+  // Redeem points
+  app.post('/api/points/redeem', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const validation = redeemPointsSchema.safeParse(req.body);
+      
+      if (!validation.success) {
+        return res.status(400).json({ message: fromZodError(validation.error).message });
+      }
+      
+      const result = await redeemPoints({
+        userId,
+        ...validation.data,
+      });
+      
+      if (!result.success) {
+        return res.status(400).json({ message: result.message });
+      }
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error redeeming points:", error);
+      res.status(500).json({ message: "Failed to redeem points" });
+    }
+  });
+
+  // Calculate discount value from points
+  app.get('/api/points/calculate-discount', isAuthenticated, async (req: any, res) => {
+    try {
+      const points = parseInt(req.query.points as string) || 0;
+      const discountValue = await calculateDiscountValue(points);
+      res.json({ points, discountValue });
+    } catch (error) {
+      console.error("Error calculating discount:", error);
+      res.status(500).json({ message: "Failed to calculate discount" });
+    }
+  });
+
+  // Get points leaderboard (public)
+  app.get('/api/points/leaderboard', async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const leaderboard = await getPointsLeaderboard(limit);
+      
+      // Anonymize for privacy
+      const anonymized = leaderboard.map(u => ({
+        rank: u.rank,
+        firstName: u.firstName,
+        lastName: u.lastName ? u.lastName.charAt(0) + '.' : null,
+        points: u.points,
+      }));
+      
+      res.json(anonymized);
+    } catch (error) {
+      console.error("Error fetching leaderboard:", error);
+      res.status(500).json({ message: "Failed to fetch leaderboard" });
+    }
+  });
+
+  // Get referral config (public - non-sensitive parts)
+  app.get('/api/referral/config', async (req, res) => {
+    try {
+      const config = await getReferralConfig();
+      
+      // Return only public config values
+      res.json({
+        maxLevels: config.maxLevels,
+        pointsPerReferral: config.pointsPerReferral,
+        pointsPerFirstPurchase: config.pointsPerFirstPurchase,
+        pointsPerServiceCreation: config.pointsPerServiceCreation,
+        pointsPerReview: config.pointsPerReview,
+        pointsToDiscountRate: config.pointsToDiscountRate,
+        minPointsToRedeem: config.minPointsToRedeem,
+        isActive: config.isActive,
+      });
+    } catch (error) {
+      console.error("Error fetching referral config:", error);
+      res.status(500).json({ message: "Failed to fetch referral config" });
+    }
+  });
+
+  // ===========================================
+  // ADMIN REFERRAL ROUTES
+  // ===========================================
+
+  // Get referral system overview (admin only)
+  app.get('/api/admin/referral/stats', isAdmin, async (req, res) => {
+    try {
+      const stats = await getReferralSystemStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching admin referral stats:", error);
+      res.status(500).json({ message: "Failed to fetch referral stats" });
+    }
+  });
+
+  // Get top referrers (admin only)
+  app.get('/api/admin/referral/top-referrers', isAdmin, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const topReferrers = await getTopReferrers(limit);
+      res.json(topReferrers);
+    } catch (error) {
+      console.error("Error fetching top referrers:", error);
+      res.status(500).json({ message: "Failed to fetch top referrers" });
+    }
+  });
+
+  // Get full referral config (admin only)
+  app.get('/api/admin/referral/config', isAdmin, async (req, res) => {
+    try {
+      const config = await getReferralConfig();
+      res.json(config);
+    } catch (error) {
+      console.error("Error fetching referral config:", error);
+      res.status(500).json({ message: "Failed to fetch referral config" });
+    }
+  });
+
+  // Update referral config (admin only)
+  app.patch('/api/admin/referral/config', isAdmin, async (req, res) => {
+    try {
+      const validation = updateReferralConfigSchema.safeParse(req.body);
+      
+      if (!validation.success) {
+        return res.status(400).json({ message: fromZodError(validation.error).message });
+      }
+      
+      await updateReferralConfig(validation.data);
+      const updatedConfig = await getReferralConfig();
+      res.json(updatedConfig);
+    } catch (error) {
+      console.error("Error updating referral config:", error);
+      res.status(500).json({ message: "Failed to update referral config" });
+    }
+  });
+
+  // Adjust user points (admin only)
+  app.post('/api/admin/referral/adjust-points', isAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.adminSession?.userId || 'admin';
+      const validation = adminReferralAdjustmentSchema.safeParse(req.body);
+      
+      if (!validation.success) {
+        return res.status(400).json({ message: fromZodError(validation.error).message });
+      }
+      
+      const result = await adminAdjustPoints({
+        ...validation.data,
+        adminId,
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error adjusting points:", error);
+      res.status(500).json({ message: "Failed to adjust points" });
+    }
+  });
+
+  // Get user's referral chain (admin only)
+  app.get('/api/admin/referral/user/:userId/chain', isAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const chain = await getReferralChain(userId);
+      res.json(chain);
+    } catch (error) {
+      console.error("Error fetching referral chain:", error);
+      res.status(500).json({ message: "Failed to fetch referral chain" });
+    }
+  });
+
+  // Get user's referral stats (admin only)
+  app.get('/api/admin/referral/user/:userId/stats', isAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const stats = await getReferralStatsForUser(userId);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching user referral stats:", error);
+      res.status(500).json({ message: "Failed to fetch user referral stats" });
+    }
+  });
+
+  // Get all referral transactions (admin only)
+  app.get('/api/admin/referral/transactions', isAdmin, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      
+      const transactions = await db
+        .select({
+          id: referralTransactions.id,
+          toUserId: referralTransactions.toUserId,
+          fromUserId: referralTransactions.fromUserId,
+          level: referralTransactions.level,
+          pointsEarned: referralTransactions.pointsEarned,
+          commissionEarned: referralTransactions.commissionEarned,
+          triggerType: referralTransactions.triggerType,
+          status: referralTransactions.status,
+          createdAt: referralTransactions.createdAt,
+        })
+        .from(referralTransactions)
+        .orderBy(referralTransactions.createdAt)
+        .limit(limit)
+        .offset(offset);
+      
+      res.json(transactions);
+    } catch (error) {
+      console.error("Error fetching referral transactions:", error);
+      res.status(500).json({ message: "Failed to fetch referral transactions" });
     }
   });
 

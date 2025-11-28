@@ -102,11 +102,21 @@ export const users = pgTable("users", {
   preferredLocationName: varchar("preferred_location_name", { length: 200 }),
   preferredSearchRadiusKm: integer("preferred_search_radius_km").default(10),
   lastHomeVisitAt: timestamp("last_home_visit_at"),
+  
+  // Referral system fields
+  referralCode: varchar("referral_code", { length: 20 }).unique(),
+  referredBy: varchar("referred_by").references(() => users.id, { onDelete: "set null" }),
+  points: integer("points").default(0).notNull(),
+  totalEarnedPoints: integer("total_earned_points").default(0).notNull(),
+  totalEarnedCommission: decimal("total_earned_commission", { precision: 12, scale: 2 }).default("0").notNull(),
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
   index("idx_users_email").on(table.email),
   index("idx_users_auth_provider").on(table.authProvider),
+  index("idx_users_referral_code").on(table.referralCode),
+  index("idx_users_referred_by").on(table.referredBy),
 ]);
 
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -114,6 +124,12 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     fields: [users.planId],
     references: [plans.id],
   }),
+  referrer: one(users, {
+    fields: [users.referredBy],
+    references: [users.id],
+    relationName: "referrer",
+  }),
+  referrals: many(users, { relationName: "referrer" }),
   services: many(services),
   reviews: many(reviews),
   favorites: many(favorites),
@@ -122,6 +138,9 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   addresses: many(addresses),
   moderationActions: many(userModerationActions),
   oauthTokens: many(oauthTokens),
+  pointsLog: many(pointsLog),
+  referralTransactionsFrom: many(referralTransactions, { relationName: "fromUser" }),
+  referralTransactionsTo: many(referralTransactions, { relationName: "toUser" }),
 }));
 
 // OAuth tokens table (for storing social login tokens)
@@ -145,6 +164,201 @@ export const oauthTokensRelations = relations(oauthTokens, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+// ===========================================
+// REFERRAL SYSTEM TABLES
+// ===========================================
+
+/**
+ * Referral Configuration Table
+ * Stores configurable referral settings (commission rates, max levels, etc.)
+ */
+export const referralConfig = pgTable("referral_config", {
+  id: varchar("id").primaryKey().default("default"),
+  maxLevels: integer("max_levels").default(3).notNull(),
+  
+  // Commission rates per level (as decimal, e.g., 0.10 = 10%)
+  level1CommissionRate: decimal("level1_commission_rate", { precision: 5, scale: 4 }).default("0.10").notNull(),
+  level2CommissionRate: decimal("level2_commission_rate", { precision: 5, scale: 4 }).default("0.04").notNull(),
+  level3CommissionRate: decimal("level3_commission_rate", { precision: 5, scale: 4 }).default("0.01").notNull(),
+  
+  // Points configuration
+  pointsPerReferral: integer("points_per_referral").default(100).notNull(),
+  pointsPerFirstPurchase: integer("points_per_first_purchase").default(50).notNull(),
+  pointsPerServiceCreation: integer("points_per_service_creation").default(25).notNull(),
+  pointsPerReview: integer("points_per_review").default(10).notNull(),
+  
+  // Point redemption rates
+  pointsToDiscountRate: decimal("points_to_discount_rate", { precision: 10, scale: 4 }).default("0.01").notNull(), // 1 point = 0.01 CHF
+  minPointsToRedeem: integer("min_points_to_redeem").default(100).notNull(),
+  
+  // Referral system settings
+  referralCodeLength: integer("referral_code_length").default(8).notNull(),
+  referralLinkExpiryDays: integer("referral_link_expiry_days").default(30).notNull(),
+  cookieExpiryDays: integer("cookie_expiry_days").default(30).notNull(),
+  
+  // Anti-abuse settings
+  maxReferralsPerDay: integer("max_referrals_per_day").default(50).notNull(),
+  minTimeBetweenReferrals: integer("min_time_between_referrals").default(60).notNull(), // seconds
+  
+  isActive: boolean("is_active").default(true).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+/**
+ * Points Log Table
+ * Tracks all point transactions (earned, spent, expired, etc.)
+ */
+export const pointsLog = pgTable("points_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  points: integer("points").notNull(), // Positive for earned, negative for spent
+  balanceAfter: integer("balance_after").notNull(),
+  
+  action: varchar("action", { 
+    enum: ["referral_signup", "referral_first_purchase", "referral_service_created", 
+           "service_created", "review_posted", "purchase_made", 
+           "redemption", "admin_adjustment", "expired", "bonus"] 
+  }).notNull(),
+  
+  description: text("description"),
+  
+  // Reference to what triggered this point change
+  referenceType: varchar("reference_type", { enum: ["user", "service", "review", "order", "admin"] }),
+  referenceId: varchar("reference_id"),
+  
+  // For referral-related points, track the referral transaction
+  referralTransactionId: varchar("referral_transaction_id").references(() => referralTransactions.id, { onDelete: "set null" }),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_points_log_user").on(table.userId),
+  index("idx_points_log_action").on(table.action),
+  index("idx_points_log_created").on(table.createdAt),
+]);
+
+export const pointsLogRelations = relations(pointsLog, ({ one }) => ({
+  user: one(users, {
+    fields: [pointsLog.userId],
+    references: [users.id],
+  }),
+  referralTransaction: one(referralTransactions, {
+    fields: [pointsLog.referralTransactionId],
+    references: [referralTransactions.id],
+  }),
+}));
+
+/**
+ * Referral Transactions Table
+ * Tracks commission and points earned from referral chain
+ */
+export const referralTransactions = pgTable("referral_transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // The user who earned the commission/points (the referrer)
+  toUserId: varchar("to_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // The user whose action triggered the reward (the referee, or downstream referral)
+  fromUserId: varchar("from_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Referral level (1 = direct, 2 = second level, 3 = third level)
+  level: integer("level").notNull(),
+  
+  // Points earned by toUserId from this transaction
+  pointsEarned: integer("points_earned").default(0).notNull(),
+  
+  // Commission earned (monetary value in CHF)
+  commissionEarned: decimal("commission_earned", { precision: 12, scale: 2 }).default("0").notNull(),
+  
+  // Commission rate used for this transaction
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 4 }),
+  
+  // What triggered this transaction
+  triggerType: varchar("trigger_type", { 
+    enum: ["signup", "first_purchase", "service_created", "order_completed", "subscription_renewed"] 
+  }).notNull(),
+  
+  // Reference to the triggering entity (e.g., service ID, order ID)
+  triggerId: varchar("trigger_id"),
+  triggerAmount: decimal("trigger_amount", { precision: 12, scale: 2 }), // The base amount for commission calculation
+  
+  // Status of the transaction
+  status: varchar("status", { 
+    enum: ["pending", "confirmed", "paid", "cancelled", "expired"] 
+  }).default("pending").notNull(),
+  
+  // Payout tracking
+  paidAt: timestamp("paid_at"),
+  payoutId: varchar("payout_id"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_referral_tx_to_user").on(table.toUserId),
+  index("idx_referral_tx_from_user").on(table.fromUserId),
+  index("idx_referral_tx_level").on(table.level),
+  index("idx_referral_tx_status").on(table.status),
+  index("idx_referral_tx_trigger").on(table.triggerType),
+  index("idx_referral_tx_created").on(table.createdAt),
+]);
+
+export const referralTransactionsRelations = relations(referralTransactions, ({ one, many }) => ({
+  toUser: one(users, {
+    fields: [referralTransactions.toUserId],
+    references: [users.id],
+    relationName: "toUser",
+  }),
+  fromUser: one(users, {
+    fields: [referralTransactions.fromUserId],
+    references: [users.id],
+    relationName: "fromUser",
+  }),
+  pointsLogs: many(pointsLog),
+}));
+
+/**
+ * Referral Stats Cache Table
+ * Cached aggregated stats for dashboard performance
+ */
+export const referralStats = pgTable("referral_stats", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  
+  // Direct referral counts
+  totalDirectReferrals: integer("total_direct_referrals").default(0).notNull(),
+  activeDirectReferrals: integer("active_direct_referrals").default(0).notNull(),
+  
+  // Network stats (all levels)
+  totalNetworkSize: integer("total_network_size").default(0).notNull(),
+  
+  // Earnings
+  totalPointsEarned: integer("total_points_earned").default(0).notNull(),
+  totalCommissionEarned: decimal("total_commission_earned", { precision: 12, scale: 2 }).default("0").notNull(),
+  pendingCommission: decimal("pending_commission", { precision: 12, scale: 2 }).default("0").notNull(),
+  
+  // Rankings
+  referralRank: integer("referral_rank"),
+  
+  // Last activity
+  lastReferralAt: timestamp("last_referral_at"),
+  
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_referral_stats_user").on(table.userId),
+  index("idx_referral_stats_rank").on(table.referralRank),
+]);
+
+export const referralStatsRelations = relations(referralStats, ({ one }) => ({
+  user: one(users, {
+    fields: [referralStats.userId],
+    references: [users.id],
+  }),
+}));
+
+// ===========================================
+// END REFERRAL SYSTEM TABLES
+// ===========================================
 
 // Addresses table
 export const addresses = pgTable("addresses", {
@@ -678,4 +892,64 @@ export const changePasswordSchema = z.object({
     .min(8, "Password must be at least 8 characters")
     .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
     .regex(/[0-9]/, "Password must contain at least one number"),
+});
+
+// ===========================================
+// REFERRAL SYSTEM TYPES AND SCHEMAS
+// ===========================================
+
+// Referral Config types
+export type ReferralConfig = typeof referralConfig.$inferSelect;
+export type InsertReferralConfig = typeof referralConfig.$inferInsert;
+
+// Points Log types
+export type PointsLog = typeof pointsLog.$inferSelect;
+export type InsertPointsLog = typeof pointsLog.$inferInsert;
+
+// Referral Transaction types
+export type ReferralTransaction = typeof referralTransactions.$inferSelect;
+export type InsertReferralTransaction = typeof referralTransactions.$inferInsert;
+
+// Referral Stats types
+export type ReferralStats = typeof referralStats.$inferSelect;
+export type InsertReferralStats = typeof referralStats.$inferInsert;
+
+// Extended register schema with referral code
+export const registerWithReferralSchema = registerSchema.extend({
+  referralCode: z.string().min(4).max(20).optional(),
+});
+
+// Referral code validation schema
+export const referralCodeSchema = z.object({
+  referralCode: z.string().min(4, "Referral code must be at least 4 characters").max(20),
+});
+
+// Points redemption schema
+export const redeemPointsSchema = z.object({
+  points: z.number().min(1, "Must redeem at least 1 point"),
+  redemptionType: z.enum(["discount", "promo_package", "visibility_boost"]),
+  targetId: z.string().optional(), // e.g., service ID for visibility boost
+});
+
+// Admin referral adjustment schema
+export const adminReferralAdjustmentSchema = z.object({
+  userId: z.string().min(1, "User ID is required"),
+  points: z.number(),
+  reason: z.string().min(1, "Reason is required"),
+});
+
+// Referral config update schema
+export const updateReferralConfigSchema = z.object({
+  maxLevels: z.number().min(1).max(10).optional(),
+  level1CommissionRate: z.string().optional(),
+  level2CommissionRate: z.string().optional(),
+  level3CommissionRate: z.string().optional(),
+  pointsPerReferral: z.number().min(0).optional(),
+  pointsPerFirstPurchase: z.number().min(0).optional(),
+  pointsPerServiceCreation: z.number().min(0).optional(),
+  pointsPerReview: z.number().min(0).optional(),
+  pointsToDiscountRate: z.string().optional(),
+  minPointsToRedeem: z.number().min(0).optional(),
+  maxReferralsPerDay: z.number().min(1).optional(),
+  isActive: z.boolean().optional(),
 });

@@ -20,7 +20,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { AddressMultiInput } from "@/components/address-multi-input";
-import { Shield, Users, FileText, CreditCard, CheckCircle, XCircle, Trash2, Brain, Send, Loader2, Sparkles, BarChart3, Settings, Eye, EyeOff, History, AlertCircle, Plus, Edit, MoreVertical, ChevronDown, ChevronUp, Folder } from "lucide-react";
+import { Shield, Users, FileText, CreditCard, CheckCircle, XCircle, Trash2, Brain, Send, Loader2, Sparkles, BarChart3, Settings, Eye, EyeOff, History, AlertCircle, Plus, Edit, MoreVertical, ChevronDown, ChevronUp, Folder, Gift, TrendingUp, Award } from "lucide-react";
 import type { User, Service, Plan, SubmittedCategory, Category } from "@shared/schema";
 
 interface Message {
@@ -138,7 +138,7 @@ export function AdminPage() {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="users" className="w-full">
-          <TabsList className="grid w-full grid-cols-6 mb-6">
+          <TabsList className="grid w-full grid-cols-7 mb-6">
             <TabsTrigger value="users" data-testid="tab-users">
               <Users className="w-4 h-4 mr-2" />
               Users
@@ -150,6 +150,10 @@ export function AdminPage() {
             <TabsTrigger value="categories" data-testid="tab-categories">
               <Folder className="w-4 h-4 mr-2" />
               Categories
+            </TabsTrigger>
+            <TabsTrigger value="referrals" data-testid="tab-referrals">
+              <Gift className="w-4 h-4 mr-2" />
+              Referrals
             </TabsTrigger>
             <TabsTrigger value="plans" data-testid="tab-plans">
               <CreditCard className="w-4 h-4 mr-2" />
@@ -175,6 +179,10 @@ export function AdminPage() {
 
           <TabsContent value="categories">
             <CategorySuggestionsManagement />
+          </TabsContent>
+
+          <TabsContent value="referrals">
+            <ReferralManagement />
           </TabsContent>
 
           <TabsContent value="plans">
@@ -2550,6 +2558,480 @@ function SettingsManagement() {
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// ===========================================
+// REFERRAL MANAGEMENT COMPONENT
+// ===========================================
+
+interface ReferralStats {
+  totalReferrals: number;
+  totalPointsAwarded: number;
+  totalCommissionAwarded: number;
+  pendingCommission: number;
+  activeReferrers: number;
+}
+
+interface TopReferrer {
+  userId: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  totalReferrals: number;
+  totalEarnings: number;
+}
+
+interface ReferralConfig {
+  maxLevels: number;
+  level1CommissionRate: number;
+  level2CommissionRate: number;
+  level3CommissionRate: number;
+  pointsPerReferral: number;
+  pointsPerFirstPurchase: number;
+  pointsPerServiceCreation: number;
+  pointsPerReview: number;
+  pointsToDiscountRate: number;
+  minPointsToRedeem: number;
+  maxReferralsPerDay: number;
+  isActive: boolean;
+}
+
+interface ReferralTransaction {
+  id: string;
+  toUserId: string;
+  fromUserId: string;
+  level: number;
+  pointsEarned: number;
+  commissionEarned: string;
+  triggerType: string;
+  status: string;
+  createdAt: string;
+}
+
+function ReferralManagement() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [adjustPointsDialog, setAdjustPointsDialog] = useState<{ open: boolean; userId?: string } | null>(null);
+  const [adjustmentForm, setAdjustmentForm] = useState({ userId: "", points: 0, reason: "" });
+
+  // Fetch referral stats
+  const { data: stats, isLoading: statsLoading } = useQuery<ReferralStats>({
+    queryKey: ["/api/admin/referral/stats"],
+    queryFn: () => apiRequest("/api/admin/referral/stats"),
+  });
+
+  // Fetch top referrers
+  const { data: topReferrers = [], isLoading: referrersLoading } = useQuery<TopReferrer[]>({
+    queryKey: ["/api/admin/referral/top-referrers"],
+    queryFn: () => apiRequest("/api/admin/referral/top-referrers?limit=20"),
+  });
+
+  // Fetch referral config
+  const { data: config, isLoading: configLoading } = useQuery<ReferralConfig>({
+    queryKey: ["/api/admin/referral/config"],
+    queryFn: () => apiRequest("/api/admin/referral/config"),
+  });
+
+  // Fetch recent transactions
+  const { data: transactions = [], isLoading: transactionsLoading } = useQuery<ReferralTransaction[]>({
+    queryKey: ["/api/admin/referral/transactions"],
+    queryFn: () => apiRequest("/api/admin/referral/transactions?limit=50"),
+  });
+
+  // Update config mutation
+  const updateConfigMutation = useMutation({
+    mutationFn: (updates: Partial<ReferralConfig>) =>
+      apiRequest("/api/admin/referral/config", {
+        method: "PATCH",
+        body: JSON.stringify(updates),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/referral/config"] });
+      toast({
+        title: "Config Updated",
+        description: "Referral configuration has been updated",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update configuration",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Adjust points mutation
+  const adjustPointsMutation = useMutation({
+    mutationFn: (data: { userId: string; points: number; reason: string }) =>
+      apiRequest("/api/admin/referral/adjust-points", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/referral"] });
+      setAdjustPointsDialog(null);
+      setAdjustmentForm({ userId: "", points: 0, reason: "" });
+      toast({
+        title: "Points Adjusted",
+        description: "User points have been adjusted successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to adjust points",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleToggleActive = () => {
+    if (config) {
+      updateConfigMutation.mutate({ isActive: !config.isActive });
+    }
+  };
+
+  const formatTriggerType = (type: string): string => {
+    const types: Record<string, string> = {
+      signup: "Signup",
+      first_purchase: "First Purchase",
+      service_created: "Service Created",
+      order_completed: "Order Completed",
+    };
+    return types[type] || type;
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Stats Overview */}
+      <div className="grid gap-4 md:grid-cols-5">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Total Referrals</CardDescription>
+            <CardTitle className="text-3xl">
+              {statsLoading ? "..." : stats?.totalReferrals || 0}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Points Awarded</CardDescription>
+            <CardTitle className="text-3xl">
+              {statsLoading ? "..." : stats?.totalPointsAwarded?.toLocaleString() || 0}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Commission Paid</CardDescription>
+            <CardTitle className="text-3xl">
+              CHF {statsLoading ? "..." : (stats?.totalCommissionAwarded || 0).toFixed(2)}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Pending Commission</CardDescription>
+            <CardTitle className="text-3xl text-yellow-600">
+              CHF {statsLoading ? "..." : (stats?.pendingCommission || 0).toFixed(2)}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Active Referrers</CardDescription>
+            <CardTitle className="text-3xl">
+              {statsLoading ? "..." : stats?.activeReferrers || 0}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Top Referrers */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Award className="h-5 w-5" />
+              Top Referrers
+            </CardTitle>
+            <CardDescription>Users with the most referrals</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {referrersLoading ? (
+              <div className="text-center py-4 text-muted-foreground">Loading...</div>
+            ) : topReferrers.length === 0 ? (
+              <div className="text-center py-4 text-muted-foreground">No referrers yet</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead className="text-right">Referrals</TableHead>
+                    <TableHead className="text-right">Earnings</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {topReferrers.slice(0, 10).map((referrer, index) => (
+                    <TableRow key={referrer.userId}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={index < 3 ? "default" : "secondary"}>
+                            #{index + 1}
+                          </Badge>
+                          <div>
+                            <div className="font-medium">
+                              {referrer.firstName} {referrer.lastName}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {referrer.email}
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {referrer.totalReferrals}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        CHF {referrer.totalEarnings.toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setAdjustmentForm({ userId: referrer.userId, points: 0, reason: "" });
+                            setAdjustPointsDialog({ open: true, userId: referrer.userId });
+                          }}
+                        >
+                          Adjust Points
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Referral Configuration */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Referral Configuration
+            </CardTitle>
+            <CardDescription>Manage commission rates and points</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {configLoading ? (
+              <div className="text-center py-4 text-muted-foreground">Loading...</div>
+            ) : config ? (
+              <>
+                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                  <div>
+                    <Label>Referral System Status</Label>
+                    <p className="text-sm text-muted-foreground">
+                      {config.isActive ? "System is active and tracking referrals" : "System is disabled"}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={config.isActive}
+                    onCheckedChange={handleToggleActive}
+                    disabled={updateConfigMutation.isPending}
+                  />
+                </div>
+
+                <div className="grid gap-4">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Commission Rates</Label>
+                    <div className="grid grid-cols-3 gap-2 mt-1">
+                      <div className="p-2 bg-green-50 rounded text-center">
+                        <div className="text-lg font-bold text-green-600">
+                          {(config.level1CommissionRate * 100).toFixed(0)}%
+                        </div>
+                        <div className="text-xs text-muted-foreground">Level 1</div>
+                      </div>
+                      <div className="p-2 bg-blue-50 rounded text-center">
+                        <div className="text-lg font-bold text-blue-600">
+                          {(config.level2CommissionRate * 100).toFixed(0)}%
+                        </div>
+                        <div className="text-xs text-muted-foreground">Level 2</div>
+                      </div>
+                      <div className="p-2 bg-purple-50 rounded text-center">
+                        <div className="text-lg font-bold text-purple-600">
+                          {(config.level3CommissionRate * 100).toFixed(0)}%
+                        </div>
+                        <div className="text-xs text-muted-foreground">Level 3</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Points Awards</Label>
+                    <div className="grid grid-cols-2 gap-2 mt-1">
+                      <div className="p-2 border rounded">
+                        <div className="font-medium">{config.pointsPerReferral}</div>
+                        <div className="text-xs text-muted-foreground">Per Referral</div>
+                      </div>
+                      <div className="p-2 border rounded">
+                        <div className="font-medium">{config.pointsPerFirstPurchase}</div>
+                        <div className="text-xs text-muted-foreground">First Purchase</div>
+                      </div>
+                      <div className="p-2 border rounded">
+                        <div className="font-medium">{config.pointsPerServiceCreation}</div>
+                        <div className="text-xs text-muted-foreground">Service Created</div>
+                      </div>
+                      <div className="p-2 border rounded">
+                        <div className="font-medium">{config.pointsPerReview}</div>
+                        <div className="text-xs text-muted-foreground">Review Posted</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2 border rounded">
+                    <div>
+                      <div className="font-medium">Point Value</div>
+                      <div className="text-xs text-muted-foreground">
+                        1 point = CHF {config.pointsToDiscountRate}
+                      </div>
+                    </div>
+                    <Badge variant="secondary">
+                      Min: {config.minPointsToRedeem} pts
+                    </Badge>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2 border rounded">
+                    <div>
+                      <div className="font-medium">Max Levels</div>
+                      <div className="text-xs text-muted-foreground">
+                        Referral chain depth limit
+                      </div>
+                    </div>
+                    <Badge>{config.maxLevels}</Badge>
+                  </div>
+                </div>
+              </>
+            ) : null}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Transactions */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Recent Referral Transactions
+          </CardTitle>
+          <CardDescription>Latest referral rewards and commissions</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {transactionsLoading ? (
+            <div className="text-center py-4 text-muted-foreground">Loading...</div>
+          ) : transactions.length === 0 ? (
+            <div className="text-center py-4 text-muted-foreground">No transactions yet</div>
+          ) : (
+            <ScrollArea className="h-[400px]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Level</TableHead>
+                    <TableHead className="text-right">Points</TableHead>
+                    <TableHead className="text-right">Commission</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {transactions.map((tx) => (
+                    <TableRow key={tx.id}>
+                      <TableCell className="text-sm">
+                        {new Date(tx.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>{formatTriggerType(tx.triggerType)}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">L{tx.level}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-medium text-green-600">
+                        +{tx.pointsEarned}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        CHF {parseFloat(tx.commissionEarned).toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={tx.status === "confirmed" ? "default" : "secondary"}>
+                          {tx.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Adjust Points Dialog */}
+      <Dialog open={adjustPointsDialog?.open} onOpenChange={(open) => !open && setAdjustPointsDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adjust User Points</DialogTitle>
+            <DialogDescription>
+              Add or remove points from a user's balance. Use negative values to deduct points.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="adjust-user-id">User ID</Label>
+              <Input
+                id="adjust-user-id"
+                value={adjustmentForm.userId}
+                onChange={(e) => setAdjustmentForm({ ...adjustmentForm, userId: e.target.value })}
+                placeholder="Enter user ID"
+                disabled={!!adjustPointsDialog?.userId}
+              />
+            </div>
+            <div>
+              <Label htmlFor="adjust-points">Points</Label>
+              <Input
+                id="adjust-points"
+                type="number"
+                value={adjustmentForm.points}
+                onChange={(e) => setAdjustmentForm({ ...adjustmentForm, points: parseInt(e.target.value) || 0 })}
+                placeholder="Enter points (negative to deduct)"
+              />
+            </div>
+            <div>
+              <Label htmlFor="adjust-reason">Reason</Label>
+              <Textarea
+                id="adjust-reason"
+                value={adjustmentForm.reason}
+                onChange={(e) => setAdjustmentForm({ ...adjustmentForm, reason: e.target.value })}
+                placeholder="Enter reason for adjustment"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAdjustPointsDialog(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => adjustPointsMutation.mutate(adjustmentForm)}
+              disabled={!adjustmentForm.userId || !adjustmentForm.reason || adjustPointsMutation.isPending}
+            >
+              {adjustPointsMutation.isPending ? "Adjusting..." : "Adjust Points"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

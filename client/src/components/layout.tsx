@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Menu, PlusCircle, LogOut, Heart, Settings, User, Star } from "lucide-react";
+import { Menu, PlusCircle, LogOut, Heart, Settings, User, Star, Gift } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
@@ -102,6 +102,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       <DropdownMenuItem onClick={() => setLocation("/favorites")} data-testid="menu-item-saved">
                         <Heart className="w-4 h-4 mr-2" />
                         Saved
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setLocation("/referrals")} data-testid="menu-item-referrals">
+                        <Gift className="w-4 h-4 mr-2" />
+                        Refer & Earn
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={async () => {
