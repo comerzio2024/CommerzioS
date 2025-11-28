@@ -472,7 +472,7 @@ function ServiceDetailContent({ serviceId }: { serviceId: string }) {
                         <p className="font-medium text-primary">Contact Information:</p>
                         {service.contactPhone && <p className="flex items-center gap-2"><span className="font-bold">Phone:</span> {service.contactPhone}</p>}
                         {service.contactEmail && <p className="flex items-center gap-2"><span className="font-bold">Email:</span> {service.contactEmail}</p>}
-                        <p className="text-xs text-muted-foreground mt-2">Mention ServeMkt when you contact them!</p>
+                        <p className="text-xs text-muted-foreground mt-2">Mention Commerzio Services when you contact them!</p>
                       </div>
                     )}
                     

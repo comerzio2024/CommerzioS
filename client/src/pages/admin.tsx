@@ -119,7 +119,7 @@ export function AdminPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Shield className="w-6 h-6 text-primary" />
-              <h1 className="text-2xl font-bold">ServeMkt Admin Panel</h1>
+              <h1 className="text-2xl font-bold">Commerzio Services Admin</h1>
             </div>
             <Button
               variant="outline"

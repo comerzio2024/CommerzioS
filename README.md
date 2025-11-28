@@ -1,6 +1,6 @@
-# ServeMkt - Service Marketplace Platform
+# Commerzio Services - Service Marketplace Platform
 
-A full-stack TypeScript application for a service marketplace with a React frontend and Express backend.
+A full-stack TypeScript application for a service marketplace with a React frontend and Express backend. Part of the Commerzio ecosystem.
 
 ## Prerequisites
 

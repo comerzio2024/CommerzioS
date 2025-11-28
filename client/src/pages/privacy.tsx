@@ -22,7 +22,7 @@ export default function Privacy() {
               <section>
                 <h2 className="text-2xl font-bold text-foreground mb-4">1. Introduction</h2>
                 <p className="mb-4">
-                  ServeMkt AG ("we", "us", or "our") is committed to protecting your privacy. This Privacy Policy 
+                  Commerzio Services AG ("we", "us", or "our") is committed to protecting your privacy. This Privacy Policy 
                   explains how we collect, use, disclose, and safeguard your personal data when you use our marketplace 
                   platform ("Platform").
                 </p>
@@ -42,7 +42,7 @@ export default function Privacy() {
               <section>
                 <h2 className="text-2xl font-bold text-foreground mb-4">2. Data Controller</h2>
                 <div className="bg-slate-50 rounded-lg p-6">
-                  <p className="font-semibold text-foreground mb-2">ServeMkt AG</p>
+                  <p className="font-semibold text-foreground mb-2">Commerzio Services AG</p>
                   <p>Bahnhofstrasse 1</p>
                   <p>8001 Zürich</p>
                   <p>Switzerland</p>
@@ -178,7 +178,7 @@ export default function Privacy() {
                   <li>Comply with Swiss law or legal processes</li>
                   <li>Respond to requests from Swiss government authorities</li>
                   <li>Enforce our Terms of Service</li>
-                  <li>Protect the rights, property, or safety of ServeMkt, users, or the public</li>
+                  <li>Protect the rights, property, or safety of Commerzio Services, users, or the public</li>
                 </ul>
 
                 <h3 className="text-xl font-semibold text-foreground mb-3">5.5 Business Transfers</h3>
@@ -393,7 +393,7 @@ export default function Privacy() {
                 </p>
                 <div className="bg-primary/5 border border-primary/20 rounded-lg p-6">
                   <p className="font-semibold text-foreground mb-2">Data Protection Officer</p>
-                  <p>ServeMkt AG</p>
+                  <p>Commerzio Services AG</p>
                   <p>Bahnhofstrasse 1</p>
                   <p>8001 Zürich</p>
                   <p>Switzerland</p>
@@ -409,7 +409,7 @@ export default function Privacy() {
               <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 mt-8">
                 <p className="text-sm text-foreground">
                   <strong>Your Privacy Matters:</strong> We are committed to transparency and protecting your personal 
-                  data in compliance with Swiss data protection laws. Thank you for trusting ServeMkt.
+                  data in compliance with Swiss data protection laws. Thank you for trusting Commerzio Services.
                 </p>
               </div>
             </CardContent>

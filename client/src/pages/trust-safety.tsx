@@ -13,7 +13,7 @@ export default function TrustSafety() {
             </div>
             <h1 className="text-4xl font-bold mb-4">Trust & Safety</h1>
             <p className="text-lg text-muted-foreground">
-              Building a safe and trusted community for all ServeMkt users
+              Building a safe and trusted community for all Commerzio Services users
             </p>
           </div>
 
@@ -180,7 +180,7 @@ export default function TrustSafety() {
                 </div>
                 <div className="bg-slate-100 rounded-lg p-4 mt-4">
                   <p className="text-sm">
-                    <strong className="text-foreground">Important:</strong> ServeMkt acts as a platform connecting users. While we facilitate dispute resolution, we are not responsible for transactions between users. All disputes are subject to Swiss law and jurisdiction in Zürich, Switzerland.
+                    <strong className="text-foreground">Important:</strong> Commerzio Services acts as a platform connecting users. While we facilitate dispute resolution, we are not responsible for transactions between users. All disputes are subject to Swiss law and jurisdiction in Zürich, Switzerland.
                   </p>
                 </div>
               </CardContent>

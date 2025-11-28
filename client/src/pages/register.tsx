@@ -167,7 +167,7 @@ export default function RegisterPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Click the link in the email to verify your account and start using ServeMkt.
+              Click the link in the email to verify your account and start using Commerzio Services.
             </p>
             <Alert>
               <AlertDescription>
@@ -212,11 +212,11 @@ export default function RegisterPage() {
               <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-xl flex items-center justify-center text-white shadow-lg">
                 <span className="text-xl">S</span>
               </div>
-              <span>ServeMkt</span>
+              <span>Commerzio Services</span>
             </div>
           </Link>
           <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
-          <CardDescription>Get started with ServeMkt today</CardDescription>
+          <CardDescription>Get started with Commerzio Services today</CardDescription>
         </CardHeader>
         
         <CardContent className="space-y-4">
