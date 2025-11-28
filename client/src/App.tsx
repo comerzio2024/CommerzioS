@@ -27,6 +27,7 @@ import RegisterPage from "@/pages/register";
 import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
 import VerifyEmailPage from "@/pages/verify-email";
+import ReferralsPage from "@/pages/referrals";
 
 // Create a context for the page context actions
 export const PageContextActionsContext = createContext<PageContextActions | null>(null);
@@ -68,6 +69,9 @@ function Router() {
       <Route path="/forgot-password" component={ForgotPasswordPage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/verify-email" component={VerifyEmailPage} />
+      {/* Referral routes */}
+      <Route path="/referrals" component={ReferralsPage} />
+      <Route path="/invite" component={ReferralsPage} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -26,6 +26,13 @@ import {
   sendWelcomeEmail,
   sendPasswordChangedEmail,
 } from "./emailService";
+import {
+  validateReferralCode,
+  wouldCreateCircularReference,
+  checkReferralRateLimit,
+  generateUniqueReferralCode,
+  processReferralReward,
+} from "./referralService";
 
 // Security constants
 const BCRYPT_ROUNDS = 12;
@@ -57,14 +64,16 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 
 /**
  * Register a new user with email and password
+ * Supports optional referral code for referral tracking
  */
 export async function registerUser(data: {
   email: string;
   password: string;
   firstName: string;
   lastName: string;
-}): Promise<{ success: boolean; message: string; userId?: string }> {
-  const { email, password, firstName, lastName } = data;
+  referralCode?: string;
+}): Promise<{ success: boolean; message: string; userId?: string; referrerName?: string }> {
+  const { email, password, firstName, lastName, referralCode } = data;
   
   // Check if email already exists
   const existingUser = await db
@@ -77,12 +86,35 @@ export async function registerUser(data: {
     return { success: false, message: "An account with this email already exists" };
   }
   
+  // Validate referral code if provided
+  let referredBy: string | null = null;
+  let referrerName: string | undefined;
+  
+  if (referralCode) {
+    const referralValidation = await validateReferralCode(referralCode);
+    
+    if (referralValidation.valid && referralValidation.referrerId) {
+      // Check rate limiting on the referrer
+      const rateLimit = await checkReferralRateLimit(referralValidation.referrerId);
+      
+      if (rateLimit.allowed) {
+        referredBy = referralValidation.referrerId;
+        referrerName = referralValidation.referrerName;
+      }
+      // If rate limited, just don't apply the referral (don't block registration)
+    }
+    // If invalid code, just ignore it (don't block registration)
+  }
+  
   // Hash password
   const passwordHash = await hashPassword(password);
   
   // Generate email verification token
   const emailVerificationToken = generateToken();
   const emailVerificationExpires = new Date(Date.now() + EMAIL_VERIFICATION_EXPIRY_MS);
+  
+  // Generate unique referral code for the new user
+  const newUserReferralCode = await generateUniqueReferralCode();
   
   // Create user
   const [newUser] = await db
@@ -96,16 +128,29 @@ export async function registerUser(data: {
       emailVerificationToken,
       emailVerificationExpires,
       emailVerified: false,
+      referralCode: newUserReferralCode,
+      referredBy,
     })
     .returning();
+  
+  // Process referral reward if this user was referred
+  if (referredBy) {
+    await processReferralReward({
+      triggeredByUserId: newUser.id,
+      triggerType: "signup",
+    });
+  }
   
   // Send verification email
   await sendVerificationEmail(email, firstName, emailVerificationToken);
   
   return {
     success: true,
-    message: "Account created! Please check your email to verify your account.",
+    message: referrerName 
+      ? `Account created! You were referred by ${referrerName}. Please check your email to verify your account.`
+      : "Account created! Please check your email to verify your account.",
     userId: newUser.id,
+    referrerName,
   };
 }
 
@@ -501,6 +546,7 @@ export async function getUserByEmail(email: string) {
 
 /**
  * Create or update user from OAuth provider
+ * Supports optional referral code for referral tracking (for new users)
  */
 export async function upsertOAuthUser(data: {
   email: string;
@@ -512,6 +558,7 @@ export async function upsertOAuthUser(data: {
   accessToken?: string;
   refreshToken?: string;
   tokenExpiresAt?: Date;
+  referralCode?: string; // Optional referral code from session/cookie
 }): Promise<{
   success: boolean;
   user?: {
@@ -526,7 +573,7 @@ export async function upsertOAuthUser(data: {
   isNewUser: boolean;
   message?: string;
 }> {
-  const { email, firstName, lastName, profileImageUrl, authProvider, oauthProviderId, accessToken, refreshToken, tokenExpiresAt } = data;
+  const { email, firstName, lastName, profileImageUrl, authProvider, oauthProviderId, accessToken, refreshToken, tokenExpiresAt, referralCode } = data;
   
   // Check if user exists
   let [existingUser] = await db
@@ -563,6 +610,24 @@ export async function upsertOAuthUser(data: {
       })
       .where(eq(users.id, existingUser.id));
   } else {
+    // Validate referral code if provided (for new users only)
+    let referredBy: string | null = null;
+    
+    if (referralCode) {
+      const referralValidation = await validateReferralCode(referralCode);
+      
+      if (referralValidation.valid && referralValidation.referrerId) {
+        const rateLimit = await checkReferralRateLimit(referralValidation.referrerId);
+        
+        if (rateLimit.allowed) {
+          referredBy = referralValidation.referrerId;
+        }
+      }
+    }
+    
+    // Generate unique referral code for the new user
+    const newUserReferralCode = await generateUniqueReferralCode();
+    
     // Create new user
     const [newUser] = await db
       .insert(users)
@@ -575,11 +640,21 @@ export async function upsertOAuthUser(data: {
         oauthProviderId,
         emailVerified: true, // OAuth emails are verified
         lastLoginAt: new Date(),
+        referralCode: newUserReferralCode,
+        referredBy,
       })
       .returning();
     
     existingUser = newUser;
     isNewUser = true;
+    
+    // Process referral reward if this user was referred
+    if (referredBy) {
+      await processReferralReward({
+        triggeredByUserId: newUser.id,
+        triggerType: "signup",
+      });
+    }
   }
   
   // Store OAuth tokens if provided

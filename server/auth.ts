@@ -32,7 +32,7 @@ import {
 } from "./authService";
 import { storage } from "./storage";
 import {
-  registerSchema,
+  registerWithReferralSchema,
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
@@ -166,23 +166,69 @@ export async function setupAuth(app: Express) {
   /**
    * Register a new user
    * POST /api/auth/register
+   * 
+   * Supports optional referral code in body or query parameter
+   * e.g., POST /api/auth/register?ref=ABC123
+   * or { ..., referralCode: "ABC123" }
    */
   app.post("/api/auth/register", async (req: Request, res: Response) => {
     try {
-      const validated = registerSchema.parse(req.body);
+      // Get referral code from body, query, or session/cookie
+      const referralCode = req.body.referralCode || 
+                           req.query.ref as string || 
+                           (req.session as any)?.referralCode ||
+                           req.cookies?.referral_code;
+      
+      const validated = registerWithReferralSchema.parse({
+        ...req.body,
+        referralCode: referralCode || undefined,
+      });
+      
       const result = await registerUser(validated);
       
       if (!result.success) {
         return res.status(400).json({ message: result.message });
       }
       
-      res.status(201).json({ message: result.message });
+      // Clear referral code from session if used
+      if ((req.session as any)?.referralCode) {
+        delete (req.session as any).referralCode;
+      }
+      
+      res.status(201).json({ 
+        message: result.message,
+        referrerName: result.referrerName,
+      });
     } catch (error: any) {
       if (error.name === "ZodError") {
         return res.status(400).json({ message: fromZodError(error).message });
       }
       console.error("Registration error:", error);
       res.status(500).json({ message: "Registration failed. Please try again." });
+    }
+  });
+  
+  /**
+   * Store referral code in session (for OAuth flows)
+   * GET /api/auth/set-referral?ref=CODE
+   */
+  app.get("/api/auth/set-referral", (req: Request, res: Response) => {
+    const referralCode = req.query.ref as string;
+    
+    if (referralCode && referralCode.length >= 4 && referralCode.length <= 20) {
+      (req.session as any).referralCode = referralCode.toUpperCase();
+      
+      // Also set a cookie for persistence
+      res.cookie('referral_code', referralCode.toUpperCase(), {
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+      });
+      
+      res.json({ success: true, message: "Referral code stored" });
+    } else {
+      res.status(400).json({ success: false, message: "Invalid referral code" });
     }
   });
   

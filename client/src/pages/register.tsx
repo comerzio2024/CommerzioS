@@ -3,14 +3,15 @@
  * 
  * Provides email/password registration and social login options.
  * Includes password strength validation and email verification flow.
+ * Supports referral code tracking via URL query parameter (?ref=CODE)
  */
 
-import { useState } from "react";
-import { Link, useLocation } from "wouter";
+import { useState, useEffect } from "react";
+import { Link, useLocation, useSearch } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +19,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
-import { Eye, EyeOff, Loader2, Mail, Lock, User, AlertCircle, CheckCircle, Check, X } from "lucide-react";
+import { Eye, EyeOff, Loader2, Mail, Lock, User, AlertCircle, CheckCircle, Check, X, Gift } from "lucide-react";
 import { apiRequest } from "@/lib/api";
 import { SocialLoginButtons } from "@/components/social-login-buttons";
 
@@ -71,10 +72,43 @@ function PasswordStrengthIndicator({ password }: { password: string }) {
 
 export default function RegisterPage() {
   const [, setLocation] = useLocation();
+  const searchString = useSearch();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [referrerName, setReferrerName] = useState<string | null>(null);
+  
+  // Extract referral code from URL
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    const ref = params.get("ref");
+    if (ref && ref.length >= 4) {
+      setReferralCode(ref.toUpperCase());
+      // Store in session for OAuth flows
+      fetch(`/api/auth/set-referral?ref=${encodeURIComponent(ref)}`).catch(() => {});
+    }
+  }, [searchString]);
+  
+  // Validate referral code and get referrer name
+  const { data: referralValidation } = useQuery({
+    queryKey: ["/api/referral/validate", referralCode],
+    queryFn: async () => {
+      if (!referralCode) return null;
+      const res = await fetch(`/api/referral/validate/${encodeURIComponent(referralCode)}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!referralCode,
+  });
+  
+  // Update referrer name when validation result changes
+  useEffect(() => {
+    if (referralValidation?.valid && referralValidation?.referrerName) {
+      setReferrerName(referralValidation.referrerName);
+    }
+  }, [referralValidation]);
   
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -92,13 +126,20 @@ export default function RegisterPage() {
   const registerMutation = useMutation({
     mutationFn: async (data: RegisterFormData) => {
       const { confirmPassword, ...registerData } = data;
-      return apiRequest<{ message: string }>("/api/auth/register", {
+      // Include referral code in registration
+      return apiRequest<{ message: string; referrerName?: string }>("/api/auth/register", {
         method: "POST",
-        body: JSON.stringify(registerData),
+        body: JSON.stringify({
+          ...registerData,
+          referralCode: referralCode || undefined,
+        }),
       });
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       setSuccess(true);
+      if (data.referrerName) {
+        setReferrerName(data.referrerName);
+      }
     },
     onError: (error: Error) => {
       setError(error.message.replace(/^\d+:\s*/, ""));
@@ -179,6 +220,25 @@ export default function RegisterPage() {
         </CardHeader>
         
         <CardContent className="space-y-4">
+          {/* Referral Banner */}
+          {referrerName && (
+            <Alert className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 dark:from-green-950/30 dark:to-emerald-950/30 dark:border-green-800">
+              <Gift className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-800 dark:text-green-200">
+                You were invited by <strong>{referrerName}</strong>! 🎉 You'll both earn bonus points when you sign up.
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {referralCode && !referrerName && !referralValidation?.valid && (
+            <Alert className="bg-yellow-50 border-yellow-200 dark:bg-yellow-950/30 dark:border-yellow-800">
+              <AlertCircle className="h-4 w-4 text-yellow-600" />
+              <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+                The referral code "{referralCode}" is not valid. You can still sign up without it.
+              </AlertDescription>
+            </Alert>
+          )}
+          
           {/* Social Login Buttons */}
           <SocialLoginButtons />
           
