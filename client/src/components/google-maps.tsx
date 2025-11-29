@@ -687,10 +687,11 @@ export function GoogleMaps({
       updateMarkers(true);
     }
 
-    // Load Google Maps script if not already loaded (with directions library)
+    // Load Google Maps script if not already loaded (without libraries parameter - we'll load directions dynamically)
     if (!win.google) {
       const script = document.createElement("script");
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=directions`;
+      // Don't include libraries in URL - load them dynamically using importLibrary
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
       script.async = true;
       script.defer = true;
       
@@ -701,10 +702,19 @@ export function GoogleMaps({
         }
       }, 10000); // 10 second timeout
       
-      script.onload = () => {
+      script.onload = async () => {
         clearTimeout(timeoutId);
         setMapLoadError(null); // Clear any previous errors
-        initializeMap();
+        // Load directions library dynamically using the newer importLibrary method
+        try {
+          await win.google.maps.importLibrary("directions");
+          initializeMap();
+        } catch (error) {
+          console.error('Failed to load directions library:', error);
+          setMapLoadError('Failed to load directions library. The map will still work, but directions may not be available.');
+          // Initialize map anyway - directions will fail gracefully
+          initializeMap();
+        }
       };
       
       script.onerror = () => {
@@ -714,35 +724,24 @@ export function GoogleMaps({
       
       document.head.appendChild(script);
     } else {
-      // Check if directions library is loaded
+      // Google Maps is already loaded
+      setMapLoadError(null); // Clear any previous errors
+      
+      // Check if directions library is available, if not load it dynamically
       if (win.google.maps && win.google.maps.DirectionsService) {
-        setMapLoadError(null); // Clear any previous errors
         initializeMap();
       } else {
-        // Reload with directions library
-        const script = document.createElement("script");
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=directions&callback=initMap`;
-        script.async = true;
-        script.defer = true;
-        
-        const timeoutId = setTimeout(() => {
-          if (!win.google?.maps?.DirectionsService) {
-            setMapLoadError('Map failed to load. This may be due to an ad blocker or privacy extension. Please disable it for this site or use the "Get Directions" button to open Google Maps directly.');
-          }
-        }, 10000);
-        
-        (window as any).initMap = () => {
-          clearTimeout(timeoutId);
-          setMapLoadError(null); // Clear any previous errors
-          initializeMap();
-        };
-        
-        script.onerror = () => {
-          clearTimeout(timeoutId);
-          setMapLoadError('Failed to load Google Maps. This may be due to an ad blocker or network issue. Please disable your ad blocker for this site or use the "Get Directions" button to open Google Maps directly.');
-        };
-        
-        document.head.appendChild(script);
+        // Load directions library dynamically
+        win.google.maps.importLibrary("directions")
+          .then(() => {
+            initializeMap();
+          })
+          .catch((error: any) => {
+            console.error('Failed to load directions library:', error);
+            setMapLoadError('Failed to load directions library. The map will still work, but directions may not be available.');
+            // Initialize map anyway - directions will fail gracefully
+            initializeMap();
+          });
       }
     }
   }, [isMapVisible, apiKey]);
