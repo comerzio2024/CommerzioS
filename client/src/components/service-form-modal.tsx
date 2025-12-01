@@ -926,7 +926,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
               {/* Images */}
               <ImageManager
                 images={formData.images}
-                imageMetadata={formData.imageMetadata.map(m => ({ ...m, rotation: m.rotation ?? 0 }))}
+                imageMetadata={(formData.imageMetadata || []).map(m => ({ ...m, rotation: m.rotation ?? 0 }))}
                 mainImageIndex={formData.mainImageIndex}
                 maxImages={maxImages}
                 onImagesChange={(images: string[]) => setFormData((prev: FormData | null) => ({ ...prev!, images }))}
