@@ -172,7 +172,10 @@ export async function getVendorAnalyticsSummary(
 }
 
 /**
- * Track service view (convenience function)
+ * Track a service view event
+ * Convenience wrapper around trackServiceEvent for view tracking
+ * @param serviceId - The ID of the service being viewed
+ * @param userId - Optional ID of the user viewing the service
  */
 export async function trackServiceView(serviceId: string, userId?: string): Promise<void> {
   await trackServiceEvent(serviceId, 'view', userId);

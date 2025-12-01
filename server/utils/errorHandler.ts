@@ -19,10 +19,13 @@ export class AppError extends Error {
  * Async handler wrapper to catch errors in async route handlers
  * Eliminates need for try/catch blocks in every async route
  */
-export const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) => 
-  (req: Request, res: Response, next: NextFunction) => {
+export const asyncHandler = (
+  fn: (req: Request, res: Response, next: NextFunction) => Promise<any>
+): ((req: Request, res: Response, next: NextFunction) => void) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
+};
 
 /**
  * Global error handling middleware

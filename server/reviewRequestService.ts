@@ -104,6 +104,8 @@ export async function sendPendingReviewRequests(): Promise<{
 
 /**
  * Check if a review request has been sent for a booking
+ * @param bookingId - The ID of the booking to check
+ * @returns true if a review request was sent, false otherwise (including if booking not found)
  */
 export async function hasReviewRequestBeenSent(bookingId: string): Promise<boolean> {
   const [booking] = await db
@@ -112,5 +114,10 @@ export async function hasReviewRequestBeenSent(bookingId: string): Promise<boole
     .where(eq(bookings.id, bookingId))
     .limit(1);
 
-  return booking?.reminderSentAt !== null;
+  // Return false if booking not found or if reminderSentAt is null
+  if (!booking) {
+    return false;
+  }
+  
+  return booking.reminderSentAt !== null;
 }

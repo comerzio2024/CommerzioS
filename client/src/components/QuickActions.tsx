@@ -37,7 +37,7 @@ export function QuickActions() {
       const res = await fetch('/api/notifications/unread-count', {
         credentials: 'include',
       });
-      if (!res.ok) throw new Error('Failed to fetch');
+      if (!res.ok) throw new Error('Failed to fetch notification count');
       return res.json();
     },
     enabled: !!user,
@@ -51,7 +51,7 @@ export function QuickActions() {
       const res = await fetch('/api/chat/unread-count', {
         credentials: 'include',
       });
-      if (!res.ok) throw new Error('Failed to fetch');
+      if (!res.ok) throw new Error('Failed to fetch chat unread count');
       return res.json();
     },
     enabled: !!user,
@@ -65,7 +65,7 @@ export function QuickActions() {
       const res = await fetch('/api/vendor/bookings/pending-count', {
         credentials: 'include',
       });
-      if (!res.ok) throw new Error('Failed to fetch');
+      if (!res.ok) throw new Error('Failed to fetch pending bookings count');
       return res.json();
     },
     enabled: !!user,
