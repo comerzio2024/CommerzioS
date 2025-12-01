@@ -24,11 +24,12 @@ export const globalErrorHandler = (err: Error, req: Request, res: Response, next
     });
   }
   
+  // Log the full error for debugging (includes stack trace)
   console.error('Unhandled error:', err);
+  
+  // In production, return a generic message to avoid leaking sensitive information
   res.status(500).json({
     success: false,
-    error: process.env.NODE_ENV === 'production' 
-      ? 'Internal server error' 
-      : err.message,
+    error: 'Internal server error',
   });
 };

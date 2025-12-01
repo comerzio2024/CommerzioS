@@ -3,6 +3,10 @@
  * 
  * Allows users to save search criteria and optionally
  * receive notifications when new matching services are posted.
+ * 
+ * NOTE: This implementation uses an in-memory store for demonstration purposes.
+ * For production use, add the savedSearches table to shared/schema.ts and
+ * replace the in-memory Map with proper database persistence.
  */
 
 import { db } from './db';

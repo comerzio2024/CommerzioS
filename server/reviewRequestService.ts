@@ -5,6 +5,10 @@
  * - Sending review requests 24h after booking completion
  * - Tracking if review was already requested
  * - Preventing duplicate requests
+ * 
+ * NOTE: This implementation uses an in-memory Set to track sent requests.
+ * For production use, add a reviewRequestSentAt field to the bookings table
+ * or create a dedicated review_requests table for proper persistence.
  */
 
 import { db } from './db';
