@@ -255,19 +255,21 @@ export function calculatePriceWithModifiers(
   ];
   
   // Weekend surcharge
+  // Note: percentage value is 0-100 (e.g., 20 for 20%), fixed value is in cents
   if (context.isWeekend && modifiers.weekendSurcharge) {
     const surcharge = modifiers.weekendSurcharge.type === 'percentage'
-      ? basePrice * (modifiers.weekendSurcharge.value / 100)
-      : modifiers.weekendSurcharge.value / 100; // Convert cents to CHF
+      ? basePrice * (modifiers.weekendSurcharge.value / 100) // e.g., 100 * (20/100) = 20 CHF
+      : modifiers.weekendSurcharge.value / 100; // Convert cents to CHF (e.g., 2000 cents = 20 CHF)
     total += surcharge;
     breakdown.push({ label: 'Weekend Surcharge', amount: surcharge });
   }
   
   // Evening surcharge
   if (context.isEvening && modifiers.eveningSurcharge) {
-    const surcharge = modifiers.eveningSurcharge.type === 'percentage'
+    const surchargeType = modifiers.eveningSurcharge.type || 'fixed';
+    const surcharge = surchargeType === 'percentage'
       ? basePrice * (modifiers.eveningSurcharge.value / 100)
-      : modifiers.eveningSurcharge.value / 100;
+      : modifiers.eveningSurcharge.value / 100; // Convert cents to CHF
     total += surcharge;
     breakdown.push({ label: 'Evening Surcharge', amount: surcharge });
   }
@@ -276,7 +278,7 @@ export function calculatePriceWithModifiers(
   if (context.isHoliday && modifiers.holidaySurcharge) {
     const surcharge = modifiers.holidaySurcharge.type === 'percentage'
       ? basePrice * (modifiers.holidaySurcharge.value / 100)
-      : modifiers.holidaySurcharge.value / 100;
+      : modifiers.holidaySurcharge.value / 100; // Convert cents to CHF
     total += surcharge;
     breakdown.push({ label: 'Holiday Surcharge', amount: surcharge });
   }
@@ -285,7 +287,7 @@ export function calculatePriceWithModifiers(
   if (context.isExpress && modifiers.expressSurcharge) {
     const surcharge = modifiers.expressSurcharge.type === 'percentage'
       ? basePrice * (modifiers.expressSurcharge.value / 100)
-      : modifiers.expressSurcharge.value / 100;
+      : modifiers.expressSurcharge.value / 100; // Convert cents to CHF
     total += surcharge;
     breakdown.push({ label: 'Express Booking', amount: surcharge });
   }
@@ -293,7 +295,7 @@ export function calculatePriceWithModifiers(
   // Travel fee
   if (context.travelDistanceKm && modifiers.travelFee) {
     const chargeableKm = Math.max(0, context.travelDistanceKm - modifiers.travelFee.freeKm);
-    const travelFee = (modifiers.travelFee.baseFee + chargeableKm * modifiers.travelFee.perKmFee) / 100;
+    const travelFee = (modifiers.travelFee.baseFee + chargeableKm * modifiers.travelFee.perKmFee) / 100; // Convert cents to CHF
     if (travelFee > 0) {
       total += travelFee;
       breakdown.push({ label: 'Travel Fee', amount: travelFee });
