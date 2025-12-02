@@ -3074,14 +3074,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/bookings/:id/process-twint-refund', isAuthenticated, async (req: any, res) => {
     try {
       const bookingId = req.params.id;
+      const userId = req.user!.id;
       
-      // Get booking and verify vendor ownership
-      const booking = await getBookingById(bookingId);
+      // Get booking - first verify it exists and user has access as vendor
+      const booking = await getBookingById(bookingId, userId);
       if (!booking) {
         return res.status(404).json({ message: "Booking not found" });
       }
 
-      if (booking.vendorId !== req.user!.id) {
+      // Extra check: only the vendor can process refunds
+      if (booking.vendorId !== userId) {
         return res.status(403).json({ message: "Not authorized to process refund for this booking" });
       }
 
@@ -3118,15 +3120,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/bookings/:id/decline-twint-refund', isAuthenticated, async (req: any, res) => {
     try {
       const bookingId = req.params.id;
+      const userId = req.user!.id;
       const { reason } = req.body;
       
-      // Get booking and verify vendor ownership
-      const booking = await getBookingById(bookingId);
+      // Get booking - first verify it exists and user has access as vendor
+      const booking = await getBookingById(bookingId, userId);
       if (!booking) {
         return res.status(404).json({ message: "Booking not found" });
       }
 
-      if (booking.vendorId !== req.user!.id) {
+      // Extra check: only the vendor can decline refunds
+      if (booking.vendorId !== userId) {
         return res.status(403).json({ message: "Not authorized" });
       }
 

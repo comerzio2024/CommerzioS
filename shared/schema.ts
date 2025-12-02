@@ -1390,7 +1390,7 @@ export const escrowTransactions = pgTable("escrow_transactions", {
   
   // Auto-release settings (for card escrow)
   autoReleaseAt: timestamp("auto_release_at"),
-  autoReleaseWarningsentAt: timestamp("auto_release_warning_sent_at"),
+  autoReleaseWarningSentAt: timestamp("auto_release_warning_sent_at"),
   
   // Timestamps
   paidAt: timestamp("paid_at"),
