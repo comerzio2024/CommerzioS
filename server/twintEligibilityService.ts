@@ -6,7 +6,7 @@
  */
 
 import { db } from './db';
-import { users, bookings, reviews, escrowTransactions } from '../shared/schema';
+import { users, bookings, reviews, escrowTransactions, services } from '../shared/schema';
 import { eq, and, sql, gte, count } from 'drizzle-orm';
 
 // TWINT eligibility thresholds
@@ -87,16 +87,16 @@ async function getVendorStats(vendorId: string): Promise<{
   const disputedBookings = disputedResult?.count || 0;
 
   // Calculate trust score from reviews (average rating)
-  // Get all services owned by the vendor, then get average review rating
+  // Join reviews with services owned by the vendor directly
   const [reviewStats] = await db.select({
     avgRating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`,
   })
     .from(reviews)
     .innerJoin(
-      bookings,
+      services,
       and(
-        eq(reviews.serviceId, bookings.serviceId),
-        eq(bookings.vendorId, vendorId)
+        eq(reviews.serviceId, services.id),
+        eq(services.ownerId, vendorId)
       )
     );
 
