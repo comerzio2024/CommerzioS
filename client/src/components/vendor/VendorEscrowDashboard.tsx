@@ -306,7 +306,7 @@ export function VendorEscrowDashboard() {
                 <li>• Customer payments are held securely until service completion</li>
                 <li>• Funds are released automatically 48 hours after service</li>
                 <li>• Customers can release funds early by confirming completion</li>
-                <li>• Platform fee ({(0.10 * 100).toFixed(0)}%) is deducted from each payment</li>
+                <li>• Platform fee (10%) is deducted from each payment</li>
               </ul>
             </div>
           </div>

@@ -2105,6 +2105,7 @@ export const insertEscrowDisputeSchema = createInsertSchema(escrowDisputes).omit
   id: true,
   createdAt: true,
   updatedAt: true,
+  resolvedAt: true,
 });
 
 export const insertChatConversationSchema = createInsertSchema(chatConversations).omit({
