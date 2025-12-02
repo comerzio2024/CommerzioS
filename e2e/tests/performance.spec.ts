@@ -73,6 +73,12 @@ test.describe('Performance & Accessibility Tests', () => {
     test('should have acceptable Cumulative Layout Shift', async ({ page }) => {
       await page.goto('/');
       
+      // Define LayoutShift entry interface for type safety
+      interface LayoutShiftEntry extends PerformanceEntry {
+        hadRecentInput: boolean;
+        value: number;
+      }
+      
       // Measure CLS
       const cls = await page.evaluate(() => {
         return new Promise<number>((resolve) => {
@@ -80,10 +86,9 @@ test.describe('Performance & Accessibility Tests', () => {
           
           new PerformanceObserver((list) => {
             for (const entry of list.getEntries()) {
-              // @ts-expect-error - PerformanceEntry type needs cast
-              if (!entry.hadRecentInput) {
-                // @ts-expect-error - PerformanceEntry type needs cast
-                clsValue += entry.value;
+              const layoutEntry = entry as unknown as { hadRecentInput: boolean; value: number };
+              if (!layoutEntry.hadRecentInput) {
+                clsValue += layoutEntry.value;
               }
             }
           }).observe({ type: 'layout-shift', buffered: true });

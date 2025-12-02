@@ -16,8 +16,8 @@ export default defineConfig({
   /* Retry failed tests - 2 retries for flaky tests */
   retries: process.env.CI ? 2 : 0,
   
-  /* Opt out of parallel tests on CI for more stable runs */
-  workers: process.env.CI ? 1 : undefined,
+  /* Use 2 workers in CI for better performance while maintaining stability */
+  workers: process.env.CI ? 2 : undefined,
   
   /* Reporter configuration */
   reporter: [

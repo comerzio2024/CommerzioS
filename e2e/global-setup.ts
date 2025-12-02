@@ -7,8 +7,8 @@ import { FullConfig } from '@playwright/test';
 async function globalSetup(config: FullConfig): Promise<void> {
   console.log('🚀 Starting global test setup...');
   
-  // Get base URL from config
-  const baseURL = config.projects[0].use?.baseURL || 'http://localhost:5000';
+  // Get base URL from config with safe access
+  const baseURL = config.projects?.[0]?.use?.baseURL || 'http://localhost:5000';
   
   console.log(`📍 Base URL: ${baseURL}`);
   

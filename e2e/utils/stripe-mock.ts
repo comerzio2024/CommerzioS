@@ -50,17 +50,17 @@ async function fillStripeSplitElements(
   // Card number iframe
   const cardNumberFrame = page.frameLocator('iframe[title*="card number"]');
   const cardNumberInput = cardNumberFrame.locator('input[name="cardnumber"]');
-  await cardNumberInput.type(card.number, { delay: 50 });
+  await cardNumberInput.fill(card.number);
   
   // Expiry iframe
   const expiryFrame = page.frameLocator('iframe[title*="expiration"]');
   const expiryInput = expiryFrame.locator('input');
-  await expiryInput.type(card.exp.replace('/', ''), { delay: 50 });
+  await expiryInput.fill(card.exp.replace('/', ''));
   
   // CVC iframe
   const cvcFrame = page.frameLocator('iframe[title*="CVC"]');
   const cvcInput = cvcFrame.locator('input');
-  await cvcInput.type(card.cvc, { delay: 50 });
+  await cvcInput.fill(card.cvc);
 }
 
 /**
@@ -79,20 +79,20 @@ export async function fillStripePaymentElement(
     await cardOption.click();
   }
   
-  // Fill card details
+  // Fill card details using fill() method which is more reliable
   const cardNumberInput = paymentFrame.locator('input[name="number"]');
-  await cardNumberInput.type(card.number, { delay: 50 });
+  await cardNumberInput.fill(card.number);
   
   const expiryInput = paymentFrame.locator('input[name="expiry"]');
-  await expiryInput.type(card.exp.replace('/', ''), { delay: 50 });
+  await expiryInput.fill(card.exp.replace('/', ''));
   
   const cvcInput = paymentFrame.locator('input[name="cvc"]');
-  await cvcInput.type(card.cvc, { delay: 50 });
+  await cvcInput.fill(card.cvc);
   
   // Fill postal code if visible
   const zipInput = paymentFrame.locator('input[name="postal"]');
   if (await zipInput.isVisible() && card.zip) {
-    await zipInput.type(card.zip, { delay: 50 });
+    await zipInput.fill(card.zip);
   }
 }
 
