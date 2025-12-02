@@ -166,7 +166,7 @@ import {
 import { validateSwissAddress } from "./swissAddressService";
 import { sendVerificationCode } from "./contactVerificationService";
 import { fromZodError } from "zod-validation-error";
-import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import { ObjectStorageService, ObjectNotFoundError } from "./r2Storage";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {

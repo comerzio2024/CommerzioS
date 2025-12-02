@@ -194,12 +194,13 @@ vi.mock("./contactVerificationService", () => ({
   sendVerificationCode: vi.fn(),
 }));
 
-vi.mock("./objectStorage", () => ({
+vi.mock("./r2Storage", () => ({
   ObjectStorageService: vi.fn().mockImplementation(() => ({
     getObjectEntityFile: vi.fn(),
     downloadObject: vi.fn(),
     getObjectEntityUploadURL: vi.fn(),
     trySetObjectEntityAclPolicy: vi.fn(),
+    getSignedObjectUrl: vi.fn(),
   })),
   ObjectNotFoundError: class extends Error {},
 }));
