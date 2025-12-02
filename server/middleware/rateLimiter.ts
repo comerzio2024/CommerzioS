@@ -5,11 +5,15 @@
  * - apiLimiter: 1000 req/hour for general API endpoints
  * - pricingLimiter: 10 changes/hour for pricing modifications
  * - authLimiter: 5 attempts/15min for authentication
+ * 
+ * NOTE: Uses in-memory storage which is suitable for single-instance deployments.
+ * For production multi-instance environments, replace with Redis-backed storage.
  */
 
 import { Request, Response, NextFunction } from 'express';
 
-// In-memory store for rate limiting (for production, use Redis)
+// In-memory store for rate limiting
+// NOTE: For production multi-instance deployments, use Redis or similar distributed store
 interface RateLimitStore {
   [key: string]: {
     count: number;

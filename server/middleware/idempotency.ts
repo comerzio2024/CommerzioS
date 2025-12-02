@@ -3,6 +3,9 @@
  * 
  * Caches responses by x-idempotency-key header for 5 minutes.
  * Prevents duplicate requests from causing unintended side effects.
+ * 
+ * NOTE: Uses in-memory cache which is suitable for single-instance deployments.
+ * For production multi-instance environments, replace with Redis-backed storage.
  */
 
 import { Request, Response, NextFunction } from 'express';
@@ -17,7 +20,8 @@ interface CachedResponse {
   timestamp: number;
 }
 
-// In-memory cache for responses (for production, use Redis)
+// In-memory cache for responses
+// NOTE: For production multi-instance deployments, use Redis or similar distributed store
 const responseCache: Map<string, CachedResponse> = new Map();
 
 // Cleanup expired entries every minute

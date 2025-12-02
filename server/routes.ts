@@ -25,7 +25,7 @@ import {
   pointsLog,
 } from "@shared/schema";
 // Security middleware imports
-import { pricingLimiter } from "./middleware/rateLimiter";
+import { pricingLimiter, authLimiter } from "./middleware/rateLimiter";
 import { idempotencyMiddleware } from "./middleware/idempotency";
 import { verifyReauthPassword } from "./middleware/reauth";
 import { logPricingOptionCreate, logPricingOptionUpdate, logPricingOptionDelete } from "./services/auditService";
@@ -3418,7 +3418,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Re-authentication endpoint for sensitive operations
-  app.post('/api/auth/reauth', isAuthenticated, async (req: any, res) => {
+  // Rate limited to prevent brute force attacks
+  app.post('/api/auth/reauth', isAuthenticated, authLimiter, async (req: any, res) => {
     try {
       const { password } = req.body;
       

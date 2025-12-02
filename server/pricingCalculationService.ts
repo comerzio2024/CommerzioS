@@ -304,6 +304,7 @@ function applyFlexiblePricing(
     const baseCost = breakdown.baseCost + breakdown.dailyCost + breakdown.hourlyCost;
     
     // Evening surcharge
+    // Note: percentage value is 0-100 (e.g., 20 for 20%), fixed value is stored in cents
     if (modifiers.eveningSurcharge) {
       const hour = startTime.getHours();
       const afterHour = modifiers.eveningSurcharge.afterHour;
@@ -311,9 +312,11 @@ function applyFlexiblePricing(
       
       if (hour >= afterHour || hour < beforeHour) {
         const surchargeType = modifiers.eveningSurcharge.type || 'fixed';
+        // For percentage: baseCost * (20/100) = 20% of baseCost
+        // For fixed: 2000 cents / 100 = 20 CHF
         const amount = surchargeType === 'percentage'
           ? baseCost * (modifiers.eveningSurcharge.value / 100)
-          : modifiers.eveningSurcharge.value / 100;
+          : modifiers.eveningSurcharge.value / 100; // Convert cents to CHF
         
         surcharges.push({
           type: 'evening',
@@ -338,9 +341,11 @@ function applyFlexiblePricing(
       
       if (isSameDay) {
         const surchargeType = modifiers.expressSurcharge.type;
+        // For percentage: baseCost * (20/100) = 20% of baseCost
+        // For fixed: 2000 cents / 100 = 20 CHF
         const amount = surchargeType === 'percentage'
           ? baseCost * (modifiers.expressSurcharge.value / 100)
-          : modifiers.expressSurcharge.value / 100;
+          : modifiers.expressSurcharge.value / 100; // Convert cents to CHF
         
         surcharges.push({
           type: 'express',
@@ -358,10 +363,10 @@ function applyFlexiblePricing(
       }
     }
     
-    // Travel fee
+    // Travel fee (all values stored in cents)
     if (modifiers.travelFee && context.travelDistanceKm) {
       const chargeableKm = Math.max(0, context.travelDistanceKm - modifiers.travelFee.freeKm);
-      const travelFee = (modifiers.travelFee.baseFee + chargeableKm * modifiers.travelFee.perKmFee) / 100;
+      const travelFee = (modifiers.travelFee.baseFee + chargeableKm * modifiers.travelFee.perKmFee) / 100; // Convert cents to CHF
       
       if (travelFee > 0) {
         surcharges.push({
