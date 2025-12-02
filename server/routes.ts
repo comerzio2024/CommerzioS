@@ -3614,6 +3614,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   /**
    * Admin: Manual escrow refund (override)
+   * Body params:
+   * - amount (optional): Refund amount in CHF. If not provided, defaults to full escrow amount
+   * - reason (optional): Reason for refund
    */
   app.post('/api/admin/escrow/:id/refund', isAdmin, async (req: any, res) => {
     try {
@@ -3635,6 +3638,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await cancelBookingPayment(escrowTx.bookingId, reason || "Admin refund");
       } else if (escrowTx.status === 'released') {
         // Create refund for released payment
+        // If no amount specified, refund the full escrow amount
         const amountCents = amount 
           ? Math.round(amount * 100) 
           : Math.round(parseFloat(escrowTx.amount) * 100);

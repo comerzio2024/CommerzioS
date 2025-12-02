@@ -21,6 +21,14 @@ import { eq, and, desc, sql } from "drizzle-orm";
 import { createNotification } from "../notificationService";
 import { captureBookingPayment, cancelBookingPayment, createPartialRefund } from "../stripeService";
 
+// Valid dispute statuses for type safety
+const DISPUTE_STATUSES = ["open", "under_review", "resolved_customer", "resolved_vendor", "resolved_split", "closed"] as const;
+type DisputeStatus = typeof DISPUTE_STATUSES[number];
+
+function isValidDisputeStatus(status: string): status is DisputeStatus {
+  return DISPUTE_STATUSES.includes(status as DisputeStatus);
+}
+
 // ===========================================
 // DISPUTE CREATION
 // ===========================================
@@ -215,7 +223,7 @@ export async function getAllDisputes(filters?: {
     .limit(limit)
     .offset(offset);
 
-  if (status) {
+  if (status && isValidDisputeStatus(status)) {
     const disputes = await db.select({
       dispute: escrowDisputes,
       booking: {
@@ -240,7 +248,7 @@ export async function getAllDisputes(filters?: {
       .innerJoin(bookings, eq(escrowDisputes.bookingId, bookings.id))
       .innerJoin(escrowTransactions, eq(escrowDisputes.escrowTransactionId, escrowTransactions.id))
       .innerJoin(users, eq(escrowDisputes.raisedByUserId, users.id))
-      .where(eq(escrowDisputes.status, status as any))
+      .where(eq(escrowDisputes.status, status))
       .orderBy(desc(escrowDisputes.createdAt))
       .limit(limit)
       .offset(offset);
