@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { apiRequest, type ServiceWithDetails, type CategoryWithTemporary } from "@/lib/api";
@@ -11,8 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { X, Plus, AlertCircle, Sparkles, Hash, Mail } from "lucide-react";
+import { X, Plus, AlertCircle, Sparkles, Hash, Mail, Camera, MapPin, DollarSign, CheckCircle2, Loader2, Phone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import type { Service, PlatformSettings, ServiceContact } from "@shared/schema";
 import { ImageManager } from "@/components/image-manager";
 import { ContactInput, type Contact } from "@/components/contact-input";
@@ -102,8 +103,29 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
   const [aiSuggestion, setAiSuggestion] = useState<{ categoryId: string; subcategoryId: string | null } | null>(null);
   const [isAiCategoryLoading, setIsAiCategoryLoading] = useState(false);
   const aiSuggestionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [activeTab, setActiveTab] = useState("main");
 
   const maxImages = user?.plan?.maxImages || 4;
+
+  // Calculate form completion progress
+  const formProgress = useMemo(() => {
+    if (!formData) return { percentage: 0, steps: [] };
+    
+    const steps = [
+      { id: 'images', label: 'Photos', done: formData.images.length > 0, icon: Camera },
+      { id: 'title', label: 'Title', done: !!formData.title?.trim(), icon: Sparkles },
+      { id: 'description', label: 'Description', done: !!formData.description?.trim(), icon: Sparkles },
+      { id: 'category', label: 'Category', done: !!formData.categoryId, icon: Hash },
+      { id: 'location', label: 'Location', done: formData.locations.some((l: string) => l?.trim()), icon: MapPin },
+      { id: 'contact', label: 'Contact', done: formData.contacts.some((c: Contact) => c.value?.trim()), icon: Mail },
+      { id: 'pricing', label: 'Pricing', done: formData.priceType === 'fixed' ? !!formData.price : formData.priceType === 'list' ? formData.priceList.length > 0 : !!formData.priceText, icon: DollarSign },
+    ];
+    
+    const completed = steps.filter(s => s.done).length;
+    const percentage = Math.round((completed / steps.length) * 100);
+    
+    return { percentage, steps, completed, total: steps.length };
+  }, [formData]);
 
   const { data: categories = [] } = useQuery<CategoryWithTemporary[]>({
     queryKey: ["/api/categories"],
@@ -911,17 +933,61 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{isEditMode ? "Edit Service" : "Post a New Service"}</DialogTitle>
-          <DialogDescription>
-            {isEditMode ? "Update your service details" : "Create a detailed listing for your service"}
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Modern Header with Progress */}
+        <div className="space-y-4 pb-4 border-b">
+          <DialogHeader className="space-y-1">
+            <DialogTitle className="text-2xl font-bold">
+              {isEditMode ? "Edit Service" : "Create Your Listing"}
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              {isEditMode 
+                ? "Update your service details below" 
+                : "Fill in the details to publish your service"
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          {/* Progress Bar - only show in create mode */}
+          {!isEditMode && formData && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  {formProgress.completed} of {formProgress.total} steps completed
+                </span>
+                <span className="font-medium text-primary">{formProgress.percentage}%</span>
+              </div>
+              <Progress value={formProgress.percentage} className="h-2" />
+              
+              {/* Step indicators */}
+              <div className="flex items-center justify-between pt-2">
+                {formProgress.steps.map((step) => (
+                  <div 
+                    key={step.id} 
+                    className={`flex flex-col items-center gap-1 ${step.done ? 'text-primary' : 'text-muted-foreground'}`}
+                  >
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      step.done 
+                        ? 'bg-primary/10 text-primary' 
+                        : 'bg-muted text-muted-foreground'
+                    }`}>
+                      {step.done ? (
+                        <CheckCircle2 className="w-4 h-4" />
+                      ) : (
+                        <step.icon className="w-4 h-4" />
+                      )}
+                    </div>
+                    <span className="text-[10px] font-medium hidden sm:block">{step.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Email verification warning for new services */}
         {!isEditMode && user && !user.emailVerified && (
-          <Alert variant="destructive" className="mb-4">
+          <Alert variant="destructive" className="my-4">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Email Not Verified</AlertTitle>
             <AlertDescription className="mt-2">
@@ -933,85 +999,132 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
           </Alert>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <Tabs defaultValue="main" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="main">Main Info</TabsTrigger>
-              <TabsTrigger value="location">Location & Contacts</TabsTrigger>
-              <TabsTrigger value="pricing">Pricing & Plans</TabsTrigger>
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-6 py-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-3 mb-6">
+              <TabsTrigger value="main" className="flex items-center gap-2">
+                <Camera className="w-4 h-4" />
+                <span className="hidden sm:inline">Main Info</span>
+                <span className="sm:hidden">Info</span>
+              </TabsTrigger>
+              <TabsTrigger value="location" className="flex items-center gap-2">
+                <MapPin className="w-4 h-4" />
+                <span className="hidden sm:inline">Location & Contacts</span>
+                <span className="sm:hidden">Location</span>
+              </TabsTrigger>
+              <TabsTrigger value="pricing" className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4" />
+                <span className="hidden sm:inline">Pricing & Plans</span>
+                <span className="sm:hidden">Pricing</span>
+              </TabsTrigger>
             </TabsList>
 
             {/* Main Info Tab - Images + Basic Info */}
-            <TabsContent value="main" className="space-y-6">
-              {/* Images */}
-              <ImageManager
-                images={formData.images}
-                imageMetadata={(formData.imageMetadata || []).map(m => ({ ...m, rotation: m.rotation ?? 0 }))}
-                mainImageIndex={formData.mainImageIndex}
-                maxImages={maxImages}
-                onImagesChange={(images: string[]) => setFormData((prev: FormData | null) => ({ ...prev!, images }))}
-                onMetadataChange={(metadata: ImageMetadata[]) => setFormData((prev: FormData | null) => ({ ...prev!, imageMetadata: metadata }))}
-                onMainImageChange={(index: number) => setFormData((prev: FormData | null) => ({ ...prev!, mainImageIndex: index }))}
-              />
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Label htmlFor="title">Service Title *</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleGenerateTitle}
-                    disabled={formData.images.length === 0 || generatingTitle}
-                    className="gap-2"
-                    data-testid="button-ai-generate-title"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    {generatingTitle ? "Generating..." : "AI Suggest"}
-                  </Button>
+            <TabsContent value="main" className="space-y-6 mt-0">
+              {/* Images Section with visual card */}
+              <div className="rounded-xl border bg-gradient-to-br from-slate-50 to-white p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Camera className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Service Images</h3>
+                    <p className="text-sm text-muted-foreground">Add up to {maxImages} photos to showcase your service</p>
+                  </div>
                 </div>
-                <Input
-                  id="title"
-                  placeholder="e.g., Professional House Cleaning"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  data-testid="input-service-title"
+                <ImageManager
+                  images={formData.images}
+                  imageMetadata={(formData.imageMetadata || []).map(m => ({ ...m, rotation: m.rotation ?? 0 }))}
+                  mainImageIndex={formData.mainImageIndex}
+                  maxImages={maxImages}
+                  onImagesChange={(images: string[]) => setFormData((prev: FormData | null) => ({ ...prev!, images }))}
+                  onMetadataChange={(metadata: ImageMetadata[]) => setFormData((prev: FormData | null) => ({ ...prev!, imageMetadata: metadata }))}
+                  onMainImageChange={(index: number) => setFormData((prev: FormData | null) => ({ ...prev!, mainImageIndex: index }))}
                 />
-                {formData.images.length === 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    Upload images first to generate AI title
-                  </p>
-                )}
               </div>
 
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Label htmlFor="description">Description *</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleGenerateDescription}
-                    disabled={!formData.title.trim() || generatingDescription}
-                    className="gap-2"
-                    data-testid="button-ai-generate-description"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    {generatingDescription ? "Generating..." : "AI Generate"}
-                  </Button>
+              {/* Title & Description with AI */}
+              <div className="rounded-xl border p-6 space-y-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Title & Description</h3>
+                    <p className="text-sm text-muted-foreground">Use AI to generate compelling content</p>
+                  </div>
                 </div>
-                <Textarea
-                  id="description"
-                  placeholder="Describe your service in detail... or click 'AI Generate' for suggestions"
-                  rows={5}
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  data-testid="textarea-service-description"
-                />
-                {!formData.title.trim() && (
-                  <p className="text-xs text-muted-foreground">
-                    Enter a title first to generate AI description
-                  </p>
-                )}
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="title">Service Title *</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleGenerateTitle}
+                      disabled={formData.images.length === 0 || generatingTitle}
+                      className="gap-2 bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200 hover:border-purple-300"
+                      data-testid="button-ai-generate-title"
+                    >
+                      {generatingTitle ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                      )}
+                      {generatingTitle ? "Generating..." : "AI Suggest"}
+                    </Button>
+                  </div>
+                  <Input
+                    id="title"
+                    placeholder="e.g., Professional House Cleaning"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    className="text-lg"
+                    data-testid="input-service-title"
+                  />
+                  {formData.images.length === 0 && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Camera className="w-3 h-3" />
+                      Upload images first to enable AI title generation
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="description">Description *</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleGenerateDescription}
+                      disabled={!formData.title.trim() || generatingDescription}
+                      className="gap-2 bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200 hover:border-purple-300"
+                      data-testid="button-ai-generate-description"
+                    >
+                      {generatingDescription ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                      )}
+                      {generatingDescription ? "Generating..." : "AI Generate"}
+                    </Button>
+                  </div>
+                  <Textarea
+                    id="description"
+                    placeholder="Describe your service in detail... or click 'AI Generate' for suggestions"
+                    rows={5}
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    data-testid="textarea-service-description"
+                  />
+                  {!formData.title.trim() && (
+                    <p className="text-xs text-muted-foreground">
+                      Enter a title first to generate AI description
+                    </p>
+                  )}
+                </div>
               </div>
 
               <CategorySubcategorySelector
@@ -1120,9 +1233,19 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
             </TabsContent>
 
             {/* Location & Contacts Tab */}
-            <TabsContent value="location" className="space-y-6">
-              {/* Locations */}
-              <div className="space-y-4">
+            <TabsContent value="location" className="space-y-6 mt-0">
+              {/* Locations Section */}
+              <div className="rounded-xl border bg-gradient-to-br from-blue-50/50 to-white p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                    <MapPin className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Service Locations</h3>
+                    <p className="text-sm text-muted-foreground">Where do you offer this service?</p>
+                  </div>
+                </div>
+                
                 {addressErrors.length > 0 && (
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
@@ -1139,69 +1262,105 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                   locations={formData.locations.filter((l: string | undefined) => l && typeof l === 'string' && l.trim())}
                   onLocationsChange={(locations: string[]) => setFormData((prev: FormData | null) => ({ ...prev!, locations }))}
                   maxLocations={10}
-                  label="Service Locations"
+                  label=""
                   required={true}
                   testIdPrefix="service-location"
                 />
                 {settings?.enableSwissAddressValidation && (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Addresses will be validated to ensure they are in Switzerland
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-green-500" />
+                    Addresses will be validated for Switzerland
                   </p>
                 )}
               </div>
 
-              {/* Contacts */}
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <Label>Contact Information *</Label>
+              {/* Contacts Section */}
+              <div className="rounded-xl border p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                      <Phone className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">Contact Information</h3>
+                      <p className="text-sm text-muted-foreground">How can customers reach you?</p>
+                    </div>
+                  </div>
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
                     onClick={addContact}
+                    className="gap-1.5"
                     data-testid="button-add-contact"
                   >
-                    <Plus className="w-4 h-4 mr-1" /> Add Another Contact
+                    <Plus className="w-4 h-4" /> Add Contact
                   </Button>
                 </div>
                 
-                {formData.contacts.map((contact: Contact, idx: number) => (
-                  <ContactInput
-                    key={idx}
-                    contact={contact}
-                    index={idx}
-                    canRemove={formData.contacts.length > 1}
-                    verificationEnabled={!!verificationEnabled}
-                    showVerification={false}
-                    onUpdate={updateContact}
-                    onRemove={removeContact}
-                  />
-                ))}
+                <div className="space-y-3">
+                  {formData.contacts.map((contact: Contact, idx: number) => (
+                    <ContactInput
+                      key={idx}
+                      contact={contact}
+                      index={idx}
+                      canRemove={formData.contacts.length > 1}
+                      verificationEnabled={!!verificationEnabled}
+                      showVerification={false}
+                      onUpdate={updateContact}
+                      onRemove={removeContact}
+                    />
+                  ))}
 
-                {formData.contacts.length === 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    Please add at least one contact method
-                  </p>
-                )}
+                  {formData.contacts.length === 0 && (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <Phone className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Please add at least one contact method</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </TabsContent>
 
             {/* Pricing & Plans Tab */}
-            <TabsContent value="pricing" className="space-y-6">
-              <div className="space-y-2">
-                <Label>Pricing Type *</Label>
-                <div className="flex gap-4">
+            <TabsContent value="pricing" className="space-y-6 mt-0">
+              {/* Pricing Type Section */}
+              <div className="rounded-xl border bg-gradient-to-br from-amber-50/50 to-white p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                    <DollarSign className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Pricing Strategy</h3>
+                    <p className="text-sm text-muted-foreground">How would you like to price your service?</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-3 gap-3">
                   {(["fixed", "list", "text"] as PricingType[]).map((type) => (
-                    <label key={type} className="flex items-center gap-2 cursor-pointer">
+                    <label
+                      key={type}
+                      className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        formData.priceType === type
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                    >
                       <input
                         type="radio"
                         name="priceType"
                         value={type}
                         checked={formData.priceType === type}
                         onChange={(e) => setFormData({ ...formData, priceType: e.target.value as PricingType })}
+                        className="sr-only"
                         data-testid={`radio-price-type-${type}`}
                       />
-                      <span className="capitalize">{type === "list" ? "Price List" : type === "text" ? "Text-based" : "Fixed Price"}</span>
+                      <span className="text-2xl">
+                        {type === "fixed" ? "💰" : type === "list" ? "📋" : "✍️"}
+                      </span>
+                      <span className="font-medium text-sm text-center">
+                        {type === "list" ? "Price List" : type === "text" ? "Text-based" : "Fixed Price"}
+                      </span>
                     </label>
                   ))}
                 </div>
@@ -1209,93 +1368,108 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
 
               {/* Fixed Pricing */}
               {formData.priceType === "fixed" && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="price">Price (CHF) *</Label>
-                    <Input
-                      id="price"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={formData.price}
-                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                      data-testid="input-service-price"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="priceUnit">Per *</Label>
-                    <select
-                      id="priceUnit"
-                      value={formData.priceUnit}
-                      onChange={(e) => setFormData({ ...formData, priceUnit: e.target.value })}
-                      className="w-full px-3 py-2 border border-input rounded-md bg-background"
-                      data-testid="select-service-price-unit"
-                    >
-                      <option value="hour">Hour</option>
-                      <option value="job">Job</option>
-                      <option value="consultation">Consultation</option>
-                      <option value="day">Day</option>
-                      <option value="month">Month</option>
-                    </select>
+                <div className="rounded-xl border p-6 space-y-4">
+                  <h4 className="font-medium">Set Your Price</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="price">Price (CHF) *</Label>
+                      <Input
+                        id="price"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        value={formData.price}
+                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                        className="text-lg"
+                        data-testid="input-service-price"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="priceUnit">Per *</Label>
+                      <select
+                        id="priceUnit"
+                        value={formData.priceUnit}
+                        onChange={(e) => setFormData({ ...formData, priceUnit: e.target.value })}
+                        className="w-full px-3 py-2 border border-input rounded-md bg-background h-10"
+                        data-testid="select-service-price-unit"
+                      >
+                        <option value="hour">Hour</option>
+                        <option value="job">Job</option>
+                        <option value="consultation">Consultation</option>
+                        <option value="day">Day</option>
+                        <option value="month">Month</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
               )}
 
               {/* Price List */}
               {formData.priceType === "list" && (
-                <div className="space-y-4">
+                <div className="rounded-xl border p-6 space-y-4">
                   <div className="flex justify-between items-center">
-                    <Label>Price List Items</Label>
-                    <Button type="button" size="sm" variant="outline" onClick={addPriceItem} data-testid="button-add-price-item">
-                      <Plus className="w-4 h-4 mr-1" /> Add Item
+                    <h4 className="font-medium">Price List Items</h4>
+                    <Button type="button" size="sm" variant="outline" onClick={addPriceItem} className="gap-1.5" data-testid="button-add-price-item">
+                      <Plus className="w-4 h-4" /> Add Item
                     </Button>
                   </div>
-                  {formData.priceList.map((item: PriceItem, idx: number) => (
-                    <div key={idx} className="grid grid-cols-3 gap-2 border p-3 rounded">
-                      <Input
-                        placeholder="Description (e.g., Basic)"
-                        value={item.description}
-                        onChange={(e) => updatePriceItem(idx, "description", e.target.value)}
-                        data-testid={`input-price-item-description-${idx}`}
-                      />
-                      <Input
-                        placeholder="Price"
-                        type="number"
-                        step="0.01"
-                        value={item.price}
-                        onChange={(e) => updatePriceItem(idx, "price", e.target.value)}
-                        data-testid={`input-price-item-price-${idx}`}
-                      />
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Unit (e.g., hour)"
-                          value={item.unit}
-                          onChange={(e) => updatePriceItem(idx, "unit", e.target.value)}
-                          data-testid={`input-price-item-unit-${idx}`}
-                        />
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => removePriceItem(idx)}
-                          data-testid={`button-remove-price-item-${idx}`}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
+                  {formData.priceList.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <span className="text-4xl block mb-2">📋</span>
+                      <p className="text-sm">Click "Add Item" to create your price list</p>
                     </div>
-                  ))}
+                  ) : (
+                    <div className="space-y-3">
+                      {formData.priceList.map((item: PriceItem, idx: number) => (
+                        <div key={idx} className="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-lg">
+                          <Input
+                            placeholder="Description (e.g., Basic)"
+                            value={item.description}
+                            onChange={(e) => updatePriceItem(idx, "description", e.target.value)}
+                            data-testid={`input-price-item-description-${idx}`}
+                          />
+                          <Input
+                            placeholder="Price"
+                            type="number"
+                            step="0.01"
+                            value={item.price}
+                            onChange={(e) => updatePriceItem(idx, "price", e.target.value)}
+                            data-testid={`input-price-item-price-${idx}`}
+                          />
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Unit (e.g., hour)"
+                              value={item.unit}
+                              onChange={(e) => updatePriceItem(idx, "unit", e.target.value)}
+                              data-testid={`input-price-item-unit-${idx}`}
+                            />
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => removePriceItem(idx)}
+                              data-testid={`button-remove-price-item-${idx}`}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Text-based Pricing */}
               {formData.priceType === "text" && (
-                <div className="space-y-2">
-                  <Label htmlFor="priceText">Price Description *</Label>
+                <div className="rounded-xl border p-6 space-y-4">
+                  <h4 className="font-medium">Price Description</h4>
                   <Textarea
                     id="priceText"
                     placeholder="e.g., Flexible pricing based on project scope. Contact for quote."
+                    rows={4}
                     value={formData.priceText}
                     onChange={(e) => setFormData({ ...formData, priceText: e.target.value })}
                     data-testid="textarea-price-text"
@@ -1416,39 +1590,73 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
             </TabsContent>
           </Tabs>
 
-          {/* Buttons */}
-          <div className="flex gap-3 justify-end pt-4">
-            {!isEditMode && (
+          {/* Sticky Footer with Buttons */}
+          <div className="flex items-center gap-3 justify-between pt-6 border-t bg-white sticky bottom-0">
+            <div className="text-sm text-muted-foreground">
+              {activeTab === "main" && "Add images and details"}
+              {activeTab === "location" && "Set location and contact"}
+              {activeTab === "pricing" && "Choose your pricing"}
+            </div>
+            <div className="flex gap-2">
+              {!isEditMode && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSaveDraft}
+                  data-testid="button-save-draft"
+                  className={draftSaved ? "border-green-500 text-green-600" : ""}
+                >
+                  {draftSaved ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                      Draft Saved
+                    </>
+                  ) : "Save Draft"}
+                </Button>
+              )}
               <Button
                 type="button"
-                variant="outline"
-                onClick={handleSaveDraft}
-                data-testid="button-save-draft"
-                className={draftSaved ? "border-green-500" : ""}
+                variant="ghost"
+                onClick={() => onOpenChange(false)}
+                data-testid="button-cancel-service"
               >
-                {draftSaved ? "✓ Draft Saved" : "Save Draft"}
+                Cancel
               </Button>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              data-testid="button-cancel-service"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitDisabled}
-              data-testid="button-submit-service"
-            >
-              {validatingAddresses 
-                ? "Validating..." 
-                : isEditMode 
-                  ? (updateServiceMutation.isPending ? "Updating..." : "Update Service")
-                  : (createServiceMutation.isPending ? "Posting..." : "Post Service")
-              }
-            </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitDisabled}
+                className="min-w-[140px] bg-gradient-to-r from-primary to-primary/90"
+                data-testid="button-submit-service"
+              >
+                {validatingAddresses ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                    Validating...
+                  </>
+                ) : isEditMode ? (
+                  updateServiceMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                      Update Service
+                    </>
+                  )
+                ) : (
+                  createServiceMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                      Posting...
+                    </>
+                  ) : (
+                    "Post Service"
+                  )
+                )}
+              </Button>
+            </div>
           </div>
         </form>
       </DialogContent>
