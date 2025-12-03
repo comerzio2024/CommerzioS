@@ -1,7 +1,18 @@
 # Commerzio Infrastructure Setup & Migration Guide
 
 **Last Updated:** December 2, 2025  
-**Status:** In Progress
+**Status:** In Progress - Split Architecture Implementation
+
+---
+
+## 🏗️ Architecture Overview
+
+**Split Architecture (Implemented)**
+- **Frontend**: Vercel (services.commerzio.online)
+- **Backend**: Railway (api.commerzio.online)
+- **Database**: Neon PostgreSQL Serverless
+- **Storage**: Cloudflare R2 (cdn.commerzio.online)
+- **DNS**: Cloudflare
 
 ---
 
@@ -11,7 +22,7 @@
 |--------|----------|-----|--------|
 | **commerzio.online** | Hostinger | Cloudflare | ✅ Active |
 
-### Planned Subdomains
+### Subdomains
 | Subdomain | Purpose | Points To | Status |
 |-----------|---------|-----------|--------|
 | `commerzio.online` | Redirect to services | Cloudflare Redirect Rule | ⏳ To configure |
@@ -19,100 +30,119 @@
 | `api.commerzio.online` | Backend API | Railway | ⏳ To configure |
 | `cdn.commerzio.online` | R2 Storage | Cloudflare R2 | ⏳ To configure |
 
-### R2 Bucket Configuration
-| Setting | Value |
-|---------|-------|
-| **Bucket Name** | `commerzios-uploads` |
-| **Location** | Eastern Europe (EEUR) |
-| **S3 API Endpoint** | `https://727912cc4ae2b3ac7be6902314cdf01d.r2.cloudflarestorage.com` |
-| **Custom Domain** | `cdn.commerzio.online` (to be added) |
-| **Account ID** | `727912cc4ae2b3ac7be6902314cdf01d` |
-
-### R2 Code Migration Status
-| Task | Status |
-|------|--------|
-| Created `server/r2Storage.ts` | ✅ Done |
-| Updated routes.ts to use R2 | ✅ Done |
-| Installed AWS S3 SDK | ✅ Done |
-| CORS Policy configured | ⏳ Pending |
-| Custom domain added | ⏳ Pending |
-| API token created | ✅ Done |
-
 ---
 
-## Current Infrastructure Overview
+## ⚙️ Environment Variables
 
-| Component | Current Provider | Target Provider | Status |
-|-----------|-----------------|-----------------|--------|
-| **Frontend** | ~~Render~~ → Vercel | Vercel | ✅ Migrated |
-| **Backend** | Render (unconfirmed) | Railway (recommended) | ❓ Needs Decision |
-| **Database** | Neon (PostgreSQL Serverless) | Neon | ✅ Configured |
-| **Object Storage** | Replit Object Storage (GCS) | Cloudflare R2 | ❌ Needs Migration |
-| **DNS** | Cloudflare | Cloudflare | ✅ Active |
-| **Domain** | Hostinger | Hostinger | ✅ Active |
-| **CDN/Security** | Cloudflare (100 firewall rules) | Cloudflare | ✅ Active |
-
-### Previous Setup (Before Migration)
-- **Development**: `localhost:5000` (full-stack on single port)
-- **Production**: Render (both frontend + backend deployed together)
-
----
-
-## Backend Hosting Recommendation
-
-### Recommended: Railway
-| Environment | Branch | Purpose |
-|-------------|--------|---------|
-| **Production** | `main` | Live users |
-| **Staging** | `staging` | Pre-live testing |
-| **PR Previews** | Any PR | Feature testing |
-
-**Why Railway over alternatives:**
-- ✅ Native Node.js/Express support
-- ✅ Automatic PR preview environments
-- ✅ WebSocket support (needed for chat feature)
-- ✅ Simple GitHub integration
-- ✅ ~$5-20/month pricing
-- ✅ Environment variables per environment
-
-**Why NOT Hostinger:**
-- ❌ Business Package is PHP shared hosting (no Node.js)
-- ❌ Would need VPS upgrade + manual server management
-- ❌ Not worth the complexity when Railway handles it automatically
-
----
-
-## Session 1: December 2, 2025
-
-### Discussion Summary
-
-1. **Frontend Migration (Render → Vercel)**: Completed by user
-2. **Backend Hosting**: Hostinger Business Package with 100 firewall rules
-3. **Database**: Neon PostgreSQL Serverless (already configured via `@neondatabase/serverless`)
-4. **Object Storage Migration Needed**: Currently using Replit's Object Storage (Google Cloud Storage via sidecar endpoint at `127.0.0.1:1106`). Needs migration to Cloudflare R2.
-5. **DNS**: Already on Cloudflare
-
----
-
-## ✅ Session 1 Completed Tasks (December 2, 2025)
-
-### Code Changes Made:
-1. ✅ Created `server/r2Storage.ts` - New Cloudflare R2 storage service
-2. ✅ Updated `server/routes.ts` - Now imports from r2Storage instead of objectStorage
-3. ✅ Updated `server/routes.test.ts` - Mocks updated for r2Storage
-4. ✅ Installed `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`
-5. ✅ Created `.env.example` - Template with all required environment variables
-6. ✅ All tests passing
-7. ✅ TypeScript compiles without errors
-
-### Required Environment Variables for R2:
+### Railway Backend (api.commerzio.online)
 ```env
+# Required
+DATABASE_URL=postgresql://...@neon.tech/neondb?sslmode=require
+SESSION_SECRET=your-secure-secret-32-chars
+NODE_ENV=production
+PORT=5000
+
+# Split Architecture
+APP_URL=https://api.commerzio.online
+FRONTEND_URL=https://services.commerzio.online
+CROSS_DOMAIN_AUTH=true
+COOKIE_DOMAIN=.commerzio.online
+
+# R2 Storage
 R2_ACCOUNT_ID=727912cc4ae2b3ac7be6902314cdf01d
-R2_ACCESS_KEY_ID=<your-access-key-id>
-R2_SECRET_ACCESS_KEY=<your-secret-access-key>
+R2_ACCESS_KEY_ID=your-key
+R2_SECRET_ACCESS_KEY=your-secret
 R2_BUCKET_NAME=commerzios-uploads
 R2_PUBLIC_URL=https://cdn.commerzio.online
+
+# Stripe
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_PUBLISHABLE_KEY=pk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# OAuth (callback URLs must use api.commerzio.online)
+GOOGLE_CLIENT_ID=your-id
+GOOGLE_CLIENT_SECRET=your-secret
+TWITTER_CLIENT_ID=your-id
+TWITTER_CLIENT_SECRET=your-secret
+FACEBOOK_APP_ID=your-id
+FACEBOOK_APP_SECRET=your-secret
+
+# Email
+SMTP_HOST=smtp.hostinger.com
+SMTP_PORT=465
+SMTP_USER=your-email
+SMTP_PASSWORD=your-password
+EMAIL_FROM=noreply@commerzio.online
 ```
+
+### Vercel Frontend (services.commerzio.online)
+```env
+VITE_API_URL=https://api.commerzio.online
+```
+
+---
+
+## 📋 OAuth Provider Configuration
+
+### Google Cloud Console
+Update authorized redirect URIs:
+- `https://api.commerzio.online/api/auth/google/callback`
+
+### Twitter Developer Portal
+Update callback URL:
+- `https://api.commerzio.online/api/auth/twitter/callback`
+
+### Facebook Developer Console
+Update Valid OAuth Redirect URIs:
+- `https://api.commerzio.online/api/auth/facebook/callback`
+
+---
+
+## 🔐 Cross-Domain Authentication
+
+The split architecture requires special cookie configuration:
+
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| `sameSite` | `none` | Allow cookies with cross-origin requests |
+| `secure` | `true` | Required for sameSite=none |
+| `domain` | `.commerzio.online` | Share cookies across subdomains |
+
+**Important**: The cookie domain `.commerzio.online` (with leading dot) allows cookies to be shared between `services.commerzio.online` and `api.commerzio.online`.
+
+---
+
+## ✅ Session 2: Split Architecture Implementation
+
+### Code Changes Made
+| File | Change | Status |
+|------|--------|--------|
+| `client/src/lib/config.ts` | NEW - API_BASE_URL and fetchApi helper | ✅ Done |
+| `client/src/lib/queryClient.ts` | Updated to use getApiUrl for /api paths | ✅ Done |
+| `client/src/lib/imageUpload.ts` | Updated to use fetchApi | ✅ Done |
+| `client/src/lib/geocoding.ts` | Updated to use fetchApi | ✅ Done |
+| `client/src/components/layout.tsx` | Updated logout to use fetchApi | ✅ Done |
+| `client/src/pages/chat.tsx` | Updated to use fetchApi | ✅ Done |
+| `client/src/components/notifications/NotificationBell.tsx` | Updated to use fetchApi | ✅ Done |
+| `server/index.ts` | Added CORS middleware for cross-domain | ✅ Done |
+| `server/auth.ts` | Updated session cookies for cross-domain | ✅ Done |
+| `server/oauthProviders.ts` | Updated redirects to use FRONTEND_URL | ✅ Done |
+| `.env.example` | Added FRONTEND_URL, CROSS_DOMAIN_AUTH, COOKIE_DOMAIN | ✅ Done |
+
+### Packages Installed
+- `cors` and `@types/cors` - CORS middleware for Express
+
+### Remaining Direct Fetch Calls
+Some components still have direct `fetch('/api/...')` calls. The `fetchApi` helper is available - pattern is established. These files can be updated:
+- `client/src/pages/profile.tsx` (6 calls)
+- `client/src/pages/notifications.tsx` (2 calls)  
+- `client/src/pages/referrals.tsx` (1 call)
+- `client/src/pages/book-service.tsx` (2 calls)
+- `client/src/pages/vendor-bookings.tsx` (1 call)
+- Various component files (~20 more calls)
+
+**Note**: TanStack Query fetches go through `queryClient.ts` which handles the base URL. Direct fetch calls will work if CORS is properly configured.
 
 ---
 

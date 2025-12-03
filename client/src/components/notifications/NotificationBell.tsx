@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { useLocation } from "wouter";
+import { fetchApi } from "@/lib/config";
 
 interface Notification {
   id: string;
@@ -75,9 +76,7 @@ export function NotificationBell() {
   const { data: unreadData } = useQuery<{ count: number }>({
     queryKey: ["notifications", "unread-count"],
     queryFn: async () => {
-      const res = await fetch("/api/notifications/unread-count", {
-        credentials: "include",
-      });
+      const res = await fetchApi("/api/notifications/unread-count");
       if (!res.ok) throw new Error("Failed to fetch unread count");
       return res.json();
     },
@@ -89,9 +88,7 @@ export function NotificationBell() {
   const { data: notificationsData, isLoading } = useQuery<NotificationsResponse>({
     queryKey: ["notifications", "list", { limit: 10 }],
     queryFn: async () => {
-      const res = await fetch("/api/notifications?limit=10", {
-        credentials: "include",
-      });
+      const res = await fetchApi("/api/notifications?limit=10");
       if (!res.ok) {
         const error = await res.json().catch(() => ({ message: "Failed to fetch notifications" }));
         throw new Error(error.message || "Failed to fetch notifications");
@@ -110,9 +107,8 @@ export function NotificationBell() {
   // Mark as read mutation
   const markReadMutation = useMutation({
     mutationFn: async (notificationId: string) => {
-      const res = await fetch(`/api/notifications/${notificationId}/read`, {
+      const res = await fetchApi(`/api/notifications/${notificationId}/read`, {
         method: "POST",
-        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to mark as read");
       return res.json();
@@ -125,9 +121,8 @@ export function NotificationBell() {
   // Mark all as read mutation
   const markAllReadMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/notifications/mark-all-read", {
+      const res = await fetchApi("/api/notifications/mark-all-read", {
         method: "POST",
-        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to mark all as read");
       return res.json();
@@ -140,9 +135,8 @@ export function NotificationBell() {
   // Dismiss notification mutation
   const dismissMutation = useMutation({
     mutationFn: async (notificationId: string) => {
-      const res = await fetch(`/api/notifications/${notificationId}/dismiss`, {
+      const res = await fetchApi(`/api/notifications/${notificationId}/dismiss`, {
         method: "POST",
-        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to dismiss");
       return res.json();

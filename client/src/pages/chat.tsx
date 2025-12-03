@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { fetchApi } from '@/lib/config';
 
 interface Conversation {
   id: string;
@@ -67,7 +68,7 @@ export default function ChatPage() {
   const { data: user } = useQuery({
     queryKey: ['user'],
     queryFn: async () => {
-      const res = await fetch('/api/auth/user');
+      const res = await fetchApi('/api/auth/user');
       if (!res.ok) return null;
       return res.json();
     },
@@ -83,10 +84,9 @@ export default function ChatPage() {
 
     // If we have a vendor ID, start or get a conversation
     if (vendorId && user) {
-      fetch('/api/chat/conversations', {
+      fetchApi('/api/chat/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           vendorId,
           bookingId,

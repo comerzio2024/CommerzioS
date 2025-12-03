@@ -3,6 +3,8 @@
  * Centralizes all geocoding API calls to ensure consistent behavior across the app
  */
 
+import { fetchApi } from './config';
+
 export interface GeocodingSuggestion {
   display_name: string;
   lat: number;
@@ -44,7 +46,7 @@ export async function searchGeocodeSuggestions(
   }
 
   try {
-    const response = await fetch('/api/geocode/search', {
+    const response = await fetchApi('/api/geocode/search', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -79,7 +81,7 @@ export async function geocodeLocation(query: string): Promise<GeocodeResult> {
   }
 
   try {
-    const response = await fetch('/api/geocode', {
+    const response = await fetchApi('/api/geocode', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

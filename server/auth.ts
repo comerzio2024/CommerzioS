@@ -59,6 +59,15 @@ declare global {
 const SESSION_TTL = 7 * 24 * 60 * 60 * 1000; // 1 week
 
 /**
+ * Determine if we're in a cross-domain setup (Vercel frontend + Railway backend)
+ */
+function isCrossDomainSetup(): boolean {
+  const appUrl = process.env.APP_URL || '';
+  // Cross-domain if APP_URL contains 'api.' subdomain (separate backend)
+  return appUrl.includes('api.') || process.env.CROSS_DOMAIN_AUTH === 'true';
+}
+
+/**
  * Get session middleware with PostgreSQL store
  */
 export function getSession() {
@@ -75,18 +84,35 @@ export function getSession() {
     console.warn("⚠️  WARNING: SESSION_SECRET is not set or using default value. Set a strong secret in production!");
   }
   
+  const isProduction = process.env.NODE_ENV === "production";
+  const crossDomain = isCrossDomainSetup();
+  
+  // For cross-domain auth (Vercel + Railway), we need sameSite: 'none' and secure: true
+  // This allows cookies to be sent with cross-origin requests
+  const cookieConfig = {
+    httpOnly: true,
+    secure: isProduction, // Must be true for sameSite: 'none'
+    sameSite: (crossDomain && isProduction ? 'none' : 'lax') as 'none' | 'lax',
+    maxAge: SESSION_TTL,
+    // Set domain for cross-subdomain cookies (e.g., .commerzio.online)
+    ...(crossDomain && process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
+  };
+  
+  if (crossDomain) {
+    console.log('🔐 Cross-domain auth enabled, cookie config:', { 
+      sameSite: cookieConfig.sameSite, 
+      secure: cookieConfig.secure,
+      domain: process.env.COOKIE_DOMAIN || '(not set)',
+    });
+  }
+  
   return session({
     secret: sessionSecret || "dev-secret-change-in-production",
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
     name: "sid", // Change from default 'connect.sid' for security
-    cookie: {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: SESSION_TTL,
-    },
+    cookie: cookieConfig,
   });
 }
 
@@ -223,12 +249,16 @@ export async function setupAuth(app: Express) {
     if (referralCode && referralCode.length >= 4 && referralCode.length <= 20) {
       (req.session as any).referralCode = referralCode.toUpperCase();
       
+      const isProduction = process.env.NODE_ENV === 'production';
+      const crossDomain = isCrossDomainSetup();
+      
       // Also set a cookie for persistence
       res.cookie('referral_code', referralCode.toUpperCase(), {
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        secure: isProduction,
+        sameSite: crossDomain && isProduction ? 'none' : 'lax',
+        ...(crossDomain && process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
       });
       
       res.json({ success: true, message: "Referral code stored" });

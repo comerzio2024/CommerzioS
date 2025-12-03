@@ -8,7 +8,9 @@
  * - Google: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
  * - Twitter: TWITTER_CLIENT_ID, TWITTER_CLIENT_SECRET
  * - Facebook: FACEBOOK_APP_ID, FACEBOOK_APP_SECRET
- * - APP_URL: The base URL of your application (e.g., http://localhost:5000)
+ * - APP_URL: The base URL of your API/backend (e.g., https://api.commerzio.online)
+ * - FRONTEND_URL: The base URL of your frontend (e.g., https://services.commerzio.online)
+ *   In monorepo mode, FRONTEND_URL defaults to APP_URL
  */
 
 import type { Express, Request, Response } from "express";
@@ -17,6 +19,15 @@ import { upsertOAuthUser } from "./authService";
 import crypto from "crypto";
 
 const APP_URL = process.env.APP_URL || "http://localhost:5000";
+// For split architecture: frontend may be on a different domain
+const FRONTEND_URL = process.env.FRONTEND_URL || APP_URL;
+
+/**
+ * Build a frontend redirect URL (used after OAuth success/error)
+ */
+function frontendUrl(path: string): string {
+  return `${FRONTEND_URL}${path}`;
+}
 
 // Check which providers are configured
 const isGoogleConfigured = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
@@ -53,7 +64,7 @@ export function setupOAuthRoutes(app: Express) {
    */
   app.get("/api/auth/google", (req: Request, res: Response) => {
     if (!googleClient || !isGoogleConfigured) {
-      return res.redirect("/login?error=google_not_configured");
+      return res.redirect(frontendUrl("/login?error=google_not_configured"));
     }
     
     const state = generateState();
@@ -79,12 +90,12 @@ export function setupOAuthRoutes(app: Express) {
       
       // Verify state to prevent CSRF
       if (!state || state !== req.session.oauthState) {
-        return res.redirect("/login?error=invalid_state");
+        return res.redirect(frontendUrl("/login?error=invalid_state"));
       }
       delete req.session.oauthState;
       
       if (!googleClient || !code) {
-        return res.redirect("/login?error=missing_code");
+        return res.redirect(frontendUrl("/login?error=missing_code"));
       }
       
       // Exchange code for tokens
@@ -99,7 +110,7 @@ export function setupOAuthRoutes(app: Express) {
       
       const payload = ticket.getPayload();
       if (!payload || !payload.email) {
-        return res.redirect("/login?error=no_email");
+        return res.redirect(frontendUrl("/login?error=no_email"));
       }
       
       // Create or update user
@@ -116,20 +127,20 @@ export function setupOAuthRoutes(app: Express) {
       });
       
       if (!result.success) {
-        return res.redirect(`/login?error=${encodeURIComponent(result.message || "auth_failed")}`);
+        return res.redirect(frontendUrl(`/login?error=${encodeURIComponent(result.message || "auth_failed")}`));
       }
       
       // Log the user in
       req.login(result.user!, (err) => {
         if (err) {
           console.error("Google OAuth login error:", err);
-          return res.redirect("/login?error=session_error");
+          return res.redirect(frontendUrl("/login?error=session_error"));
         }
-        res.redirect("/");
+        res.redirect(frontendUrl("/"));
       });
     } catch (error) {
       console.error("Google OAuth callback error:", error);
-      res.redirect("/login?error=google_auth_failed");
+      res.redirect(frontendUrl("/login?error=google_auth_failed"));
     }
   });
   
@@ -143,7 +154,7 @@ export function setupOAuthRoutes(app: Express) {
    */
   app.get("/api/auth/twitter", (req: Request, res: Response) => {
     if (!isTwitterConfigured) {
-      return res.redirect("/login?error=twitter_not_configured");
+      return res.redirect(frontendUrl("/login?error=twitter_not_configured"));
     }
     
     const state = generateState();
@@ -176,7 +187,7 @@ export function setupOAuthRoutes(app: Express) {
       
       // Verify state
       if (!state || state !== req.session.oauthState) {
-        return res.redirect("/login?error=invalid_state");
+        return res.redirect(frontendUrl("/login?error=invalid_state"));
       }
       
       const codeVerifier = req.session.codeVerifier;
@@ -184,7 +195,7 @@ export function setupOAuthRoutes(app: Express) {
       delete req.session.codeVerifier;
       
       if (!code || !codeVerifier) {
-        return res.redirect("/login?error=missing_code");
+        return res.redirect(frontendUrl("/login?error=missing_code"));
       }
       
       // Exchange code for tokens
@@ -206,7 +217,7 @@ export function setupOAuthRoutes(app: Express) {
       
       if (!tokens.access_token) {
         console.error("Twitter token error: Failed to obtain access token");
-        return res.redirect("/login?error=token_error");
+        return res.redirect(frontendUrl("/login?error=token_error"));
       }
       
       // Get user info
@@ -219,7 +230,7 @@ export function setupOAuthRoutes(app: Express) {
       const userData = await userResponse.json();
       
       if (!userData.data) {
-        return res.redirect("/login?error=user_fetch_failed");
+        return res.redirect(frontendUrl("/login?error=user_fetch_failed"));
       }
       
       // Twitter doesn't provide email by default, use ID as identifier
@@ -245,20 +256,20 @@ export function setupOAuthRoutes(app: Express) {
       });
       
       if (!result.success) {
-        return res.redirect(`/login?error=${encodeURIComponent(result.message || "auth_failed")}`);
+        return res.redirect(frontendUrl(`/login?error=${encodeURIComponent(result.message || "auth_failed")}`));
       }
       
       // Log the user in
       req.login(result.user!, (err) => {
         if (err) {
           console.error("Twitter OAuth login error:", err);
-          return res.redirect("/login?error=session_error");
+          return res.redirect(frontendUrl("/login?error=session_error"));
         }
-        res.redirect("/");
+        res.redirect(frontendUrl("/"));
       });
     } catch (error) {
       console.error("Twitter OAuth callback error:", error);
-      res.redirect("/login?error=twitter_auth_failed");
+      res.redirect(frontendUrl("/login?error=twitter_auth_failed"));
     }
   });
   
@@ -272,7 +283,7 @@ export function setupOAuthRoutes(app: Express) {
    */
   app.get("/api/auth/facebook", (req: Request, res: Response) => {
     if (!isFacebookConfigured) {
-      return res.redirect("/login?error=facebook_not_configured");
+      return res.redirect(frontendUrl("/login?error=facebook_not_configured"));
     }
     
     const state = generateState();
@@ -299,12 +310,12 @@ export function setupOAuthRoutes(app: Express) {
       
       // Verify state
       if (!state || state !== req.session.oauthState) {
-        return res.redirect("/login?error=invalid_state");
+        return res.redirect(frontendUrl("/login?error=invalid_state"));
       }
       delete req.session.oauthState;
       
       if (!code) {
-        return res.redirect("/login?error=missing_code");
+        return res.redirect(frontendUrl("/login?error=missing_code"));
       }
       
       // Exchange code for token
@@ -319,7 +330,7 @@ export function setupOAuthRoutes(app: Express) {
       
       if (!tokens.access_token) {
         console.error("Facebook token error: Failed to obtain access token");
-        return res.redirect("/login?error=token_error");
+        return res.redirect(frontendUrl("/login?error=token_error"));
       }
       
       // Get user info
@@ -331,7 +342,7 @@ export function setupOAuthRoutes(app: Express) {
       const userData = await userResponse.json();
       
       if (!userData.email) {
-        return res.redirect("/login?error=no_email");
+        return res.redirect(frontendUrl("/login?error=no_email"));
       }
       
       // Create or update user
@@ -346,20 +357,20 @@ export function setupOAuthRoutes(app: Express) {
       });
       
       if (!result.success) {
-        return res.redirect(`/login?error=${encodeURIComponent(result.message || "auth_failed")}`);
+        return res.redirect(frontendUrl(`/login?error=${encodeURIComponent(result.message || "auth_failed")}`));
       }
       
       // Log the user in
       req.login(result.user!, (err) => {
         if (err) {
           console.error("Facebook OAuth login error:", err);
-          return res.redirect("/login?error=session_error");
+          return res.redirect(frontendUrl("/login?error=session_error"));
         }
-        res.redirect("/");
+        res.redirect(frontendUrl("/"));
       });
     } catch (error) {
       console.error("Facebook OAuth callback error:", error);
-      res.redirect("/login?error=facebook_auth_failed");
+      res.redirect(frontendUrl("/login?error=facebook_auth_failed"));
     }
   });
 }

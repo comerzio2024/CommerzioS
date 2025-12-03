@@ -8,6 +8,7 @@ import { SearchAutocomplete } from "@/components/search-autocomplete";
 import { CreateServiceModal } from "@/components/create-service-modal";
 import { CategorySuggestionModal } from "@/components/category-suggestion-modal";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { fetchApi } from "@/lib/config";
 import { useState } from "react";
 import { BRAND } from "@/lib/brand";
 
@@ -151,7 +152,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       <DropdownMenuSeparator />
                       <DropdownMenuItem 
                         onClick={async () => {
-                          await fetch("/api/auth/logout", { method: "POST" });
+                          await fetchApi("/api/auth/logout", { method: "POST" });
                           window.location.href = "/";
                         }} 
                         className="text-destructive" 

@@ -1,11 +1,12 @@
+import { fetchApi } from './config';
+
 export async function uploadImage(file: File): Promise<string> {
   // Get signed upload URL from server
-  const uploadRes = await fetch('/api/objects/upload', {
+  const uploadRes = await fetchApi('/api/objects/upload', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    credentials: 'include',
   });
 
   if (!uploadRes.ok) {
@@ -16,7 +17,7 @@ export async function uploadImage(file: File): Promise<string> {
 
   const { uploadURL } = await uploadRes.json();
 
-  // Upload file to cloud storage
+  // Upload file to cloud storage (direct to R2, not through our API)
   const uploadResponse = await fetch(uploadURL, {
     method: 'PUT',
     body: file,
@@ -30,12 +31,11 @@ export async function uploadImage(file: File): Promise<string> {
   }
 
   // Set image ACL to public
-  const setAclRes = await fetch('/api/service-images', {
+  const setAclRes = await fetchApi('/api/service-images', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    credentials: 'include',
     body: JSON.stringify({ imageURL: uploadURL }),
   });
 
