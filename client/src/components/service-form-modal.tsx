@@ -1591,12 +1591,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
           </Tabs>
 
           {/* Sticky Footer with Buttons */}
-          <div className="flex items-center gap-3 justify-between pt-6 border-t bg-white sticky bottom-0">
-            <div className="text-sm text-muted-foreground">
-              {activeTab === "main" && "Add images and details"}
-              {activeTab === "location" && "Set location and contact"}
-              {activeTab === "pricing" && "Choose your pricing"}
-            </div>
+          <div className="flex items-center gap-3 justify-end pt-6 border-t bg-white sticky bottom-0">
             <div className="flex gap-2">
               {!isEditMode && (
                 <Button
