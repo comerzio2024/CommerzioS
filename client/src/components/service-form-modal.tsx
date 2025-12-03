@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { X, Plus, AlertCircle, Sparkles, Hash, Mail, Camera, MapPin, DollarSign, CheckCircle2, Loader2, Phone } from "lucide-react";
+import { X, Plus, AlertCircle, Sparkles, Hash, Mail, Camera, MapPin, DollarSign, CheckCircle2, Loader2, Phone, ChevronRight, ChevronLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import type { Service, PlatformSettings, ServiceContact } from "@shared/schema";
@@ -123,9 +123,28 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
     
     const completed = steps.filter(s => s.done).length;
     const percentage = Math.round((completed / steps.length) * 100);
+    const isComplete = completed === steps.length;
     
-    return { percentage, steps, completed, total: steps.length };
+    return { percentage, steps, completed, total: steps.length, isComplete };
   }, [formData]);
+
+  // Tab navigation helpers
+  const tabs = ["main", "location", "pricing"] as const;
+  const currentTabIndex = tabs.indexOf(activeTab as typeof tabs[number]);
+  const isFirstTab = currentTabIndex === 0;
+  const isLastTab = currentTabIndex === tabs.length - 1;
+  
+  const goToNextTab = () => {
+    if (!isLastTab) {
+      setActiveTab(tabs[currentTabIndex + 1]);
+    }
+  };
+  
+  const goToPreviousTab = () => {
+    if (!isFirstTab) {
+      setActiveTab(tabs[currentTabIndex - 1]);
+    }
+  };
 
   const { data: categories = [] } = useQuery<CategoryWithTemporary[]>({
     queryKey: ["/api/categories"],
@@ -1590,10 +1609,21 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
             </TabsContent>
           </Tabs>
 
-          {/* Sticky Footer with Buttons */}
-          <div className="flex items-center gap-3 justify-end pt-6 border-t bg-white sticky bottom-0">
+          {/* Sticky Footer with Navigation */}
+          <div className="flex items-center justify-between pt-6 border-t bg-white sticky bottom-0">
+            {/* Left side - Back button or Save Draft */}
             <div className="flex gap-2">
-              {!isEditMode && (
+              {!isFirstTab ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={goToPreviousTab}
+                  data-testid="button-previous-step"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Back
+                </Button>
+              ) : !isEditMode ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -1608,7 +1638,11 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                     </>
                   ) : "Save Draft"}
                 </Button>
-              )}
+              ) : null}
+            </div>
+
+            {/* Right side - Cancel and Next/Publish */}
+            <div className="flex gap-2">
               <Button
                 type="button"
                 variant="ghost"
@@ -1617,40 +1651,56 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
               >
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitDisabled}
-                className="min-w-[140px] bg-gradient-to-r from-primary to-primary/90"
-                data-testid="button-submit-service"
-              >
-                {validatingAddresses ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                    Validating...
-                  </>
-                ) : isEditMode ? (
-                  updateServiceMutation.isPending ? (
+              
+              {/* Show Next button if not on last tab, otherwise show Publish/Update */}
+              {!isLastTab ? (
+                <Button
+                  type="button"
+                  onClick={goToNextTab}
+                  className="min-w-[100px]"
+                  data-testid="button-next-step"
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  disabled={isSubmitDisabled || !formProgress.isComplete}
+                  className="min-w-[140px] bg-gradient-to-r from-primary to-primary/90"
+                  data-testid="button-submit-service"
+                >
+                  {validatingAddresses ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                      Updating...
+                      Validating...
                     </>
+                  ) : isEditMode ? (
+                    updateServiceMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                        Updating...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                        Update Service
+                      </>
+                    )
                   ) : (
-                    <>
-                      <CheckCircle2 className="w-4 h-4 mr-1.5" />
-                      Update Service
-                    </>
-                  )
-                ) : (
-                  createServiceMutation.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                      Posting...
-                    </>
-                  ) : (
-                    "Post Service"
-                  )
-                )}
-              </Button>
+                    createServiceMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                        Publishing...
+                      </>
+                    ) : formProgress.isComplete ? (
+                      "Publish Service"
+                    ) : (
+                      `Complete ${(formProgress.total || 0) - (formProgress.completed || 0)} more steps`
+                    )
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         </form>
