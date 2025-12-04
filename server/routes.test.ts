@@ -213,6 +213,10 @@ vi.mock("./serviceRequestService", () => ({
   getVendorProposals: vi.fn(() => Promise.resolve([])),
   expireStaleProposals: vi.fn(),
   expireStaleRequests: vi.fn(),
+  updateServiceRequest: vi.fn(),
+  deactivateServiceRequest: vi.fn(),
+  reactivateServiceRequest: vi.fn(),
+  deleteServiceRequest: vi.fn(),
 }));
 
 vi.mock("./services/disputeResolutionService", () => ({
