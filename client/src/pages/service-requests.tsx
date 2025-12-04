@@ -142,8 +142,8 @@ export default function ServiceRequestsPage() {
   const [showProposalsModal, setShowProposalsModal] = useState(false);
   
   // Filter state for browse tab
-  const [filterCategory, setFilterCategory] = useState<string>("");
-  const [filterCanton, setFilterCanton] = useState<string>("");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterCanton, setFilterCanton] = useState<string>("all");
   
   // Fetch categories for filter
   const { data: categories } = useQuery<Category[]>({
@@ -179,8 +179,8 @@ export default function ServiceRequestsPage() {
   // Build query params for fetching requests
   const buildQueryParams = () => {
     const params = new URLSearchParams();
-    if (filterCategory) params.append("categoryId", filterCategory);
-    if (filterCanton) params.append("canton", filterCanton);
+    if (filterCategory && filterCategory !== "all") params.append("categoryId", filterCategory);
+    if (filterCanton && filterCanton !== "all") params.append("canton", filterCanton);
     return params.toString();
   };
 
@@ -397,7 +397,7 @@ export default function ServiceRequestsPage() {
                       <SelectValue placeholder="All Categories" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Categories</SelectItem>
+                      <SelectItem value="all">All Categories</SelectItem>
                       {categories?.map((cat) => (
                         <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                       ))}
@@ -409,20 +409,20 @@ export default function ServiceRequestsPage() {
                       <SelectValue placeholder="All Cantons" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Cantons</SelectItem>
+                      <SelectItem value="all">All Cantons</SelectItem>
                       {SWISS_CANTONS.map((canton) => (
                         <SelectItem key={canton.value} value={canton.value}>{canton.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   
-                  {(filterCategory || filterCanton) && (
+                  {(filterCategory !== "all" || filterCanton !== "all") && (
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        setFilterCategory("");
-                        setFilterCanton("");
+                        setFilterCategory("all");
+                        setFilterCanton("all");
                       }}
                       className="gap-1"
                     >

@@ -108,7 +108,23 @@ app.use((req, res, next) => {
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
+  // 
+  // API_ONLY mode: Set API_ONLY=true for split architecture (Railway API + Vercel frontend)
+  // In API_ONLY mode, we don't serve any frontend files - just the API
+  const isApiOnly = process.env.API_ONLY === 'true';
+  
+  if (isApiOnly) {
+    log('Running in API_ONLY mode - not serving frontend');
+    // Add a simple health check / info endpoint at root
+    app.get('/', (_req, res) => {
+      res.json({ 
+        status: 'ok', 
+        service: 'Commerzio API',
+        mode: 'api-only',
+        timestamp: new Date().toISOString()
+      });
+    });
+  } else if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
