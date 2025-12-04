@@ -1,16 +1,59 @@
 import { Layout } from "@/components/layout";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Sparkles } from "lucide-react";
-import { Link } from "wouter";
+import { Check, Sparkles, Loader2 } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
+import { fetchApi } from "@/lib/config";
+import { toast } from "sonner";
 import type { Plan } from "@shared/schema";
 
 export default function PlansPage() {
+  const [, setLocation] = useLocation();
+  const { user, isAuthenticated } = useAuth();
+  
   const { data: plans, isLoading } = useQuery<Plan[]>({
     queryKey: ['/api/plans'],
   });
+
+  const subscribeMutation = useMutation({
+    mutationFn: async ({ planId, billingCycle }: { planId: string; billingCycle: 'monthly' | 'yearly' }) => {
+      const res = await fetchApi(`/api/plans/${planId}/subscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ billingCycle }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || 'Failed to subscribe');
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.checkoutUrl) {
+        // Redirect to Stripe checkout
+        window.location.href = data.checkoutUrl;
+      } else if (data.redirectUrl) {
+        // Direct subscription (free plan or dev mode)
+        toast.success(data.message || 'Successfully subscribed!');
+        setLocation(data.redirectUrl);
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const handleSubscribe = (planId: string, billingCycle: 'monthly' | 'yearly' = 'monthly') => {
+    if (!isAuthenticated) {
+      toast.error('Please log in to subscribe to a plan');
+      setLocation('/auth');
+      return;
+    }
+    subscribeMutation.mutate({ planId, billingCycle });
+  };
 
   if (isLoading) {
     return (
@@ -154,16 +197,33 @@ export default function PlansPage() {
                 </CardContent>
 
                 <CardFooter>
-                  <Button
-                    asChild
-                    variant={isPremium ? 'default' : 'outline'}
-                    className="w-full"
-                    data-testid={`button-choose-plan-${plan.slug}`}
-                  >
-                    <Link href="/profile?tab=services">
-                      {isFree ? 'Get Started' : 'Choose Plan'}
-                    </Link>
-                  </Button>
+                  {user?.plan?.id === plan.id ? (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      disabled
+                      data-testid={`button-current-plan-${plan.slug}`}
+                    >
+                      Current Plan
+                    </Button>
+                  ) : (
+                    <Button
+                      variant={isPremium ? 'default' : 'outline'}
+                      className="w-full"
+                      onClick={() => handleSubscribe(plan.id)}
+                      disabled={subscribeMutation.isPending}
+                      data-testid={`button-choose-plan-${plan.slug}`}
+                    >
+                      {subscribeMutation.isPending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        isFree ? 'Get Started' : 'Choose Plan'
+                      )}
+                    </Button>
+                  )}
                 </CardFooter>
               </Card>
             );

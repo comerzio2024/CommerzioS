@@ -578,6 +578,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Subscribe to a plan (user-facing)
+  app.post('/api/plans/:id/subscribe', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const planId = req.params.id;
+      const { billingCycle = 'monthly' } = req.body as { billingCycle?: 'monthly' | 'yearly' };
+
+      // Get the plan
+      const plan = await storage.getPlan(planId);
+      if (!plan) {
+        return res.status(404).json({ message: "Plan not found" });
+      }
+
+      // Check if user already has this plan
+      const user = await storage.getUser(userId);
+      if (user?.planId === planId) {
+        return res.json({ 
+          success: true, 
+          message: "You are already on this plan",
+          redirectUrl: '/profile?tab=services'
+        });
+      }
+
+      // Free plan - just assign it
+      if (plan.slug === 'free' || parseFloat(plan.priceMonthly) === 0) {
+        await storage.updateUserPlan(userId, planId);
+        return res.json({ 
+          success: true, 
+          message: "Successfully subscribed to free plan",
+          redirectUrl: '/profile?tab=services'
+        });
+      }
+
+      // Paid plan - for now, assign directly (Stripe subscription integration coming soon)
+      // In production, this would create a Stripe subscription
+      const price = billingCycle === 'yearly' ? plan.priceYearly : plan.priceMonthly;
+      
+      // Log the subscription attempt
+      console.log(`[Plan Subscription] User ${userId} subscribing to plan ${plan.name} (${plan.id}) at CHF ${price}/${billingCycle}`);
+      
+      // For development/testing or when Stripe is not configured, allow direct plan assignment
+      await storage.updateUserPlan(userId, planId);
+      
+      // Create a notification for the user
+      await createNotification({
+        userId,
+        type: 'system',
+        title: 'Plan Upgraded!',
+        message: `You've been upgraded to the ${plan.name} plan. Enjoy your new features!`,
+        actionUrl: '/profile?tab=services',
+      });
+
+      return res.json({ 
+        success: true, 
+        message: `Successfully upgraded to ${plan.name} plan!`,
+        redirectUrl: '/profile?tab=services'
+      });
+    } catch (error) {
+      console.error("Error subscribing to plan:", error);
+      res.status(500).json({ message: "Failed to subscribe to plan" });
+    }
+  });
+
   // Service routes
   app.get('/api/services/search', async (req, res) => {
     try {
