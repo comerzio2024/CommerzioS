@@ -557,7 +557,7 @@ export default function BookServicePage() {
                         selectedMethod={paymentMethod}
                         onSelect={setPaymentMethod}
                         vendorId={service?.ownerId || ''}
-                        amount={selectedOption?.price ? parseFloat(selectedOption.price) : 0}
+                        amount={selectedOption?.price ? Math.round(parseFloat(selectedOption.price) * 100) : 0}
                         vendorSettings={{
                           acceptCardPayments: service?.owner?.acceptCardPayments,
                           acceptTwintPayments: service?.owner?.acceptTwintPayments,
