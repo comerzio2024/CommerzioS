@@ -267,3 +267,122 @@ Be strict but fair. Swiss marketplace context - multiple languages are normal.`
     };
   }
 }
+
+export interface AISuggestAllResult {
+  title: string;
+  description: string;
+  categorySlug: string;
+  subcategorySlug: string | null;
+  hashtags: string[];
+  confidence: number;
+}
+
+export async function suggestAllFields(
+  imageUrls: string[],
+  currentTitle?: string
+): Promise<AISuggestAllResult> {
+  if (!imageUrls || imageUrls.length === 0) {
+    throw new Error("At least one image is required for AI suggestions");
+  }
+
+  try {
+    const imageContents = imageUrls.slice(0, 3).map(url => ({
+      type: "image_url" as const,
+      image_url: { url }
+    }));
+
+    const categoriesAndSubcategories = `
+**Available Categories and Subcategories:**
+
+1. home-services (Home Services)
+   - cleaning-housekeeping, plumbing-electrical, painting-renovation, garden-landscaping, moving-delivery, handyman
+
+2. design-creative (Design & Creative)
+   - logo-branding, web-app-design, graphic-design, photography, video-production, interior-design
+
+3. education (Education & Tutoring)
+   - language-lessons, math-science, music-lessons, exam-prep, adult-education, children-tutoring
+
+4. wellness (Wellness & Fitness)
+   - personal-training, yoga-pilates, massage-therapy, nutrition-coaching, mental-health
+
+5. business (Business Support)
+   - bookkeeping-accounting, consulting-strategy, marketing-seo, translation-writing, hr-recruitment
+
+6. automotive (Automotive Services)
+   - repair-maintenance, car-detailing, tire-services, pre-purchase-inspection, mobile-mechanics
+
+7. pets (Pet Care & Animals)
+   - dog-walking, pet-grooming, veterinary-care, pet-sitting-boarding, training-behavior
+
+8. events (Events & Entertainment)
+   - event-photo-video, catering, dj-music, event-planning, entertainment-performers
+
+9. legal-financial (Legal & Financial)
+   - legal-consulting, immigration-permits, financial-planning, tax-preparation, notary-services
+
+10. technology (Technology & IT)
+    - computer-repair, software-development, network-security, website-maintenance, cloud-devops
+`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are an AI assistant for a Swiss service marketplace. Analyze service images and generate complete service listing details. Always respond in valid JSON format.`
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `Analyze these service images and generate a complete listing with ALL of the following:
+
+1. **Title**: A professional, concise title (max 100 chars) describing the service
+2. **Description**: A detailed, professional description (100-300 words) highlighting features and benefits
+3. **Category**: The most appropriate category slug from the list below
+4. **Subcategory**: The most appropriate subcategory slug (or null if none fits well)
+5. **Hashtags**: 5-8 relevant hashtags (without # symbol) for discoverability
+
+${currentTitle ? `Current title hint: "${currentTitle}"` : ''}
+
+${categoriesAndSubcategories}
+
+Return a JSON object with this exact structure:
+{
+  "title": "Professional service title here",
+  "description": "Detailed description here...",
+  "categorySlug": "category-slug",
+  "subcategorySlug": "subcategory-slug or null",
+  "hashtags": ["tag1", "tag2", "tag3"],
+  "confidence": 0.85
+}`
+            },
+            ...imageContents
+          ]
+        }
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 1000,
+      temperature: 0.7,
+    });
+
+    const content = response.choices[0]?.message?.content || "{}";
+    const result = JSON.parse(content);
+
+    return {
+      title: (result.title || "Professional Service").substring(0, 200),
+      description: result.description || "Professional service available. Contact for more details.",
+      categorySlug: result.categorySlug || "home-services",
+      subcategorySlug: result.subcategorySlug || null,
+      hashtags: Array.isArray(result.hashtags) 
+        ? result.hashtags.map((t: string) => t.toLowerCase().replace(/^#/, '').trim()).filter(Boolean).slice(0, 10)
+        : [],
+      confidence: result.confidence || 0.7,
+    };
+  } catch (error) {
+    console.error("Error in suggestAllFields:", error);
+    throw new Error("Failed to generate AI suggestions");
+  }
+}

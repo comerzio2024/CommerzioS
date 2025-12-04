@@ -213,7 +213,8 @@ import {
   analyzeImagesForHashtags, 
   generateServiceTitle, 
   generateServiceDescription, 
-  generatePricingSuggestion 
+  generatePricingSuggestion,
+  suggestAllFields 
 } from "./aiContentService";
 import { validateSwissAddress } from "./swissAddressService";
 import { sendVerificationCode } from "./contactVerificationService";
@@ -2014,6 +2015,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error suggesting pricing:", error);
       res.status(500).json({ message: "Failed to suggest pricing" });
+    }
+  });
+
+  // AI Suggest All - unified endpoint for title, description, category, subcategory, and hashtags
+  app.post('/api/ai/suggest-all', isAuthenticated, async (req: any, res) => {
+    try {
+      const schema = z.object({
+        imageUrls: z.array(z.string()).min(1, "At least one image is required"),
+        currentTitle: z.string().optional(),
+      });
+
+      const validated = schema.parse(req.body);
+      
+      // Convert object paths to signed URLs for OpenAI
+      const objectStorageService = new ObjectStorageService();
+      const signedUrls: string[] = [];
+      
+      for (const url of validated.imageUrls) {
+        try {
+          if (url.startsWith('/objects/')) {
+            const signedUrl = await objectStorageService.getSignedObjectUrl(url, 3600);
+            signedUrls.push(signedUrl);
+          } else if (url.startsWith('http://') || url.startsWith('https://')) {
+            signedUrls.push(url);
+          }
+        } catch (error) {
+          console.error(`Failed to sign URL for ${url}:`, error);
+        }
+      }
+
+      if (signedUrls.length === 0) {
+        return res.status(400).json({ 
+          message: "Images must be fully uploaded before AI can analyze them. Please wait for uploads to complete." 
+        });
+      }
+
+      // Get AI suggestions for all fields
+      const suggestions = await suggestAllFields(signedUrls, validated.currentTitle);
+      
+      // Map category/subcategory slugs to IDs
+      const allCategories = await storage.getCategories();
+      const allSubcategories = await storage.getSubcategories();
+      
+      const category = allCategories.find(c => c.slug === suggestions.categorySlug);
+      const subcategory = suggestions.subcategorySlug 
+        ? allSubcategories.find(s => s.slug === suggestions.subcategorySlug)
+        : null;
+
+      res.json({
+        title: suggestions.title,
+        description: suggestions.description,
+        categoryId: category?.id || null,
+        categorySlug: suggestions.categorySlug,
+        categoryName: category?.name || null,
+        subcategoryId: subcategory?.id || null,
+        subcategorySlug: suggestions.subcategorySlug,
+        subcategoryName: subcategory?.name || null,
+        hashtags: suggestions.hashtags,
+        confidence: suggestions.confidence,
+      });
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: "Unable to analyze images. Please make sure images are uploaded correctly." 
+        });
+      }
+      console.error("Error in AI suggest all:", error);
+      res.status(500).json({ 
+        message: "We couldn't generate suggestions at this time. Please try again or fill in the fields manually." 
+      });
     }
   });
 

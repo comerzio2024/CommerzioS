@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { X, Plus, AlertCircle, Sparkles, Hash, Mail, Camera, MapPin, DollarSign, CheckCircle2, Loader2, Phone, ChevronRight, ChevronLeft } from "lucide-react";
+import { X, Plus, AlertCircle, Sparkles, Hash, Mail, Camera, MapPin, DollarSign, CheckCircle2, Loader2, Phone, ChevronRight, ChevronLeft, Undo2, Wand2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import type { Service, PlatformSettings, ServiceContact } from "@shared/schema";
@@ -102,6 +102,14 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
   const [isManualOverride, setIsManualOverride] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<{ categoryId: string; subcategoryId: string | null } | null>(null);
   const [isAiCategoryLoading, setIsAiCategoryLoading] = useState(false);
+  const [isAiSuggestingAll, setIsAiSuggestingAll] = useState(false);
+  const [previousFormState, setPreviousFormState] = useState<{
+    title: string;
+    description: string;
+    categoryId: string;
+    subcategoryId: string | null;
+    hashtags: string[];
+  } | null>(null);
   const aiSuggestionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [activeTab, setActiveTab] = useState("main");
 
@@ -848,6 +856,113 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
     }
   };
 
+  // AI Suggest All - unified call for title, description, category, subcategory, and hashtags
+  const handleAISuggestAll = async () => {
+    if (!formData) return;
+    
+    if (formData.images.length === 0) {
+      toast({
+        title: "Images Required",
+        description: "Please upload at least one image to use AI suggestions",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const validImages = formData.images.filter((img: string) => 
+      typeof img === 'string' && (
+        img.startsWith('/objects/') || 
+        img.startsWith('http://') || 
+        img.startsWith('https://')
+      )
+    );
+
+    if (validImages.length === 0) {
+      toast({
+        title: "Images Not Ready",
+        description: "Please wait for all images to finish uploading before using AI suggestions",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Save current state for undo
+    setPreviousFormState({
+      title: formData.title,
+      description: formData.description,
+      categoryId: formData.categoryId,
+      subcategoryId: formData.subcategoryId,
+      hashtags: [...formData.hashtags],
+    });
+
+    setIsAiSuggestingAll(true);
+    try {
+      const response = await apiRequest("/api/ai/suggest-all", {
+        method: "POST",
+        body: JSON.stringify({
+          imageUrls: validImages,
+          currentTitle: formData.title || undefined,
+        }),
+      });
+
+      // Apply all suggestions at once
+      setFormData((prev: FormData | null) => ({
+        ...prev!,
+        title: response.title || prev!.title,
+        description: response.description || prev!.description,
+        categoryId: response.categoryId || prev!.categoryId,
+        subcategoryId: response.subcategoryId || null,
+        hashtags: response.hashtags?.length > 0 ? response.hashtags : prev!.hashtags,
+      }));
+
+      // Update AI category suggestion state for consistency
+      if (response.categoryId) {
+        setAiSuggestion({
+          categoryId: response.categoryId,
+          subcategoryId: response.subcategoryId,
+        });
+      }
+
+      toast({
+        title: "AI Suggestions Applied!",
+        description: "Title, description, category, and hashtags have been generated. Feel free to edit them!",
+      });
+    } catch (error: any) {
+      console.error("AI suggest all error:", error);
+      // Clear saved state on failure
+      setPreviousFormState(null);
+      toast({
+        title: "AI Suggestions Failed",
+        description: error.message || "Couldn't generate suggestions. Please fill in the fields manually.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAiSuggestingAll(false);
+    }
+  };
+
+  // Undo AI suggestions
+  const handleUndoAI = () => {
+    if (!previousFormState) return;
+
+    setFormData((prev: FormData | null) => ({
+      ...prev!,
+      title: previousFormState.title,
+      description: previousFormState.description,
+      categoryId: previousFormState.categoryId,
+      subcategoryId: previousFormState.subcategoryId,
+      hashtags: previousFormState.hashtags,
+    }));
+
+    setPreviousFormState(null);
+    setIsManualOverride(true);
+    
+    toast({
+      title: "Changes Reverted",
+      description: "AI suggestions have been undone.",
+    });
+  };
+
   const validateAddresses = async (): Promise<boolean> => {
     const validLocations = formData!.locations.filter((l: string | undefined) => l && typeof l === 'string' && l.trim());
     if (validLocations.length === 0) return false;
@@ -1140,6 +1255,63 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                 />
               </div>
 
+              {/* AI Suggest All Banner */}
+              <div className="rounded-xl border-2 border-dashed border-purple-200 bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 p-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-lg">
+                      <Wand2 className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-purple-900">AI Auto-Fill</h3>
+                      <p className="text-sm text-purple-700">
+                        Generate title, description, category & hashtags in one click
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {previousFormState && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleUndoAI}
+                        className="gap-2 border-orange-200 hover:border-orange-300 hover:bg-orange-50"
+                        data-testid="button-undo-ai"
+                      >
+                        <Undo2 className="w-4 h-4 text-orange-600" />
+                        Undo
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      onClick={handleAISuggestAll}
+                      disabled={formData.images.length === 0 || isAiSuggestingAll}
+                      className="gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-md"
+                      data-testid="button-ai-suggest-all"
+                    >
+                      {isAiSuggestingAll ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Wand2 className="w-4 h-4" />
+                          AI Suggest All
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                {formData.images.length === 0 && (
+                  <p className="text-xs text-purple-600 mt-2 flex items-center gap-1">
+                    <Camera className="w-3 h-3" />
+                    Upload at least one image to use AI auto-fill
+                  </p>
+                )}
+              </div>
+
               {/* Title & Description with AI */}
               <div className="rounded-xl border p-6 space-y-4">
                 <div className="flex items-center gap-2 mb-4">
@@ -1148,7 +1320,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                   </div>
                   <div>
                     <h3 className="font-semibold">Title & Description</h3>
-                    <p className="text-sm text-muted-foreground">Use AI to generate compelling content</p>
+                    <p className="text-sm text-muted-foreground">Or use individual AI buttons to customize</p>
                   </div>
                 </div>
                 
@@ -1160,7 +1332,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                       variant="outline"
                       size="sm"
                       onClick={handleGenerateTitle}
-                      disabled={formData.images.length === 0 || generatingTitle}
+                      disabled={formData.images.length === 0 || generatingTitle || isAiSuggestingAll}
                       className="gap-2 bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200 hover:border-purple-300"
                       data-testid="button-ai-generate-title"
                     >
@@ -1180,12 +1352,6 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                     className="text-lg"
                     data-testid="input-service-title"
                   />
-                  {formData.images.length === 0 && (
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Camera className="w-3 h-3" />
-                      Upload images first to enable AI title generation
-                    </p>
-                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -1196,7 +1362,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                       variant="outline"
                       size="sm"
                       onClick={handleGenerateDescription}
-                      disabled={!formData.title.trim() || generatingDescription}
+                      disabled={!formData.title.trim() || generatingDescription || isAiSuggestingAll}
                       className="gap-2 bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200 hover:border-purple-300"
                       data-testid="button-ai-generate-description"
                     >
@@ -1216,7 +1382,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     data-testid="textarea-service-description"
                   />
-                  {!formData.title.trim() && (
+                  {!formData.title.trim() && !isAiSuggestingAll && (
                     <p className="text-xs text-muted-foreground">
                       Enter a title first to generate AI description
                     </p>
@@ -1314,7 +1480,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                   type="button"
                   variant="outline"
                   onClick={handleAISuggestHashtags}
-                  disabled={formData.images.length === 0 || loadingHashtags}
+                  disabled={formData.images.length === 0 || loadingHashtags || isAiSuggestingAll}
                   className="w-full"
                   data-testid="button-ai-suggest-hashtags"
                 >
