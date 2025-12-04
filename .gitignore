@@ -65,3 +65,5 @@ replit.nix
 
 # Cursor worktrees (managed by IDE)
 .cursor/worktrees/
+
+import.env
