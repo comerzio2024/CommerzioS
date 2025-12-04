@@ -870,7 +870,7 @@ export async function cancelBooking(
 // ===========================================
 
 /**
- * Get bookings for a customer
+ * Get bookings for a customer with service and vendor details
  */
 export async function getCustomerBookings(
   customerId: string,
@@ -878,7 +878,7 @@ export async function getCustomerBookings(
   limit: number = 20,
   offset: number = 0
 ) {
-  const query = db.select()
+  const rawBookings = await db.select()
     .from(bookings)
     .where(
       and(
@@ -890,11 +890,39 @@ export async function getCustomerBookings(
     .limit(limit)
     .offset(offset);
 
-  return await query;
+  // Enrich with service and vendor details
+  const enrichedBookings = await Promise.all(rawBookings.map(async (booking) => {
+    const [service] = await db.select({
+      id: services.id,
+      title: services.title,
+      images: services.images,
+    })
+      .from(services)
+      .where(eq(services.id, booking.serviceId))
+      .limit(1);
+
+    const [vendor] = await db.select({
+      id: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      profileImageUrl: users.profileImageUrl,
+    })
+      .from(users)
+      .where(eq(users.id, booking.vendorId))
+      .limit(1);
+
+    return {
+      ...booking,
+      service: service || null,
+      vendor: vendor || null,
+    };
+  }));
+
+  return enrichedBookings;
 }
 
 /**
- * Get bookings for a vendor
+ * Get bookings for a vendor with service and customer details
  */
 export async function getVendorBookings(
   vendorId: string,
@@ -918,12 +946,42 @@ export async function getVendorBookings(
     conditions.push(lte(sql`COALESCE(${bookings.confirmedStartTime}, ${bookings.requestedStartTime})`, endDate));
   }
 
-  return await db.select()
+  const rawBookings = await db.select()
     .from(bookings)
     .where(and(...conditions))
     .orderBy(asc(sql`COALESCE(${bookings.confirmedStartTime}, ${bookings.requestedStartTime})`))
     .limit(limit)
     .offset(offset);
+
+  // Enrich with service and customer details
+  const enrichedBookings = await Promise.all(rawBookings.map(async (booking) => {
+    const [service] = await db.select({
+      id: services.id,
+      title: services.title,
+      images: services.images,
+    })
+      .from(services)
+      .where(eq(services.id, booking.serviceId))
+      .limit(1);
+
+    const [customer] = await db.select({
+      id: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      profileImageUrl: users.profileImageUrl,
+    })
+      .from(users)
+      .where(eq(users.id, booking.customerId))
+      .limit(1);
+
+    return {
+      ...booking,
+      service: service || null,
+      customer: customer || null,
+    };
+  }));
+
+  return enrichedBookings;
 }
 
 /**

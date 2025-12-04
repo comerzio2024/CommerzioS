@@ -741,8 +741,20 @@ export default function BookingsPage() {
           bookingNumber={selectedBooking.bookingNumber}
           serviceName={selectedBooking.service?.title || 'Service'}
           escrowAmount={parseFloat(selectedBooking.totalPrice || '0')}
-          isOpen={showDisputeModal}
-          onClose={() => setShowDisputeModal(false)}
+          open={showDisputeModal}
+          onOpenChange={(open) => setShowDisputeModal(open)}
+          onSubmit={async (data) => {
+            // Open dispute via API
+            const response = await fetch(`/api/disputes/booking/${selectedBooking.id}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data),
+            });
+            if (!response.ok) {
+              throw new Error('Failed to open dispute');
+            }
+            setShowDisputeModal(false);
+          }}
         />
       )}
     </Layout>

@@ -708,6 +708,9 @@ export const reviews = pgTable("reviews", {
   // Track rating history for notification purposes
   previousRating: integer("previous_rating"),
   ratingDirection: varchar("rating_direction", { enum: ["improved", "worsened", "same"] }),
+  // Vendor response to review
+  vendorResponse: text("vendor_response"),
+  vendorRespondedAt: timestamp("vendor_responded_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => [
   index("idx_reviews_service").on(table.serviceId),

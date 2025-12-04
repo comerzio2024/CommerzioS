@@ -2,7 +2,7 @@ import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useRoute, useLocation, Link, useSearch } from "wouter";
-import { Star, MapPin, CheckCircle2, Calendar, ShieldCheck, Flag, Share2, Heart, Lock, Hash, Navigation, MessageSquare, CalendarPlus, Copy, MessageCircle } from "lucide-react";
+import { Star, MapPin, CheckCircle2, Calendar, ShieldCheck, Flag, Share2, Heart, Lock, Hash, Navigation, MessageSquare, CalendarPlus, Copy, MessageCircle, Reply, Send } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
@@ -469,33 +469,12 @@ function ServiceDetailContent({ serviceId }: { serviceId: string }) {
                     <p className="text-slate-500 italic">Loading reviews...</p>
                   ) : reviews.length > 0 ? (
                     reviews.map(review => (
-                      <div key={review.id} className="border-b border-border last:border-0 pb-6 last:pb-0">
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex items-center gap-3">
-                            <img 
-                              src={review.user.profileImageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${review.user.id}`}
-                              alt={`${review.user.firstName} ${review.user.lastName}`}
-                              className="w-10 h-10 rounded-full"
-                            />
-                            <div>
-                              <Link
-                                href={`/users/${review.user.id}`}
-                                className="font-semibold hover:text-primary transition-colors"
-                                data-testid={`link-user-${review.user.id}`}
-                              >
-                                {review.user.firstName} {review.user.lastName}
-                              </Link>
-                              <div className="text-xs text-muted-foreground">{new Date(review.createdAt).toLocaleDateString()}</div>
-                            </div>
-                          </div>
-                          <div className="flex">
-                            {[...Array(5)].map((_, i) => (
-                              <Star key={i} className={`w-4 h-4 ${i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} />
-                            ))}
-                          </div>
-                        </div>
-                        <p className="text-slate-600 pl-13">{review.comment}</p>
-                      </div>
+                      <ReviewItem
+                        key={review.id}
+                        review={review}
+                        isVendor={isAuthenticated && user?.id === service?.ownerId}
+                        serviceId={serviceId}
+                      />
                     ))
                   ) : (
                     <p className="text-slate-500 italic">No reviews yet. Be the first to review!</p>
@@ -683,5 +662,147 @@ function ServiceDetailContent({ serviceId }: { serviceId: string }) {
         </div>
       </div>
     </Layout>
+  );
+}
+
+// ReviewItem component for individual reviews with vendor response functionality
+function ReviewItem({ 
+  review, 
+  isVendor, 
+  serviceId 
+}: { 
+  review: ReviewWithUser & { vendorResponse?: string | null; vendorRespondedAt?: Date | string | null }; 
+  isVendor: boolean; 
+  serviceId: string;
+}) {
+  const [isResponding, setIsResponding] = useState(false);
+  const [responseText, setResponseText] = useState("");
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const respondMutation = useMutation({
+    mutationFn: async (response: string) => {
+      return apiRequest(`/api/reviews/${review.id}/respond`, {
+        method: "POST",
+        body: JSON.stringify({ response }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/services/${serviceId}/reviews`] });
+      toast({
+        title: "Response Posted",
+        description: "Your response has been added to the review.",
+      });
+      setIsResponding(false);
+      setResponseText("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to post response.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmitResponse = () => {
+    if (responseText.trim()) {
+      respondMutation.mutate(responseText.trim());
+    }
+  };
+
+  return (
+    <div className="border-b border-border last:border-0 pb-6 last:pb-0">
+      <div className="flex justify-between items-start mb-2">
+        <div className="flex items-center gap-3">
+          <img 
+            src={review.user.profileImageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${review.user.id}`}
+            alt={`${review.user.firstName} ${review.user.lastName}`}
+            className="w-10 h-10 rounded-full"
+          />
+          <div>
+            <Link
+              href={`/users/${review.user.id}`}
+              className="font-semibold hover:text-primary transition-colors"
+              data-testid={`link-user-${review.user.id}`}
+            >
+              {review.user.firstName} {review.user.lastName}
+            </Link>
+            <div className="text-xs text-muted-foreground">{new Date(review.createdAt).toLocaleDateString()}</div>
+          </div>
+        </div>
+        <div className="flex">
+          {[...Array(5)].map((_, i) => (
+            <Star key={i} className={`w-4 h-4 ${i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} />
+          ))}
+        </div>
+      </div>
+      <p className="text-slate-600 pl-13 mb-3">{review.comment}</p>
+      
+      {/* Vendor Response */}
+      {review.vendorResponse && (
+        <div className="ml-8 mt-3 p-4 bg-slate-50 rounded-lg border-l-4 border-primary">
+          <div className="flex items-center gap-2 mb-2">
+            <Reply className="w-4 h-4 text-primary" />
+            <span className="font-semibold text-sm text-primary">Provider Response</span>
+            {review.vendorRespondedAt && (
+              <span className="text-xs text-muted-foreground">
+                • {new Date(review.vendorRespondedAt).toLocaleDateString()}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-slate-600">{review.vendorResponse}</p>
+        </div>
+      )}
+      
+      {/* Vendor Respond Button */}
+      {isVendor && !review.vendorResponse && !isResponding && (
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="ml-8 mt-2 text-primary"
+          onClick={() => setIsResponding(true)}
+        >
+          <Reply className="w-4 h-4 mr-1" />
+          Respond to review
+        </Button>
+      )}
+      
+      {/* Response Form */}
+      {isResponding && (
+        <div className="ml-8 mt-3 space-y-2">
+          <Textarea
+            placeholder="Write your response to this review..."
+            value={responseText}
+            onChange={(e) => setResponseText(e.target.value)}
+            className="min-h-[80px]"
+            maxLength={1000}
+          />
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">{responseText.length}/1000</span>
+            <div className="flex gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  setIsResponding(false);
+                  setResponseText("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                size="sm"
+                onClick={handleSubmitResponse}
+                disabled={!responseText.trim() || respondMutation.isPending}
+              >
+                {respondMutation.isPending ? "Posting..." : "Post Response"}
+                <Send className="w-3 h-3 ml-1" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

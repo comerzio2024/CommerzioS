@@ -1628,7 +1628,7 @@ export default function Profile() {
                             variant="outline" 
                             size="sm" 
                             className="mt-3 w-full"
-                            onClick={() => setLocation(`/profile?tab=profile&reviewBack=${review.reviewer.id}`)}
+                            onClick={() => setLocation(`/users/${review.reviewer.id}`)}
                             data-testid={`button-review-back-${review.id}`}
                           >
                             Review Back

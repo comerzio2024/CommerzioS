@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Menu, PlusCircle, LogOut, Heart, Settings, User, Star, Gift, MessageCircle, Bell, CalendarDays, Scale } from "lucide-react";
+import { Menu, PlusCircle, LogOut, Heart, Settings, User, Star, Gift, MessageCircle, Bell, CalendarDays, Scale, Megaphone } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
@@ -138,6 +138,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       <DropdownMenuItem onClick={() => setLocation("/disputes")} data-testid="menu-item-disputes">
                         <Scale className="w-4 h-4 mr-2" />
                         Disputes
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setLocation("/service-requests")} data-testid="menu-item-service-requests">
+                        <Megaphone className="w-4 h-4 mr-2" />
+                        Request a Service
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setLocation("/favorites")} data-testid="menu-item-saved">
                         <Heart className="w-4 h-4 mr-2" />

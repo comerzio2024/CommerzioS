@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Layout } from "@/components/layout";
-import { DisputeCenter, DisputeCard, OpenDisputeModal } from "@/components/disputes";
+import { DisputeCenter, DisputeCard } from "@/components/disputes";
+import { useAuth } from "@/hooks/useAuth";
+import { apiRequest } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,31 +26,35 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-interface Dispute {
-  id: number;
-  escrowId: number;
-  bookingId: number;
+// API response type matching the updated getUserDisputes function
+interface DisputeFromAPI {
+  id: string;
+  bookingId: string;
+  bookingNumber: string;
   reason: string;
-  status: "open" | "in_negotiation" | "ai_mediation" | "ai_review" | "resolved" | "external";
-  currentPhase: "negotiation" | "ai_mediation" | "ai_review";
-  phaseDeadline: string;
+  description: string;
+  status: "open" | "under_review" | "resolved_customer" | "resolved_vendor" | "resolved_split" | "closed";
+  currentPhase: "phase_1" | "phase_2" | "phase_3_pending" | "phase_3_ai" | "phase_3_external" | "resolved";
+  escrowAmount: string;
   createdAt: string;
-  escrowAmount: number;
-  serviceName?: string;
-  otherPartyName?: string;
+  deadline: string | null;
+  serviceName: string;
+  otherPartyName: string;
+  otherPartyAvatar?: string;
   isCustomer: boolean;
 }
 
 export default function DisputesPage() {
   const [, setLocation] = useLocation();
-  const [selectedDisputeId, setSelectedDisputeId] = useState<number | null>(null);
+  const { user } = useAuth();
+  const [selectedDisputeId, setSelectedDisputeId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   
   // Fetch user's disputes
-  const { data: disputes, isLoading, error } = useQuery<Dispute[]>({
+  const { data: disputes, isLoading, error } = useQuery<DisputeFromAPI[]>({
     queryKey: ["/api/disputes"],
     queryFn: async () => {
-      const response = await fetch("/api/disputes");
+      const response = await fetch("/api/disputes", { credentials: "include" });
       if (!response.ok) throw new Error("Failed to fetch disputes");
       return response.json();
     },
@@ -57,21 +63,21 @@ export default function DisputesPage() {
   // Filter disputes by status
   const filteredDisputes = disputes?.filter(dispute => {
     if (statusFilter === "all") return true;
-    if (statusFilter === "active") return ["open", "in_negotiation", "ai_mediation", "ai_review"].includes(dispute.status);
-    if (statusFilter === "resolved") return ["resolved", "external"].includes(dispute.status);
+    if (statusFilter === "active") return dispute.status === "open" || dispute.status === "under_review";
+    if (statusFilter === "resolved") return dispute.status?.startsWith("resolved_") || dispute.status === "closed";
     return dispute.status === statusFilter;
   }) || [];
 
   // Separate active and resolved disputes
   const activeDisputes = filteredDisputes.filter(d => 
-    ["open", "in_negotiation", "ai_mediation", "ai_review"].includes(d.status)
+    d.status === "open" || d.status === "under_review"
   );
   const resolvedDisputes = filteredDisputes.filter(d => 
-    ["resolved", "external"].includes(d.status)
+    d.status?.startsWith("resolved_") || d.status === "closed"
   );
 
   // If a dispute is selected, show the detail view
-  if (selectedDisputeId) {
+  if (selectedDisputeId && user) {
     return (
       <Layout>
         <div className="container mx-auto py-6 space-y-6">
@@ -85,8 +91,10 @@ export default function DisputesPage() {
           </Button>
           
           <DisputeCenter 
-            disputeId={selectedDisputeId} 
-            isCustomer={disputes?.find(d => d.id === selectedDisputeId)?.isCustomer ?? true}
+            disputeId={selectedDisputeId}
+            currentUserId={user.id}
+            onBack={() => setSelectedDisputeId(null)}
+            apiRequest={apiRequest}
           />
         </div>
       </Layout>
@@ -183,7 +191,7 @@ export default function DisputesPage() {
               <div className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-red-500" />
                 <span className="text-2xl font-bold">
-                  {disputes?.filter(d => d.status === "external").length ?? 0}
+                  {disputes?.filter(d => d.currentPhase === "phase_3_external").length ?? 0}
                 </span>
               </div>
             </CardContent>
@@ -275,14 +283,23 @@ export default function DisputesPage() {
                     key={dispute.id}
                     dispute={{
                       id: dispute.id,
-                      escrowId: dispute.escrowId,
+                      bookingId: dispute.bookingId,
+                      bookingNumber: dispute.bookingNumber,
                       reason: dispute.reason,
+                      description: dispute.description,
+                      status: dispute.status,
                       currentPhase: dispute.currentPhase,
-                      phaseDeadline: dispute.phaseDeadline,
-                      createdAt: dispute.createdAt,
                       escrowAmount: dispute.escrowAmount,
+                      createdAt: dispute.createdAt,
+                      deadline: dispute.deadline,
                     }}
-                    onClick={() => setSelectedDisputeId(dispute.id)}
+                    otherParty={{
+                      name: dispute.otherPartyName || "Unknown",
+                      avatar: dispute.otherPartyAvatar,
+                      role: dispute.isCustomer ? "vendor" : "customer",
+                    }}
+                    serviceName={dispute.serviceName}
+                    onViewDetails={() => setSelectedDisputeId(dispute.id)}
                   />
                 ))
               )}
@@ -305,14 +322,23 @@ export default function DisputesPage() {
                     key={dispute.id}
                     dispute={{
                       id: dispute.id,
-                      escrowId: dispute.escrowId,
+                      bookingId: dispute.bookingId,
+                      bookingNumber: dispute.bookingNumber,
                       reason: dispute.reason,
+                      description: dispute.description,
+                      status: dispute.status,
                       currentPhase: dispute.currentPhase,
-                      phaseDeadline: dispute.phaseDeadline,
-                      createdAt: dispute.createdAt,
                       escrowAmount: dispute.escrowAmount,
+                      createdAt: dispute.createdAt,
+                      deadline: dispute.deadline,
                     }}
-                    onClick={() => setSelectedDisputeId(dispute.id)}
+                    otherParty={{
+                      name: dispute.otherPartyName || "Unknown",
+                      avatar: dispute.otherPartyAvatar,
+                      role: dispute.isCustomer ? "vendor" : "customer",
+                    }}
+                    serviceName={dispute.serviceName}
+                    onViewDetails={() => setSelectedDisputeId(dispute.id)}
                   />
                 ))
               )}

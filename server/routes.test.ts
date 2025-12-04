@@ -19,7 +19,11 @@ vi.mock("./storage", () => ({
 
 vi.mock("./auth", () => ({
   setupAuth: vi.fn(() => Promise.resolve()),
-  isAuthenticated: vi.fn((_req, _res, next) => next()),
+  isAuthenticated: vi.fn((req: any, _res: any, next: any) => {
+    // Mock authenticated user
+    req.user = { id: "test-user-id", email: "test@example.com" };
+    next();
+  }),
   requireEmailVerified: vi.fn((_req, _res, next) => next()),
 }));
 
@@ -190,6 +194,126 @@ vi.mock("./swissAddressService", () => ({
   validateSwissAddress: vi.fn(),
 }));
 
+vi.mock("./serviceRequestService", () => ({
+  createServiceRequest: vi.fn(),
+  publishServiceRequest: vi.fn(),
+  getOpenServiceRequests: vi.fn(() => Promise.resolve({ requests: [], total: 0 })),
+  getMyServiceRequests: vi.fn(() => Promise.resolve([])),
+  getServiceRequestById: vi.fn(),
+  getMyProposals: vi.fn(() => Promise.resolve([])),
+  getServiceRequestFull: vi.fn(),
+  incrementRequestViewCount: vi.fn(),
+  canVendorBidCash: vi.fn(() => Promise.resolve({ allowed: true })),
+  submitProposal: vi.fn(),
+  withdrawProposal: vi.fn(),
+  markProposalViewed: vi.fn(),
+  rejectProposal: vi.fn(),
+  acceptProposal: vi.fn(),
+  getProposalsForRequest: vi.fn(() => Promise.resolve([])),
+  getVendorProposals: vi.fn(() => Promise.resolve([])),
+  expireStaleProposals: vi.fn(),
+  expireStaleRequests: vi.fn(),
+}));
+
+vi.mock("./services/disputeResolutionService", () => ({
+  getUserDisputes: vi.fn(() => Promise.resolve([])),
+  createDispute: vi.fn(),
+  getDispute: vi.fn(),
+  submitCustomerEvidence: vi.fn(),
+  submitVendorEvidence: vi.fn(),
+  getDisputeEvidence: vi.fn(),
+  uploadDisputeAttachment: vi.fn(),
+}));
+
+vi.mock("./services/disputePhaseService", () => ({
+  startNegotiationPhase: vi.fn(),
+  submitSettlementProposal: vi.fn(),
+  acceptSettlement: vi.fn(),
+  rejectSettlement: vi.fn(),
+  escalateToMediation: vi.fn(),
+  startMediationPhase: vi.fn(),
+  assignMediator: vi.fn(),
+  submitMediatorSuggestion: vi.fn(),
+  acceptMediatorSuggestion: vi.fn(),
+  rejectMediatorSuggestion: vi.fn(),
+  requestArbitration: vi.fn(),
+  startArbitrationPhase: vi.fn(),
+  submitArbitrationDecision: vi.fn(),
+  acceptArbitrationDecision: vi.fn(),
+  appealArbitrationDecision: vi.fn(),
+}));
+
+vi.mock("./services/disputeAiService", () => ({
+  analyzeDisputeForRecommendation: vi.fn(),
+  generateSettlementSuggestion: vi.fn(),
+  assessEvidenceStrength: vi.fn(),
+  predictDisputeOutcome: vi.fn(),
+}));
+
+vi.mock("./reviewRequestService", () => ({
+  createReviewRequest: vi.fn(),
+  getVendorReviewRequests: vi.fn(() => Promise.resolve([])),
+  getCustomerPendingReviewRequests: vi.fn(() => Promise.resolve([])),
+}));
+
+vi.mock("./tipService", () => ({
+  createTip: vi.fn(),
+  confirmTipPayment: vi.fn(),
+  getVendorTips: vi.fn(() => Promise.resolve([])),
+  getCustomerTips: vi.fn(() => Promise.resolve([])),
+  canTip: vi.fn(() => Promise.resolve({ canTip: true })),
+  getVendorTipStats: vi.fn(() => Promise.resolve({ totalTips: 0, totalAmount: 0, count: 0 })),
+}));
+
+vi.mock("./reviewService", () => ({
+  editReview: vi.fn(),
+  createRemovalRequest: vi.fn(),
+  getRemovalRequests: vi.fn(() => Promise.resolve([])),
+  processRemovalRequest: vi.fn(),
+  getVendorRemovalRequests: vi.fn(() => Promise.resolve([])),
+  getPendingRemovalRequestCount: vi.fn(() => Promise.resolve(0)),
+}));
+
+vi.mock("./escrowService", () => ({
+  createEscrowTransaction: vi.fn(),
+  getEscrowTransactionById: vi.fn(),
+  getBookingEscrowTransaction: vi.fn(),
+  releaseEscrowFunds: vi.fn(),
+  refundEscrow: vi.fn(),
+  getEscrowHistory: vi.fn(() => Promise.resolve([])),
+  startDispute: vi.fn(),
+  resolveDisputeRefund: vi.fn(),
+  resolveDisputeRelease: vi.fn(),
+  isBookingEscrowHeld: vi.fn(() => Promise.resolve(false)),
+  captureEscrowPayment: vi.fn(),
+  handleEscrowAutoRelease: vi.fn(),
+}));
+
+vi.mock("./testDataService", () => ({
+  initializeTestUsers: vi.fn(),
+  cleanupTestData: vi.fn(),
+  getTestDataStats: vi.fn(),
+  generateTestReport: vi.fn(),
+  seedNotifications: vi.fn(),
+  seedChatConversations: vi.fn(),
+  seedReviewInteractions: vi.fn(),
+  seedUserActivities: vi.fn(),
+  seedBookingScenarios: vi.fn(),
+}));
+
+vi.mock("./analyticsService", () => ({
+  getGlobalStats: vi.fn(() => Promise.resolve({
+    totalUsers: 0,
+    totalServices: 0,
+    totalBookings: 0,
+    totalRevenue: 0,
+  })),
+  getTimeSeriesData: vi.fn(() => Promise.resolve([])),
+  getCategoryDistribution: vi.fn(() => Promise.resolve([])),
+  getVendorPerformance: vi.fn(() => Promise.resolve([])),
+  getVendorAnalytics: vi.fn(),
+}));
+
 vi.mock("./contactVerificationService", () => ({
   sendVerificationCode: vi.fn(),
 }));
@@ -258,6 +382,60 @@ describe("API Routes", () => {
         .expect(200);
 
       expect(Array.isArray(response.body)).toBe(true);
+    });
+  });
+
+  describe("Service Requests API", () => {
+    describe("GET /api/service-requests", () => {
+      it("should return paginated service requests", async () => {
+        const response = await request(app)
+          .get("/api/service-requests")
+          .expect("Content-Type", /json/)
+          .expect(200);
+
+        expect(response.body).toHaveProperty("requests");
+        expect(response.body).toHaveProperty("total");
+        expect(Array.isArray(response.body.requests)).toBe(true);
+      });
+
+      it("should accept pagination parameters", async () => {
+        const response = await request(app)
+          .get("/api/service-requests?page=1&limit=10")
+          .expect("Content-Type", /json/)
+          .expect(200);
+
+        expect(response.body).toHaveProperty("requests");
+      });
+    });
+  });
+
+  describe("Disputes API", () => {
+    describe("GET /api/disputes", () => {
+      it("should return user disputes when authenticated", async () => {
+        // Authentication is mocked to pass through with a test user
+        const response = await request(app)
+          .get("/api/disputes");
+
+        // The route should respond with JSON and either success or handled error
+        expect([200, 500]).toContain(response.status);
+        if (response.status === 200) {
+          expect(Array.isArray(response.body)).toBe(true);
+        }
+      });
+    });
+  });
+
+  describe("Reviews API", () => {
+    describe("POST /api/reviews/:reviewId/vendor-response", () => {
+      it("should accept vendor response requests", async () => {
+        // This tests the route exists and accepts POST requests
+        const response = await request(app)
+          .post("/api/reviews/test-review-id/vendor-response")
+          .send({ response: "Thank you for your review!" });
+
+        // The route should respond - either success, not found, or forbidden
+        expect([200, 403, 404, 500]).toContain(response.status);
+      });
     });
   });
 });

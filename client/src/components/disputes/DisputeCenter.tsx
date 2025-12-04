@@ -137,7 +137,7 @@ export function DisputeCenter({
       return apiRequest(`/api/disputes/${disputeId}/counter-offer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ percent, message }),
+        body: JSON.stringify({ refundPercentage: percent, message }),
       });
     },
     onSuccess: () => {
@@ -154,7 +154,7 @@ export function DisputeCenter({
       return apiRequest(`/api/disputes/${disputeId}/accept-offer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ offerId }),
+        body: JSON.stringify({ responseId: offerId }),
       });
     },
     onSuccess: () => {

@@ -17,7 +17,8 @@ import {
   escrowDisputes, 
   escrowTransactions,
   users, 
-  bookings 
+  bookings,
+  services
 } from "../../shared/schema";
 import { 
   disputePhases, 
@@ -143,6 +144,7 @@ export async function openDispute(
     title: "New Dispute Opened",
     message: `A ${raisedBy} has opened a dispute for booking #${booking.bookingNumber}`,
     metadata: { disputeId: dispute.id, bookingId },
+    actionUrl: `/disputes`,
   });
 
   console.log(`[Dispute] Opened dispute ${dispute.id} for booking ${bookingId} by ${raisedBy}`);
@@ -208,6 +210,7 @@ export async function submitCounterOffer(
     title: "New Counter-Offer",
     message: `A counter-offer of ${proposedRefundPercent}% refund has been proposed`,
     metadata: { disputeId, proposedRefundPercent },
+    actionUrl: `/disputes`,
   });
 
   console.log(`[Dispute] ${isCustomer ? "Customer" : "Vendor"} submitted counter-offer: ${proposedRefundPercent}%`);
@@ -395,6 +398,7 @@ export async function acceptAiOption(
       title: "Option Selected",
       message: `The other party selected Option ${option.optionLabel}`,
       metadata: { disputeId, optionLabel: option.optionLabel },
+      actionUrl: `/disputes`,
     });
   }
 
@@ -488,6 +492,7 @@ export async function chooseExternalResolution(
     title: "External Resolution Chosen",
     message: customerMessage,
     metadata: { disputeId, outcome: { customerPercent, vendorPercent } },
+    actionUrl: `/disputes`,
   });
 
   await createNotification({
@@ -496,6 +501,7 @@ export async function chooseExternalResolution(
     title: "External Resolution Chosen",
     message: vendorMessage,
     metadata: { disputeId, outcome: { customerPercent, vendorPercent } },
+    actionUrl: `/disputes`,
   });
 
   console.log(`[Dispute] External resolution: ${isCustomer ? "Customer" : "Vendor"} rejected. Customer ${customerPercent}%, Vendor ${vendorPercent}%`);
@@ -677,7 +683,7 @@ export async function getDisputeDetails(disputeId: string): Promise<{
 }
 
 /**
- * Get disputes for a user
+ * Get disputes for a user with full context
  */
 export async function getUserDisputes(
   userId: string
@@ -702,18 +708,81 @@ export async function getUserDisputes(
     return [];
   }
 
-  // Get disputes for these bookings
-  const disputes = [];
+  // Get disputes for these bookings with full context
+  const disputesWithContext = [];
+  
   for (const bookingId of bookingIds) {
     const bookingDisputes = await db
       .select()
       .from(escrowDisputes)
       .where(eq(escrowDisputes.bookingId, bookingId))
       .orderBy(desc(escrowDisputes.createdAt));
-    disputes.push(...bookingDisputes);
+    
+    for (const dispute of bookingDisputes) {
+      // Get booking details
+      const [booking] = await db
+        .select()
+        .from(bookings)
+        .where(eq(bookings.id, dispute.bookingId))
+        .limit(1);
+
+      if (!booking) continue;
+
+      // Get escrow amount
+      const [escrow] = await db
+        .select()
+        .from(escrowTransactions)
+        .where(eq(escrowTransactions.id, dispute.escrowTransactionId))
+        .limit(1);
+
+      // Get phase info
+      const [phase] = await db
+        .select()
+        .from(disputePhases)
+        .where(eq(disputePhases.disputeId, dispute.id))
+        .limit(1);
+
+      // Get service name
+      const [service] = await db
+        .select({ title: services.title })
+        .from(services)
+        .where(eq(services.id, booking.serviceId))
+        .limit(1);
+
+      // Get other party name
+      const isCustomer = booking.customerId === userId;
+      const otherPartyId = isCustomer ? booking.vendorId : booking.customerId;
+      const [otherParty] = await db
+        .select({ 
+          firstName: users.firstName, 
+          lastName: users.lastName,
+          profileImageUrl: users.profileImageUrl 
+        })
+        .from(users)
+        .where(eq(users.id, otherPartyId))
+        .limit(1);
+
+      // Map to expected format
+      disputesWithContext.push({
+        id: dispute.id,
+        bookingId: dispute.bookingId,
+        bookingNumber: booking.bookingNumber,
+        reason: dispute.reason,
+        description: dispute.description,
+        status: dispute.status,
+        currentPhase: phase?.currentPhase || 'phase_1',
+        escrowAmount: escrow?.amount || '0',
+        createdAt: dispute.createdAt.toISOString(),
+        deadline: phase?.phase1Deadline?.toISOString() || phase?.phase2Deadline?.toISOString() || phase?.phase3ReviewDeadline?.toISOString() || null,
+        serviceName: service?.title || 'Service',
+        otherPartyName: otherParty ? `${otherParty.firstName || ''} ${otherParty.lastName || ''}`.trim() : 'Unknown',
+        otherPartyAvatar: otherParty?.profileImageUrl,
+        isCustomer,
+      });
+    }
   }
 
-  return disputes.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  return disputesWithContext.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
 // ============================================

@@ -127,11 +127,11 @@ export function DisputeCard({
   className,
 }: DisputeCardProps) {
   const phaseConfig = dispute.currentPhase ? PHASE_CONFIG[dispute.currentPhase] : null;
-  const statusConfig = STATUS_CONFIG[dispute.status];
+  const statusConfig = STATUS_CONFIG[dispute.status] || STATUS_CONFIG.open;
   const PhaseIcon = phaseConfig?.icon || AlertCircle;
 
   const isActive = dispute.status === 'open' || dispute.status === 'under_review';
-  const isResolved = dispute.status.startsWith('resolved_') || dispute.status === 'closed';
+  const isResolved = dispute.status?.startsWith('resolved_') || dispute.status === 'closed';
 
   const getTimeRemaining = () => {
     if (!dispute.deadline) return null;

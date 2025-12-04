@@ -91,6 +91,7 @@ async function notifyDisputeParties(
       title,
       message,
       metadata: { disputeId, ...metadata },
+      actionUrl: `/disputes`,
     }),
     createNotification({
       userId: parties.vendorId,
@@ -98,6 +99,7 @@ async function notifyDisputeParties(
       title,
       message,
       metadata: { disputeId, ...metadata },
+      actionUrl: `/disputes`,
     }),
   ]);
 }
@@ -132,6 +134,7 @@ export async function initializeDisputePhases(
 
 /**
  * Get dispute phases for a dispute
+ * If phases don't exist (legacy dispute), create them automatically
  */
 export async function getDisputePhases(disputeId: string): Promise<DisputePhase | null> {
   const [phases] = await db
@@ -140,7 +143,17 @@ export async function getDisputePhases(disputeId: string): Promise<DisputePhase 
     .where(eq(disputePhases.disputeId, disputeId))
     .limit(1);
 
-  return phases || null;
+  if (!phases) {
+    // Auto-create phases for legacy disputes
+    try {
+      return await initializeDisputePhases(disputeId);
+    } catch (e) {
+      console.error(`[DisputePhase] Failed to auto-initialize phases for dispute ${disputeId}:`, e);
+      return null;
+    }
+  }
+
+  return phases;
 }
 
 // ============================================

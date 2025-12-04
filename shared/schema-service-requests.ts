@@ -5,7 +5,7 @@
  * and verified vendors submit structured proposals.
  */
 
-import { pgTable, text, timestamp, uuid, decimal, boolean, integer, jsonb, pgEnum, index, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, decimal, boolean, integer, jsonb, pgEnum, index, unique, varchar } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { users, services } from "./schema";
 
@@ -57,7 +57,7 @@ export const serviceRequests = pgTable("service_requests", {
   id: uuid("id").defaultRandom().primaryKey(),
   
   // Who posted it
-  customerId: uuid("customer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  customerId: varchar("customer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   
   // What they need
   title: text("title").notNull(),
@@ -125,8 +125,8 @@ export const proposals = pgTable("proposals", {
   
   // Links
   serviceRequestId: uuid("service_request_id").notNull().references(() => serviceRequests.id, { onDelete: "cascade" }),
-  vendorId: uuid("vendor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  serviceId: uuid("service_id").references(() => services.id),  // Which of their services they're offering
+  vendorId: varchar("vendor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  serviceId: varchar("service_id").references(() => services.id),  // Which of their services they're offering
   
   // Pricing
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
@@ -188,7 +188,7 @@ export const proposals = pgTable("proposals", {
 export const vendorPaymentMethods = pgTable("vendor_payment_methods", {
   id: uuid("id").defaultRandom().primaryKey(),
   
-  vendorId: uuid("vendor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  vendorId: varchar("vendor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   
   // Stripe Customer (separate from Connect account)
   stripeCustomerId: text("stripe_customer_id").notNull(),
@@ -219,7 +219,7 @@ export const vendorPaymentMethods = pgTable("vendor_payment_methods", {
 export const platformDebts = pgTable("platform_debts", {
   id: uuid("id").defaultRandom().primaryKey(),
   
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   
   // What is owed
   debtType: text("debt_type").notNull(),              // 'commission', 'dispute_fee', 'other'

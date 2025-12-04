@@ -127,6 +127,7 @@ import {
   acceptAiOption,
   chooseExternalResolution,
   getUserDisputes,
+  getDisputeDetails,
 } from "./services/disputeResolutionService";
 import {
   createTip,
@@ -2383,6 +2384,209 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===========================================
+  // VENDOR REVIEW RESPONSES
+  // ===========================================
+  
+  // Vendor respond to a review on their service
+  app.post('/api/reviews/:reviewId/respond', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const reviewId = req.params.reviewId;
+      const { response } = req.body;
+
+      if (!response || response.trim().length === 0) {
+        return res.status(400).json({ message: "Response is required" });
+      }
+
+      if (response.length > 1000) {
+        return res.status(400).json({ message: "Response must be 1000 characters or less" });
+      }
+
+      // Get the review with service
+      const [review] = await db
+        .select({
+          id: reviews.id,
+          serviceId: reviews.serviceId,
+          vendorResponse: reviews.vendorResponse,
+        })
+        .from(reviews)
+        .where(eq(reviews.id, reviewId))
+        .limit(1);
+      
+      if (!review) {
+        return res.status(404).json({ message: "Review not found" });
+      }
+
+      // Check if user owns the service
+      const [service] = await db
+        .select({ ownerId: services.ownerId })
+        .from(services)
+        .where(eq(services.id, review.serviceId))
+        .limit(1);
+
+      if (!service || service.ownerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to respond to this review" });
+      }
+
+      // Check if already responded
+      if (review.vendorResponse) {
+        return res.status(400).json({ message: "You have already responded to this review" });
+      }
+
+      // Update the review with vendor response
+      const [updatedReview] = await db
+        .update(reviews)
+        .set({
+          vendorResponse: response.trim(),
+          vendorRespondedAt: new Date(),
+        })
+        .where(eq(reviews.id, reviewId))
+        .returning();
+
+      res.json({
+        success: true,
+        review: updatedReview,
+      });
+    } catch (error) {
+      console.error("Error responding to review:", error);
+      res.status(500).json({ message: "Failed to respond to review" });
+    }
+  });
+
+  // ===========================================
+  // SERVICE REQUEST ROUTES (Request a Service)
+  // ===========================================
+  const {
+    createServiceRequest,
+    publishServiceRequest,
+    getOpenServiceRequests,
+    getMyServiceRequests,
+    getServiceRequestById,
+    submitProposal,
+    getProposalsForRequest,
+    acceptProposal,
+    getMyProposals,
+  } = await import('./serviceRequestService');
+
+  // Create a new service request (customer posts what they need)
+  app.post('/api/service-requests', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const request = await createServiceRequest(userId, req.body);
+      res.status(201).json(request);
+    } catch (error: any) {
+      console.error("Error creating service request:", error);
+      res.status(400).json({ message: error.message || "Failed to create service request" });
+    }
+  });
+
+  // Publish a draft service request
+  app.post('/api/service-requests/:id/publish', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const request = await publishServiceRequest(req.params.id, userId);
+      res.json(request);
+    } catch (error: any) {
+      console.error("Error publishing service request:", error);
+      res.status(400).json({ message: error.message || "Failed to publish service request" });
+    }
+  });
+
+  // Get open service requests (for vendors to browse)
+  app.get('/api/service-requests', async (req: any, res) => {
+    try {
+      const { categoryId, canton, limit, offset } = req.query;
+      const result = await getOpenServiceRequests({
+        categoryId: categoryId as string,
+        canton: canton as string,
+        limit: limit ? parseInt(limit as string) : undefined,
+        offset: offset ? parseInt(offset as string) : undefined,
+      });
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching service requests:", error);
+      res.status(500).json({ message: "Failed to fetch service requests" });
+    }
+  });
+
+  // Get my service requests (customer's own requests)
+  app.get('/api/service-requests/mine', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const requests = await getMyServiceRequests(userId);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching my service requests:", error);
+      res.status(500).json({ message: "Failed to fetch service requests" });
+    }
+  });
+
+  // Get a specific service request
+  app.get('/api/service-requests/:id', async (req: any, res) => {
+    try {
+      const request = await getServiceRequestById(req.params.id);
+      if (!request) {
+        return res.status(404).json({ message: "Service request not found" });
+      }
+      res.json(request);
+    } catch (error) {
+      console.error("Error fetching service request:", error);
+      res.status(500).json({ message: "Failed to fetch service request" });
+    }
+  });
+
+  // Submit a proposal for a service request (vendor)
+  app.post('/api/service-requests/:id/proposals', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const proposal = await submitProposal(userId, {
+        ...req.body,
+        serviceRequestId: req.params.id,
+      });
+      res.status(201).json(proposal);
+    } catch (error: any) {
+      console.error("Error submitting proposal:", error);
+      res.status(400).json({ message: error.message || "Failed to submit proposal" });
+    }
+  });
+
+  // Get proposals for a service request (customer only)
+  app.get('/api/service-requests/:id/proposals', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const proposals = await getProposalsForRequest(req.params.id, userId);
+      res.json(proposals);
+    } catch (error: any) {
+      console.error("Error fetching proposals:", error);
+      res.status(400).json({ message: error.message || "Failed to fetch proposals" });
+    }
+  });
+
+  // Accept a proposal (customer)
+  app.post('/api/proposals/:id/accept', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const result = await acceptProposal(req.params.id, userId);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error accepting proposal:", error);
+      res.status(400).json({ message: error.message || "Failed to accept proposal" });
+    }
+  });
+
+  // Get my submitted proposals (vendor)
+  app.get('/api/proposals/mine', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const proposals = await getMyProposals(userId);
+      res.json(proposals);
+    } catch (error) {
+      console.error("Error fetching my proposals:", error);
+      res.status(500).json({ message: "Failed to fetch proposals" });
+    }
+  });
+
+  // ===========================================
   // TIPS SYSTEM ROUTES
   // ===========================================
 
@@ -3702,40 +3906,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   /**
    * Get single dispute details with full context
+   * Returns data in the format expected by DisputeCenter frontend component
    */
   app.get('/api/disputes/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const disputeId = parseInt(req.params.id);
-      const dispute = await getDisputeById(disputeId);
+      const disputeId = req.params.id;
       
-      if (!dispute) {
+      // Use getDisputeDetails for comprehensive data
+      const details = await getDisputeDetails(disputeId);
+      
+      if (!details.dispute) {
         return res.status(404).json({ message: "Dispute not found" });
       }
 
       // Get associated booking to verify access
-      const booking = await getBookingById(dispute.bookingId, req.user!.id);
+      const booking = await getBookingById(details.dispute.bookingId, req.user!.id);
       if (!booking) {
         return res.status(403).json({ message: "Not authorized to view this dispute" });
       }
 
       // Get additional context
-      const [phases, timeRemaining, aiAnalysis, aiOptions, aiDecision] = await Promise.all([
-        getDisputePhases(String(disputeId)),
-        getTimeUntilDeadline(String(disputeId)),
-        getLatestAnalysis(String(disputeId)).catch(() => null),
-        getResolutionOptions(String(disputeId)).catch(() => []),
-        getAiDecision(String(disputeId)).catch(() => null),
+      const [timeRemaining, aiAnalysis, aiOptions] = await Promise.all([
+        getTimeUntilDeadline(disputeId),
+        getLatestAnalysis(disputeId).catch(() => null),
+        getResolutionOptions(disputeId).catch(() => []),
       ]);
 
       const isCustomer = booking.customerId === req.user!.id;
+      
+      // Get escrow amount
+      const [escrowTx] = await db
+        .select()
+        .from(escrowTransactions)
+        .where(eq(escrowTransactions.id, details.dispute.escrowTransactionId))
+        .limit(1);
 
+      // Get service name
+      const [service] = await db
+        .select({ title: services.title })
+        .from(services)
+        .where(eq(services.id, booking.serviceId))
+        .limit(1);
+
+      // Build counter offers from responses
+      const counterOffers = details.responses
+        .filter(r => r.responseType === 'counter_propose')
+        .map(r => ({
+          id: r.id,
+          userId: r.userId,
+          percent: r.counterProposalPercent || 0,
+          message: r.counterProposalMessage,
+          createdAt: r.createdAt.toISOString(),
+        }));
+
+      // Build party selections from responses
+      const customerSelections = details.responses.filter(
+        r => r.userId === details.parties?.customerId && r.selectedOptionId
+      );
+      const vendorSelections = details.responses.filter(
+        r => r.userId === details.parties?.vendorId && r.selectedOptionId
+      );
+
+      // Build timeline from responses and key events
+      const timeline = details.responses.map(r => ({
+        id: r.id,
+        type: r.responseType,
+        title: r.responseType === 'counter_propose' 
+          ? 'Counter Offer' 
+          : r.responseType === 'accept_option' 
+            ? 'Offer Accepted' 
+            : r.responseType === 'escalate'
+              ? 'Escalated to AI'
+              : r.responseType,
+        description: r.message || undefined,
+        userId: r.userId,
+        userRole: r.userId === details.parties?.customerId ? 'customer' : 'vendor',
+        metadata: r.selectedOptionLabel ? { optionLabel: r.selectedOptionLabel } : undefined,
+        createdAt: r.createdAt.toISOString(),
+      }));
+
+      // Format response to match DisputeDetails interface expected by frontend
       res.json({
-        ...dispute,
-        phases,
-        timeRemaining,
+        dispute: {
+          id: details.dispute.id,
+          bookingId: details.dispute.bookingId,
+          reason: details.dispute.reason,
+          description: details.dispute.description,
+          status: details.dispute.status,
+          evidenceUrls: details.dispute.evidenceUrls || [],
+          createdAt: details.dispute.createdAt?.toISOString() || new Date().toISOString(),
+        },
+        phases: details.phases ? {
+          currentPhase: details.phases.currentPhase,
+          phase1Deadline: details.phases.phase1Deadline?.toISOString() || null,
+          phase2Deadline: details.phases.phase2Deadline?.toISOString() || null,
+          phase3ReviewDeadline: details.phases.phase3ReviewDeadline?.toISOString() || null,
+        } : null,
+        parties: details.parties,
+        booking: {
+          id: booking.id,
+          bookingNumber: booking.bookingNumber,
+          serviceName: service?.title || 'Unknown Service',
+        },
+        escrow: {
+          amount: escrowTx?.amount || '0',
+          currency: 'CHF',
+        },
+        counterOffers,
+        aiOptions: aiOptions || [],
         aiAnalysis,
-        aiOptions,
-        aiDecision,
+        aiDecision: details.aiDecision ? {
+          id: details.aiDecision.id,
+          customerRefundPercent: details.aiDecision.customerRefundPercent,
+          vendorPaymentPercent: details.aiDecision.vendorPaymentPercent,
+          customerRefundAmount: details.aiDecision.customerRefundAmount,
+          vendorPaymentAmount: details.aiDecision.vendorPaymentAmount,
+          decisionSummary: details.aiDecision.decisionSummary,
+          fullReasoning: details.aiDecision.fullReasoning,
+          keyFactors: details.aiDecision.keyFactors || [],
+          status: details.aiDecision.status as 'pending' | 'executed' | 'overridden_external',
+        } : null,
+        partySelections: {
+          customer: {
+            optionId: customerSelections[0]?.selectedOptionId || null,
+            optionLabel: customerSelections[0]?.selectedOptionLabel || null,
+          },
+          vendor: {
+            optionId: vendorSelections[0]?.selectedOptionId || null,
+            optionLabel: vendorSelections[0]?.selectedOptionLabel || null,
+          },
+        },
+        timeline,
+        timeRemaining,
         isCustomer,
       });
     } catch (error) {
@@ -3761,10 +4063,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Booking not found" });
       }
 
-      const isCustomer = booking.customerId === req.user!.id;
-      const role = isCustomer ? "customer" : "vendor";
-
-      const dispute = await openDispute(bookingId, req.user!.id, role, reason, description);
+      const dispute = await openDispute(bookingId, req.user!.id, reason, description);
       res.json({ success: true, dispute });
     } catch (error: any) {
       console.error("Error opening dispute:", error);
@@ -3777,7 +4076,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
    */
   app.post('/api/disputes/:id/counter-offer', isAuthenticated, async (req: any, res) => {
     try {
-      const disputeId = parseInt(req.params.id);
+      const disputeId = req.params.id;
       const { refundPercentage, message } = req.body;
       
       if (typeof refundPercentage !== 'number' || refundPercentage < 0 || refundPercentage > 100) {
@@ -3790,7 +4089,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Dispute not found" });
       }
 
-      const booking = await getBookingById(dispute.bookingId, req.user!.id);
+      const booking = await getBookingById(dispute.dispute.bookingId, req.user!.id);
       if (!booking) {
         return res.status(403).json({ message: "Not authorized" });
       }
@@ -3798,7 +4097,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isCustomer = booking.customerId === req.user!.id;
       const role = isCustomer ? "customer" : "vendor";
 
-      const result = await submitCounterOffer(disputeId, req.user!.id, role, refundPercentage, message);
+      const result = await submitCounterOffer(disputeId, req.user!.id, refundPercentage, message);
       res.json({ success: true, ...result });
     } catch (error: any) {
       console.error("Error submitting counter-offer:", error);
@@ -3811,7 +4110,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
    */
   app.post('/api/disputes/:id/accept-offer', isAuthenticated, async (req: any, res) => {
     try {
-      const disputeId = parseInt(req.params.id);
+      const disputeId = req.params.id;
+      const { responseId } = req.body;
+      
+      if (!responseId) {
+        return res.status(400).json({ message: "responseId is required" });
+      }
 
       // Verify access
       const dispute = await getDisputeById(disputeId);
@@ -3819,15 +4123,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Dispute not found" });
       }
 
-      const booking = await getBookingById(dispute.bookingId, req.user!.id);
+      const booking = await getBookingById(dispute.dispute.bookingId, req.user!.id);
       if (!booking) {
         return res.status(403).json({ message: "Not authorized" });
       }
 
-      const isCustomer = booking.customerId === req.user!.id;
-      const role = isCustomer ? "customer" : "vendor";
-
-      const result = await acceptCounterOffer(disputeId, req.user!.id, role);
+      const result = await acceptCounterOffer(disputeId, req.user!.id, responseId);
       res.json({ success: true, ...result });
     } catch (error: any) {
       console.error("Error accepting offer:", error);
@@ -3840,7 +4141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
    */
   app.post('/api/disputes/:id/escalate', isAuthenticated, async (req: any, res) => {
     try {
-      const disputeId = parseInt(req.params.id);
+      const disputeId = req.params.id;
 
       // Verify access
       const dispute = await getDisputeById(disputeId);
@@ -3848,16 +4149,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Dispute not found" });
       }
 
-      const booking = await getBookingById(dispute.bookingId, req.user!.id);
+      const booking = await getBookingById(dispute.dispute.bookingId, req.user!.id);
       if (!booking) {
         return res.status(403).json({ message: "Not authorized" });
       }
 
-      const isCustomer = booking.customerId === req.user!.id;
-      const role = isCustomer ? "customer" : "vendor";
-
-      const result = await requestEscalation(disputeId, req.user!.id, role);
-      res.json({ success: true, ...result });
+      await requestEscalation(disputeId, req.user!.id);
+      res.json({ success: true });
     } catch (error: any) {
       console.error("Error requesting escalation:", error);
       res.status(400).json({ message: error.message || "Failed to escalate" });
@@ -3869,7 +4167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
    */
   app.post('/api/disputes/:id/select-option', isAuthenticated, async (req: any, res) => {
     try {
-      const disputeId = parseInt(req.params.id);
+      const disputeId = req.params.id;
       const { optionId } = req.body;
       
       if (!optionId) {
@@ -3882,7 +4180,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Dispute not found" });
       }
 
-      const booking = await getBookingById(dispute.bookingId, req.user!.id);
+      const booking = await getBookingById(dispute.dispute.bookingId, req.user!.id);
       if (!booking) {
         return res.status(403).json({ message: "Not authorized" });
       }
@@ -3890,7 +4188,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isCustomer = booking.customerId === req.user!.id;
       const role = isCustomer ? "customer" : "vendor";
 
-      const result = await selectOption(disputeId, req.user!.id, role, optionId);
+      const result = await acceptAiOption(disputeId, req.user!.id, optionId);
       res.json({ success: true, ...result });
     } catch (error: any) {
       console.error("Error selecting option:", error);
@@ -3903,7 +4201,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
    */
   app.post('/api/disputes/:id/accept-decision', isAuthenticated, async (req: any, res) => {
     try {
-      const disputeId = parseInt(req.params.id);
+      const disputeId = req.params.id;
+      const { optionId } = req.body;
+
+      if (!optionId) {
+        return res.status(400).json({ message: "optionId is required" });
+      }
 
       // Verify access
       const dispute = await getDisputeById(disputeId);
@@ -3911,15 +4214,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Dispute not found" });
       }
 
-      const booking = await getBookingById(dispute.bookingId, req.user!.id);
+      const booking = await getBookingById(dispute.dispute.bookingId, req.user!.id);
       if (!booking) {
         return res.status(403).json({ message: "Not authorized" });
       }
 
-      const isCustomer = booking.customerId === req.user!.id;
-      const role = isCustomer ? "customer" : "vendor";
-
-      const result = await acceptAiOption(disputeId, req.user!.id, role);
+      const result = await acceptAiOption(disputeId, req.user!.id, optionId);
       res.json({ success: true, ...result });
     } catch (error: any) {
       console.error("Error accepting AI decision:", error);
@@ -3932,7 +4232,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
    */
   app.post('/api/disputes/:id/external-resolution', isAuthenticated, async (req: any, res) => {
     try {
-      const disputeId = parseInt(req.params.id);
+      const disputeId = req.params.id;
 
       // Verify access
       const dispute = await getDisputeById(disputeId);
@@ -3940,16 +4240,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Dispute not found" });
       }
 
-      const booking = await getBookingById(dispute.bookingId, req.user!.id);
+      const booking = await getBookingById(dispute.dispute.bookingId, req.user!.id);
       if (!booking) {
         return res.status(403).json({ message: "Not authorized" });
       }
 
-      const isCustomer = booking.customerId === req.user!.id;
-      const role = isCustomer ? "customer" : "vendor";
-
-      const result = await chooseExternalResolution(disputeId, req.user!.id, role);
-      res.json({ success: true, ...result });
+      const result = await chooseExternalResolution(disputeId, req.user!.id);
+      res.json(result);
     } catch (error: any) {
       console.error("Error choosing external resolution:", error);
       res.status(400).json({ message: error.message || "Failed to choose external resolution" });
@@ -3961,7 +4258,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
    */
   app.post('/api/disputes/:id/evidence', isAuthenticated, async (req: any, res) => {
     try {
-      const disputeId = parseInt(req.params.id);
+      const disputeId = req.params.id;
       const { files } = req.body; // Array of { url, fileName, fileType }
       
       if (!Array.isArray(files) || files.length === 0) {
@@ -3974,7 +4271,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Dispute not found" });
       }
 
-      const booking = await getBookingById(dispute.bookingId, req.user!.id);
+      const booking = await getBookingById(dispute.dispute.bookingId, req.user!.id);
       if (!booking) {
         return res.status(403).json({ message: "Not authorized" });
       }

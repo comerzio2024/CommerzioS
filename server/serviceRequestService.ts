@@ -36,6 +36,14 @@ const DEFAULT_REQUEST_EXPIRY_DAYS = 14;
 // SERVICE REQUEST FUNCTIONS
 // ============================================
 
+// Helper to safely convert date string to Date object
+function toDate(value: string | Date | null | undefined): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === 'string') return new Date(value);
+  return null;
+}
+
 /**
  * Create a new service request
  */
@@ -44,15 +52,34 @@ export async function createServiceRequest(
   data: Omit<InsertServiceRequest, "id" | "customerId" | "createdAt" | "updatedAt">
 ): Promise<ServiceRequest> {
   // Set default expiry (14 days from now)
-  const expiresAt = data.expiresAt || new Date(Date.now() + DEFAULT_REQUEST_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+  const expiresAt = data.expiresAt 
+    ? toDate(data.expiresAt)
+    : new Date(Date.now() + DEFAULT_REQUEST_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+
+  // Destructure all fields and handle dates explicitly
+  const {
+    // These fields are handled separately
+    preferredDateStart: prefDateStart,
+    preferredDateEnd: prefDateEnd,
+    publishedAt,
+    moderatedAt,
+    expiresAt: _expiresAt, // already handled above
+    status,
+    // All other fields are safe to pass through
+    ...safeData
+  } = data;
 
   const [request] = await db
     .insert(serviceRequests)
     .values({
-      ...data,
+      ...safeData,
       customerId,
-      expiresAt,
-      status: data.status || "draft",
+      expiresAt: expiresAt!,
+      preferredDateStart: toDate(prefDateStart),
+      preferredDateEnd: toDate(prefDateEnd),
+      publishedAt: toDate(publishedAt),
+      moderatedAt: toDate(moderatedAt),
+      status: status || "draft",
       moderationStatus: "pending_review",
     })
     .returning();
@@ -175,6 +202,75 @@ export async function getOpenServiceRequests(options: {
     requests: requests as Array<Omit<ServiceRequest, "locationAddress">>,
     total: Number(count),
   };
+}
+
+/**
+ * Get customer's own service requests
+ */
+export async function getMyServiceRequests(
+  customerId: string
+): Promise<ServiceRequest[]> {
+  const requests = await db
+    .select()
+    .from(serviceRequests)
+    .where(eq(serviceRequests.customerId, customerId))
+    .orderBy(desc(serviceRequests.createdAt));
+
+  return requests;
+}
+
+/**
+ * Get a service request by ID (public view - no address)
+ */
+export async function getServiceRequestById(
+  requestId: string
+): Promise<Omit<ServiceRequest, "locationAddress" | "locationLat" | "locationLng"> | null> {
+  const [request] = await db
+    .select({
+      id: serviceRequests.id,
+      customerId: serviceRequests.customerId,
+      title: serviceRequests.title,
+      description: serviceRequests.description,
+      categoryId: serviceRequests.categoryId,
+      subcategoryId: serviceRequests.subcategoryId,
+      budgetMin: serviceRequests.budgetMin,
+      budgetMax: serviceRequests.budgetMax,
+      budgetFlexible: serviceRequests.budgetFlexible,
+      preferredDateStart: serviceRequests.preferredDateStart,
+      preferredDateEnd: serviceRequests.preferredDateEnd,
+      flexibleDates: serviceRequests.flexibleDates,
+      urgency: serviceRequests.urgency,
+      locationCity: serviceRequests.locationCity,
+      locationCanton: serviceRequests.locationCanton,
+      locationPostalCode: serviceRequests.locationPostalCode,
+      locationRadiusKm: serviceRequests.locationRadiusKm,
+      serviceAtCustomerLocation: serviceRequests.serviceAtCustomerLocation,
+      attachmentUrls: serviceRequests.attachmentUrls,
+      status: serviceRequests.status,
+      moderationStatus: serviceRequests.moderationStatus,
+      moderationReason: serviceRequests.moderationReason,
+      moderatedAt: serviceRequests.moderatedAt,
+      publishedAt: serviceRequests.publishedAt,
+      expiresAt: serviceRequests.expiresAt,
+      viewCount: serviceRequests.viewCount,
+      proposalCount: serviceRequests.proposalCount,
+      createdAt: serviceRequests.createdAt,
+      updatedAt: serviceRequests.updatedAt,
+    })
+    .from(serviceRequests)
+    .where(eq(serviceRequests.id, requestId))
+    .limit(1);
+
+  return request || null;
+}
+
+/**
+ * Get vendor's proposals (alias for getVendorProposals)
+ */
+export async function getMyProposals(
+  vendorId: string
+): Promise<Array<Proposal & { request: ServiceRequest }>> {
+  return getVendorProposals(vendorId);
 }
 
 /**
@@ -403,6 +499,7 @@ export async function submitProposal(
       requestId: data.serviceRequestId,
       proposalId: proposal.id,
     },
+    actionUrl: `/service-requests`,
   });
 
   console.log(`[Proposal] Vendor ${vendorId} submitted proposal ${proposal.id} for request ${data.serviceRequestId}`);
@@ -535,6 +632,7 @@ export async function rejectProposal(
       proposalId,
       requestId: proposalWithRequest.request.id,
     },
+    actionUrl: `/service-requests`,
   });
 
   console.log(`[Proposal] Customer ${customerId} rejected proposal ${proposalId}`);
@@ -665,6 +763,7 @@ export async function acceptProposal(
         proposalId: rejected.id,
         requestId: request.id,
       },
+      actionUrl: `/service-requests`,
     });
   }
 
@@ -684,6 +783,7 @@ export async function acceptProposal(
       requestId: request.id,
       bookingId,
     },
+    actionUrl: `/bookings`,
   });
 
   console.log(`[Proposal] Customer ${customerId} accepted proposal ${proposalId}, booking ${bookingId} created`);
@@ -813,6 +913,7 @@ export async function expireStaleProposals(): Promise<number> {
           type: "proposal_expired",
           proposalId: proposal.id,
         },
+        actionUrl: `/service-requests`,
       });
     }
   }
@@ -852,6 +953,7 @@ export async function expireStaleRequests(): Promise<number> {
           type: "request_expired",
           requestId: request.id,
         },
+        actionUrl: `/service-requests`,
       });
     }
 
