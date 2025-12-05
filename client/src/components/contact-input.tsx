@@ -7,10 +7,13 @@ import { X, CheckCircle2, AlertCircle, Phone, Mail, User, Briefcase } from "luci
 import { apiRequest } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { PhoneInputWithCountry, toInternationalFormat } from "@/components/phone-input-with-country";
 
 export interface Contact {
   id?: string;
-  phone?: string;
+  phone?: string; // Stored in international format: +41441234567
+  phoneCountryCode?: string; // e.g., "+41"
+  phoneLocal?: string; // Local display format: 044 123 45 67
   email?: string;
   name?: string;
   role?: string;
@@ -110,13 +113,12 @@ export function ContactInput({
 
   const validatePhone = (value: string): { isValid: boolean; message: string } => {
     if (!value) return { isValid: true, message: "" }; // Empty is valid (optional)
-    // Swiss phone number validation: must start with +41 and have 9-13 digits after
-    const swissPhoneRegex = /^\+41\s?(\d{2}\s?\d{3}\s?\d{2}\s?\d{2}|\d{9,11})$/;
-    const cleanedValue = value.replace(/\s/g, '');
-    const isValid = swissPhoneRegex.test(cleanedValue);
+    // International phone validation - at least 8 digits after country code
+    const digits = value.replace(/\D/g, '');
+    const isValid = digits.length >= 8 && digits.length <= 15;
     return {
       isValid,
-      message: isValid ? "" : "Phone must be in format: +41 44 123 4567"
+      message: isValid ? "" : "Please enter a valid phone number"
     };
   };
 
@@ -127,6 +129,13 @@ export function ContactInput({
       isValid,
       message: isValid ? "" : "Please enter a valid email address"
     };
+  };
+
+  // Handle phone change from the country code input
+  const handlePhoneChange = (fullInternational: string, localDisplay: string, countryCode: string) => {
+    onUpdate(index, "phone", fullInternational);
+    onUpdate(index, "phoneCountryCode", countryCode);
+    onUpdate(index, "phoneLocal", localDisplay);
   };
 
   const phoneValidation = validatePhone(contact.phone || "");
@@ -177,35 +186,14 @@ export function ContactInput({
 
       {/* Phone and Email side by side - NO TABS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Phone Number */}
-        <div className="space-y-2">
-          <Label htmlFor={`contact-phone-${index}`} className="flex items-center gap-1.5">
-            <Phone className="w-3.5 h-3.5 text-muted-foreground" />
-            Phone Number
-          </Label>
-          <Input
-            id={`contact-phone-${index}`}
-            type="tel"
-            placeholder="+41 44 123 4567"
-            value={contact.phone || ""}
-            onChange={(e) => onUpdate(index, "phone", e.target.value)}
-            className={cn(
-              !phoneValidation.isValid && contact.phone ? "border-red-500 focus-visible:ring-red-500" : ""
-            )}
-            data-testid={`input-contact-phone-${index}`}
-          />
-          {!phoneValidation.isValid && contact.phone && (
-            <p className="text-xs text-red-500 flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" />
-              {phoneValidation.message}
-            </p>
-          )}
-          {!contact.phone && (
-            <p className="text-xs text-muted-foreground">
-              Swiss number starting with +41
-            </p>
-          )}
-        </div>
+        {/* Phone Number with Country Code */}
+        <PhoneInputWithCountry
+          id={`contact-phone-${index}`}
+          value={contact.phone || ""}
+          onChange={handlePhoneChange}
+          label="Phone Number"
+          error={!phoneValidation.isValid && contact.phone ? phoneValidation.message : undefined}
+        />
 
         {/* Email Address */}
         <div className="space-y-2">

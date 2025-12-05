@@ -234,11 +234,42 @@ export function DisputeCenter({
 
   const uploadEvidence = useMutation({
     mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append('file', file);
+      // Step 1: Get a presigned upload URL from the server
+      const uploadRes = await fetch('/api/objects/upload', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!uploadRes.ok) throw new Error('Failed to get upload URL');
+      const { uploadURL } = await uploadRes.json();
+      
+      // Step 2: Upload the file directly to the storage using PUT
+      const uploadResponse = await fetch(uploadURL, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type },
+      });
+      if (!uploadResponse.ok) throw new Error('Failed to upload file');
+      
+      // Step 3: Set ACL to make the file accessible
+      const setAclRes = await fetch('/api/service-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ imageURL: uploadURL }),
+      });
+      if (!setAclRes.ok) throw new Error('Failed to set file access');
+      const { objectPath } = await setAclRes.json();
+      
+      // Step 4: Send the file info to the dispute evidence endpoint
       return apiRequest(`/api/disputes/${disputeId}/evidence`, {
         method: 'POST',
-        body: formData,
+        body: JSON.stringify({
+          files: [{
+            url: objectPath,
+            fileName: file.name,
+            fileType: file.type,
+          }],
+        }),
       });
     },
     onSuccess: () => {

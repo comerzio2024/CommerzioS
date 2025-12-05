@@ -154,7 +154,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
       { id: 'location', label: 'Location', done: formData.locations.some((l: string) => l?.trim()), icon: MapPin },
       // Only include contact step if contacts are enabled AND required
       ...(contactsEnabled && contactsRequired ? [
-        { id: 'contact', label: 'Contact', done: formData.contacts.some((c: Contact) => c.value?.trim()), icon: Mail }
+        { id: 'contact', label: 'Contact', done: formData.contacts.some((c: Contact) => c.phone?.trim() || c.email?.trim()), icon: Mail }
       ] : []),
       { id: 'pricing', label: 'Pricing', done: formData.priceType === 'fixed' ? !!formData.price : formData.priceType === 'list' ? formData.priceList.length > 0 : !!formData.priceText, icon: DollarSign },
     ];

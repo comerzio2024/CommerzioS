@@ -237,16 +237,17 @@ export default function MyBookingsPage() {
     enabled: !!user && isVendor,
   });
 
-  // Fetch service requests
-  const { data: serviceRequests = [], isLoading: requestsLoading } = useQuery<ServiceRequest[]>({
+  // Fetch service requests - API returns { requests: [], total: number }
+  const { data: serviceRequestsData, isLoading: requestsLoading } = useQuery<{ requests: ServiceRequest[]; total: number }>({
     queryKey: ["service-requests"],
     queryFn: async () => {
       const res = await fetchApi("/api/service-requests");
-      if (!res.ok) return [];
+      if (!res.ok) return { requests: [], total: 0 };
       return res.json();
     },
     enabled: !!user,
   });
+  const serviceRequests = serviceRequestsData?.requests || [];
 
   // Fetch vendor stats for dashboard
   const { data: vendorStats } = useQuery({

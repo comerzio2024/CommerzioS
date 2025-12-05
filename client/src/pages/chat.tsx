@@ -75,34 +75,41 @@ export default function ChatPage() {
 
   // Parse URL params for direct links
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const bookingId = params.get('booking');
-    const orderId = params.get('order');
-    const vendorId = params.get('vendor');
-    const customerId = params.get('customer'); // For vendor-to-customer chat
-    const serviceId = params.get('service');
+    // Use window.location.search to get fresh params each time
+    const searchParams = new URLSearchParams(window.location.search);
+    const bookingId = searchParams.get('booking');
+    const orderId = searchParams.get('order');
+    const vendorId = searchParams.get('vendor');
+    const customerId = searchParams.get('customer'); // For vendor-to-customer chat
+    const serviceId = searchParams.get('service');
+
+    console.log('[ChatPage] URL params:', { bookingId, orderId, vendorId, customerId, serviceId, userId: user?.id });
 
     // If we have a vendor ID (customer initiating chat) or customer ID (vendor initiating chat)
-    if ((vendorId || customerId) && user) {
+    if ((vendorId || customerId) && user?.id) {
       // Build conversation request body
       // The API expects vendorId always - if we're the vendor, we use customerId from params
       // If we're the customer, we use vendorId from params
       const requestBody: any = {
-        bookingId,
-        orderId,
-        serviceId,
+        bookingId: bookingId || undefined,
+        orderId: orderId || undefined,
+        serviceId: serviceId || undefined,
       };
 
       if (vendorId) {
         // Customer initiating chat with vendor
         requestBody.vendorId = vendorId;
+        console.log('[ChatPage] Customer initiating chat with vendor:', vendorId);
       } else if (customerId) {
         // Vendor initiating chat with customer - need to pass our userId as vendorId
         // and customerId will be set by the server based on context
         // Actually, we need to create conversation where we are vendor and customerId is the customer
         requestBody.vendorId = user.id; // Current user is the vendor
         requestBody.customerId = customerId; // Override customerId
+        console.log('[ChatPage] Vendor initiating chat with customer:', customerId, 'vendorId:', user.id);
       }
+
+      console.log('[ChatPage] Creating conversation with:', requestBody);
 
       fetchApi('/api/chat/conversations', {
         method: 'POST',
@@ -131,12 +138,16 @@ export default function ChatPage() {
             // Also trigger custom event for ConversationList to refetch
             window.dispatchEvent(new Event('refetch-conversations'));
           }, 200);
+          
+          // Clear the URL params after successfully opening conversation
+          // to prevent re-creating on page refresh
+          window.history.replaceState({}, '', '/chat');
         })
         .catch(error => {
           console.error('[ChatPage] Error creating conversation:', error);
         });
     }
-  }, [location, user]);
+  }, [location, user?.id, queryClient]);
 
   const handleSelectConversation = (conversation: Conversation) => {
     setSelectedConversation(conversation);

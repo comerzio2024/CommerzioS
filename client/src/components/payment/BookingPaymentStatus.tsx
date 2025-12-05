@@ -208,9 +208,44 @@ export function BookingPaymentStatus({
               </p>
 
               {isHeld && escrowStatus?.autoReleaseAt && (
-                <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 mb-4">
-                  <Clock className="w-4 h-4" />
-                  <span>Auto-releases in: {formatTimeRemaining(escrowStatus.autoReleaseAt)}</span>
+                <div className={cn(
+                  "flex items-center gap-2 text-sm mb-4 p-3 rounded-lg border",
+                  (() => {
+                    const releaseTime = new Date(escrowStatus.autoReleaseAt).getTime();
+                    const now = Date.now();
+                    const hoursRemaining = (releaseTime - now) / (1000 * 60 * 60);
+                    // Urgent (< 6 hours): Red
+                    if (hoursRemaining < 6) return "bg-red-50 border-red-200 text-red-700 dark:bg-red-950/50 dark:border-red-800 dark:text-red-300";
+                    // Warning (< 24 hours): Amber
+                    if (hoursRemaining < 24) return "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/50 dark:border-amber-800 dark:text-amber-300";
+                    // Normal: Green
+                    return "bg-green-50 border-green-200 text-green-700 dark:bg-green-950/50 dark:border-green-800 dark:text-green-300";
+                  })()
+                )}>
+                  <Clock className={cn(
+                    "w-5 h-5",
+                    (() => {
+                      const releaseTime = new Date(escrowStatus.autoReleaseAt).getTime();
+                      const now = Date.now();
+                      const hoursRemaining = (releaseTime - now) / (1000 * 60 * 60);
+                      if (hoursRemaining < 6) return "text-red-600 dark:text-red-400 animate-pulse";
+                      if (hoursRemaining < 24) return "text-amber-600 dark:text-amber-400";
+                      return "text-green-600 dark:text-green-400";
+                    })()
+                  )} />
+                  <div className="flex-1">
+                    <span className="font-medium">Auto-releases in: {formatTimeRemaining(escrowStatus.autoReleaseAt)}</span>
+                    <p className="text-xs mt-0.5 opacity-80">
+                      {(() => {
+                        const releaseTime = new Date(escrowStatus.autoReleaseAt).getTime();
+                        const now = Date.now();
+                        const hoursRemaining = (releaseTime - now) / (1000 * 60 * 60);
+                        if (hoursRemaining < 6) return "Payment will be released soon. Report issues now if any.";
+                        if (hoursRemaining < 24) return "Review the service and confirm or report any issues.";
+                        return "Payment protected until you confirm or report issues.";
+                      })()}
+                    </p>
+                  </div>
                 </div>
               )}
 

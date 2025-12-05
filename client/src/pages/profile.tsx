@@ -2862,15 +2862,15 @@ export default function Profile() {
           setReviewBackBookingId(null);
         }
       }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl lg:max-w-3xl">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-xl">
               {reviewBackTarget?.type === 'customer' 
                 ? `Review Customer: ${reviewBackTarget?.userName}`
                 : `Review Service: ${reviewBackTarget?.serviceName}`
               }
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-base">
               {reviewBackTarget?.type === 'customer'
                 ? "Share your experience with this customer"
                 : "Share your experience with this service"
@@ -3136,9 +3136,99 @@ export default function Profile() {
               </>
             )}
 
-            {/* Review Text */}
-            <div className="space-y-2">
-              <Label>Written Review</Label>
+            {/* Review Text with Templates */}
+            <div className="space-y-3">
+              <Label className="text-base font-medium">Written Review</Label>
+              
+              {/* Review Templates - Adaptive based on overall rating */}
+              {(() => {
+                // Calculate overall rating for both types
+                const overallRating = reviewBackTarget?.type === 'customer'
+                  ? (customerCommunicationRating + customerPunctualityRating + customerRespectRating) / 3
+                  : (serviceRating + communicationRating + punctualityRating + valueRating) / 4;
+                
+                // Define templates for service reviews
+                const serviceTemplates = {
+                  positive: [
+                    "Excellent service! The quality exceeded my expectations and the work was completed perfectly.",
+                    "Very professional and reliable. Communication was great and they delivered exactly what was promised.",
+                    "Outstanding experience from start to finish. Punctual, skilled, and very fair pricing.",
+                    "Highly recommend! The attention to detail and customer care were exceptional.",
+                  ],
+                  neutral: [
+                    "Service was acceptable but there's room for improvement in some areas.",
+                    "The work was completed as expected. Good communication but timing could be better.",
+                    "Decent service overall. Quality was okay, though I had hoped for a bit more.",
+                    "Average experience. Nothing particularly wrong but nothing exceptional either.",
+                  ],
+                  negative: [
+                    "Unfortunately, the service did not meet my expectations. Quality issues need to be addressed.",
+                    "Communication was lacking and the work wasn't completed on time as agreed.",
+                    "Disappointed with the overall experience. The final result wasn't what was promised.",
+                    "Service was below standard. Would suggest improvements in quality and reliability.",
+                  ],
+                };
+                
+                // Define templates for customer reviews
+                const customerTemplates = {
+                  positive: [
+                    "Wonderful customer! Very polite, clear about their needs, and a pleasure to work with.",
+                    "Great communication throughout. Punctual for all appointments and very respectful.",
+                    "Highly professional customer. Everything went smoothly and payment was prompt.",
+                    "Excellent to work with. Would happily provide service again in the future.",
+                  ],
+                  neutral: [
+                    "Customer was okay to work with. Some communication delays but overall acceptable.",
+                    "Average experience. The customer could be more responsive but the job got done.",
+                    "Decent interaction. A few minor scheduling issues but nothing major.",
+                    "Customer was satisfactory. Room for improvement in communication responsiveness.",
+                  ],
+                  negative: [
+                    "Challenging customer interaction. Communication was difficult throughout the process.",
+                    "Customer was often late or unresponsive, making it hard to complete the work efficiently.",
+                    "Unfortunately, the experience was frustrating. Expectations were unclear and often changed.",
+                    "Difficult to work with. Would recommend clearer communication and more punctuality.",
+                  ],
+                };
+                
+                const templates = reviewBackTarget?.type === 'customer' ? customerTemplates : serviceTemplates;
+                const currentTemplates = overallRating >= 4 
+                  ? templates.positive 
+                  : overallRating >= 2.5 
+                    ? templates.neutral 
+                    : templates.negative;
+                const templateType = overallRating >= 4 ? 'Positive' : overallRating >= 2.5 ? 'Neutral' : 'Critical';
+                
+                return (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                        overallRating >= 4 
+                          ? 'bg-green-100 text-green-700' 
+                          : overallRating >= 2.5 
+                            ? 'bg-amber-100 text-amber-700' 
+                            : 'bg-red-100 text-red-700'
+                      }`}>
+                        {templateType} Templates
+                      </span>
+                      <span>Click to use or edit:</span>
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {currentTemplates.map((template, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setReviewBackText(template)}
+                          className="text-left text-sm p-3 rounded-lg border hover:border-primary hover:bg-primary/5 transition-colors"
+                        >
+                          <span className="line-clamp-2">{template}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+              
               <Textarea
                 placeholder={reviewBackTarget?.type === 'customer' 
                   ? "Share additional details about your experience with this customer..."
@@ -3147,7 +3237,8 @@ export default function Profile() {
                 value={reviewBackText}
                 onChange={(e) => setReviewBackText(e.target.value)}
                 disabled={!user?.isVerified}
-                rows={4}
+                rows={5}
+                className="min-h-[120px] text-base"
               />
             </div>
           </div>
