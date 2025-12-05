@@ -913,6 +913,8 @@ export const insertReviewSchema = createInsertSchema(reviews, {
 }).omit({
   id: true,
   createdAt: true,
+  serviceId: true,
+  userId: true,
 });
 
 export const insertCategorySchema = createInsertSchema(categories).omit({
