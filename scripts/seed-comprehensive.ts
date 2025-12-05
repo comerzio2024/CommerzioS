@@ -698,6 +698,7 @@ async function seedComprehensive() {
         icon: "trending-up",
         relatedEntityType: "service",
         relatedEntityId: adminServiceId,
+        actionUrl: `/service/${adminServiceId}`,
         priority: 5,
         isRead: true,
         readAt: new Date(Date.now() - 24 * 60 * 60 * 1000),

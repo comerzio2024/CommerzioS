@@ -208,23 +208,10 @@ export function ImageManager({
     newMetadata.splice(draggedIndex, 1);
     newMetadata.splice(index, 0, draggedMeta);
     
-    // Update main image index
-    let newMainIndex = mainImageIndex;
-    
-    // If dragging to position 0, make it the main image automatically
-    if (index === 0) {
-      newMainIndex = 0;
-    } else if (mainImageIndex === draggedIndex) {
-      newMainIndex = index;
-    } else if (draggedIndex < mainImageIndex && index >= mainImageIndex) {
-      newMainIndex = mainImageIndex - 1;
-    } else if (draggedIndex > mainImageIndex && index <= mainImageIndex) {
-      newMainIndex = mainImageIndex + 1;
-    }
-    
     onImagesChange(newImages);
     onMetadataChange(newMetadata);
-    onMainImageChange(newMainIndex);
+    // Main image is always the first image (index 0)
+    onMainImageChange(0);
     setDraggedIndex(index);
   };
 
@@ -414,8 +401,8 @@ export function ImageManager({
                 className="w-full h-32 object-cover rounded border-2 border-border" 
               />
               
-              {/* Main image badge */}
-              {mainImageIndex === idx && (
+              {/* Main image badge - always on first image */}
+              {idx === 0 && (
                 <div className="absolute top-2 left-2 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
                   <Star className="w-3 h-3 fill-current" />
                   Main
@@ -430,9 +417,10 @@ export function ImageManager({
                   variant="secondary"
                   onClick={() => handleSetMainImage(idx)}
                   data-testid={`button-set-main-${idx}`}
-                  title="Set as main image"
+                  title="Set as main image (move to first)"
+                  disabled={idx === 0}
                 >
-                  <Star className={`w-3 h-3 ${mainImageIndex === idx ? 'fill-current' : ''}`} />
+                  <Star className={`w-3 h-3 ${idx === 0 ? 'fill-current' : ''}`} />
                 </Button>
                 <Button
                   type="button"

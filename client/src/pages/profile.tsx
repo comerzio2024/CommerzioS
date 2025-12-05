@@ -6,7 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { PlusCircle, Settings, CreditCard, BarChart3, RefreshCw, Clock, Trash2, Plus, Edit2, MapPin, CheckCircle2, User as UserIcon, Camera, Loader2, Edit, Trash, Pencil, Check, Gift, Users, Star, TrendingUp, Copy, Share2, ChevronDown, ChevronRight, DollarSign, MessageCircle, Bell, AlertTriangle, Key, Mail, Smartphone, Banknote, CalendarDays } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PlusCircle, Settings, CreditCard, BarChart3, RefreshCw, Clock, Trash2, Plus, Edit2, MapPin, CheckCircle2, User as UserIcon, Camera, Loader2, Edit, Trash, Pencil, Check, Gift, Users, Star, TrendingUp, Copy, Share2, ChevronDown, ChevronRight, DollarSign, MessageCircle, Bell, AlertTriangle, Key, Mail, Smartphone, Banknote, CalendarDays, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -132,6 +134,13 @@ export default function Profile() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
+  // Review back modal states
+  const [showReviewBackModal, setShowReviewBackModal] = useState(false);
+  const [reviewBackTarget, setReviewBackTarget] = useState<{ userId: string; userName: string; reviewId: string } | null>(null);
+  const [reviewBackRating, setReviewBackRating] = useState(5);
+  const [reviewBackText, setReviewBackText] = useState("");
+  const [reviewBackServiceId, setReviewBackServiceId] = useState<string | null>(null);
+
   const { data: myServices = [], isLoading: servicesLoading } = useQuery<ServiceWithDetails[]>({
     queryKey: ["/api/services", { ownerId: user?.id }],
     queryFn: () => apiRequest(`/api/services?ownerId=${user?.id}`),
@@ -148,6 +157,43 @@ export default function Profile() {
     queryKey: ["/api/users/me/reviews-received"],
     queryFn: () => apiRequest("/api/users/me/reviews-received"),
     enabled: isAuthenticated,
+  });
+
+  // Fetch services the vendor provided to the reviewer through bookings (for "Review back" feature)
+  // This shows services the customer actually booked, regardless of whether they're still active
+  const { data: reviewerServices = [], isLoading: reviewerServicesLoading } = useQuery<ServiceWithDetails[]>({
+    queryKey: ["/api/services/booked-by", reviewBackTarget?.userId],
+    queryFn: () => apiRequest(`/api/services/booked-by/${reviewBackTarget?.userId}`),
+    enabled: !!reviewBackTarget?.userId && showReviewBackModal,
+  });
+
+  // Mutation to create review
+  const createReviewBackMutation = useMutation({
+    mutationFn: async ({ serviceId, rating, comment }: { serviceId: string; rating: number; comment: string }) => {
+      return apiRequest(`/api/services/${serviceId}/reviews`, {
+        method: "POST",
+        body: JSON.stringify({ rating, comment }),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Review Posted!",
+        description: "Your review has been submitted successfully.",
+      });
+      setShowReviewBackModal(false);
+      setReviewBackTarget(null);
+      setReviewBackRating(5);
+      setReviewBackText("");
+      setReviewBackServiceId(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/users/me/reviews-received"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit review",
+        variant: "destructive",
+      });
+    },
   });
 
   const updateServiceMutation = useMutation({
@@ -1627,7 +1673,14 @@ export default function Profile() {
                             variant="outline" 
                             size="sm" 
                             className="mt-3 w-full"
-                            onClick={() => setLocation(`/users/${review.reviewer.id}`)}
+                            onClick={() => {
+                              setReviewBackTarget({
+                                userId: review.reviewer.id,
+                                userName: `${review.reviewer.firstName} ${review.reviewer.lastName}`,
+                                reviewId: review.id
+                              });
+                              setShowReviewBackModal(true);
+                            }}
                             data-testid={`button-review-back-${review.id}`}
                           >
                             Review Back
@@ -1938,6 +1991,140 @@ export default function Profile() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Review Back Modal */}
+      <Dialog open={showReviewBackModal} onOpenChange={(open) => {
+        setShowReviewBackModal(open);
+        if (!open) {
+          setReviewBackTarget(null);
+          setReviewBackRating(5);
+          setReviewBackText("");
+          setReviewBackServiceId(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Review {reviewBackTarget?.userName}</DialogTitle>
+            <DialogDescription>
+              Leave a review for a service they booked from you
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {/* Verification Check */}
+            {user && !user.isVerified && (
+              <div className="flex items-center gap-2 text-amber-600 text-sm bg-amber-50 p-3 rounded-lg border border-amber-100">
+                <Lock className="w-4 h-4" />
+                <span>Identity verification required to post reviews. <Link href="/profile?tab=profile" className="underline">Verify now</Link></span>
+              </div>
+            )}
+
+            {/* Service Selection */}
+            {reviewerServicesLoading ? (
+              <div className="text-center py-4">
+                <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Loading services...</p>
+              </div>
+            ) : reviewerServices.length === 0 ? (
+              <div className="text-center py-4 bg-slate-50 rounded-lg">
+                <p className="text-muted-foreground">No completed bookings found with this customer.</p>
+                <p className="text-sm text-muted-foreground mt-1">You can only review customers who have booked your services.</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-3"
+                  onClick={() => {
+                    setShowReviewBackModal(false);
+                    setLocation(`/users/${reviewBackTarget?.userId}`);
+                  }}
+                >
+                  Visit Profile
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label>Select a Service They Booked</Label>
+                  <Select 
+                    value={reviewBackServiceId || ""} 
+                    onValueChange={setReviewBackServiceId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a service..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {reviewerServices.map((service) => (
+                        <SelectItem key={service.id} value={service.id}>
+                          {service.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Star Rating */}
+                <div className="space-y-2">
+                  <Label>Rating</Label>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setReviewBackRating(star)}
+                        disabled={!user?.isVerified}
+                        className="disabled:opacity-50"
+                      >
+                        <Star
+                          className={`w-6 h-6 cursor-pointer transition-colors ${
+                            star <= reviewBackRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Review Text */}
+                <div className="space-y-2">
+                  <Label>Your Review</Label>
+                  <Textarea
+                    placeholder="Share your experience..."
+                    value={reviewBackText}
+                    onChange={(e) => setReviewBackText(e.target.value)}
+                    disabled={!user?.isVerified}
+                    rows={4}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReviewBackModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (reviewBackServiceId && reviewBackText) {
+                  createReviewBackMutation.mutate({
+                    serviceId: reviewBackServiceId,
+                    rating: reviewBackRating,
+                    comment: reviewBackText,
+                  });
+                }
+              }}
+              disabled={
+                !user?.isVerified || 
+                !reviewBackServiceId || 
+                !reviewBackText || 
+                createReviewBackMutation.isPending
+              }
+            >
+              {createReviewBackMutation.isPending ? "Posting..." : "Submit Review"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </Layout>

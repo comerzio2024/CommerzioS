@@ -255,11 +255,11 @@ export async function getNotifications(
       conditions.push(sql`${notifications.type} = ANY(${types})`);
     }
 
-    // Get notifications with pagination
+    // Get notifications with pagination - newest first
     const result = await db.select()
       .from(notifications)
       .where(and(...conditions))
-      .orderBy(desc(notifications.priority), desc(notifications.createdAt))
+      .orderBy(desc(notifications.createdAt), desc(notifications.priority))
       .limit(limit)
       .offset(offset);
 

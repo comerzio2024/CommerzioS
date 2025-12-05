@@ -4,9 +4,8 @@ import { apiRequest, type CategoryWithTemporary } from "@/lib/api";
 import { useSubcategories } from "@/hooks/useSubcategories";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, RotateCcw } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 interface CategorySubcategorySelectorProps {
   categoryId: string;
@@ -84,7 +83,9 @@ export function CategorySubcategorySelector({
 
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <Label htmlFor="subcategory-select">Subcategory (Optional)</Label>
+          <Label htmlFor="subcategory-select">
+            Subcategory <span className="text-destructive">*</span>
+          </Label>
           {isSubcategoryAiSuggested && (
             <Badge variant="secondary" className="gap-1" data-testid="ai-subcategory-badge">
               <Sparkles className="h-3 w-3" />
@@ -98,12 +99,9 @@ export function CategorySubcategorySelector({
           disabled={!categoryId || subcategoriesLoading || isAiLoading}
         >
           <SelectTrigger id="subcategory-select" data-testid="select-subcategory">
-            <SelectValue placeholder={categoryId ? "Select a subcategory (optional)" : "First select a category"} />
+            <SelectValue placeholder={categoryId ? "Select a subcategory" : "First select a category"} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="none" data-testid="subcategory-option-none">
-              None
-            </SelectItem>
             {filteredSubcategories.map((subcategory) => (
               <SelectItem key={subcategory.id} value={subcategory.id} data-testid={`subcategory-option-${subcategory.slug}`}>
                 {subcategory.name}
@@ -111,21 +109,12 @@ export function CategorySubcategorySelector({
             ))}
           </SelectContent>
         </Select>
+        {categoryId && filteredSubcategories.length === 0 && !subcategoriesLoading && (
+          <p className="text-xs text-muted-foreground">
+            No subcategories available for this category
+          </p>
+        )}
       </div>
-
-      {isManualOverride && aiSuggestion && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onResetToAI}
-          className="gap-2"
-          data-testid="button-reset-ai"
-        >
-          <RotateCcw className="h-4 w-4" />
-          Reset to AI Suggestions
-        </Button>
-      )}
     </div>
   );
 }

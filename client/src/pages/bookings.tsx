@@ -155,6 +155,11 @@ export default function BookingsPage() {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showDisputeModal, setShowDisputeModal] = useState(false);
 
+  // Scroll to top on page load
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, []);
+
   // Get booking ID from URL query params
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -535,7 +540,7 @@ export default function BookingsPage() {
                           </Button>
                         </Link>
                       </div>
-                      <Link href={`/chat?vendor=${selectedBooking.vendor.id}`}>
+                      <Link href={`/chat?vendor=${selectedBooking.vendor.id}&booking=${selectedBooking.id}&service=${selectedBooking.service?.id}`}>
                         <Button size="sm" variant="outline">
                           <MessageSquare className="w-4 h-4 mr-1" />
                           Chat

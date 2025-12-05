@@ -6,12 +6,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { usePageContextActions } from "@/App";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { X, Plus, AlertCircle, Sparkles, Hash, Mail, Camera, MapPin, DollarSign, CheckCircle2, Loader2, Phone, ChevronRight, ChevronLeft, Undo2, Wand2 } from "lucide-react";
+import { X, Plus, AlertCircle, Sparkles, Hash, Mail, Camera, MapPin, DollarSign, CheckCircle2, Loader2, Phone, ChevronRight, ChevronLeft, Undo2, Wand2, Save, Trash2, CreditCard, Banknote } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import type { Service, PlatformSettings, ServiceContact } from "@shared/schema";
@@ -61,6 +63,7 @@ interface FormData {
   mainImageIndex: number;
   hashtags: string[];
   selectedPromotionalPackage?: string | null;
+  acceptedPaymentMethods: string[];
 }
 
 export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCategoryCreated, preselectedCategoryId, service }: ServiceFormModalProps) {
@@ -88,6 +91,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
     mainImageIndex: 0,
     hashtags: [] as string[],
     selectedPromotionalPackage: null,
+    acceptedPaymentMethods: ["card", "twint", "cash"] as string[],
   });
   const [draftSaved, setDraftSaved] = useState(false);
   const [validatingAddresses, setValidatingAddresses] = useState(false);
@@ -96,8 +100,6 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
   const [showHashtagSuggestions, setShowHashtagSuggestions] = useState(false);
   const [suggestedHashtags, setSuggestedHashtags] = useState<string[]>([]);
   const [loadingHashtags, setLoadingHashtags] = useState(false);
-  const [generatingDescription, setGeneratingDescription] = useState(false);
-  const [generatingTitle, setGeneratingTitle] = useState(false);
   const [showAccountPlans, setShowAccountPlans] = useState(false);
   const [isManualOverride, setIsManualOverride] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<{ categoryId: string; subcategoryId: string | null } | null>(null);
@@ -110,8 +112,19 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
     subcategoryId: string | null;
     hashtags: string[];
   } | null>(null);
+  const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({});
   const aiSuggestionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [activeTab, setActiveTab] = useState("main");
+
+  // Refs for scrolling to error fields
+  const titleRef = useRef<HTMLInputElement>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const categoryRef = useRef<HTMLDivElement>(null);
+  const locationRef = useRef<HTMLDivElement>(null);
+  const contactRef = useRef<HTMLDivElement>(null);
+  const priceRef = useRef<HTMLInputElement>(null);
 
   const maxImages = user?.plan?.maxImages || 4;
 
@@ -204,7 +217,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
     contextActions.updateFormProgress("hasImages", formData.images?.length > 0);
     contextActions.updateFormProgress("imageCount", formData.images?.length || 0);
     contextActions.updateFormProgress("hasLocation", formData.locations?.some((l: string) => l.trim()));
-    contextActions.updateFormProgress("hasContact", formData.contacts?.some((c: Contact) => c.value.trim()));
+    contextActions.updateFormProgress("hasContact", formData.contacts?.some((c: Contact) => c.phone?.trim() || c.email?.trim()));
     
     const hasPrice = formData.priceType === "fixed" 
       ? !!formData.price 
@@ -218,20 +231,14 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
   useEffect(() => {
     if (isEditMode && service && open && !initializedRef.current) {
       // Initialize with fallback contacts from service data immediately
+      // New structure: each contact has both phone and email fields
       const fallbackContacts: Contact[] = [];
       
-      if (service.contactPhone) {
+      if (service.contactPhone || service.contactEmail) {
         fallbackContacts.push({
-          contactType: "phone",
-          value: service.contactPhone,
+          phone: service.contactPhone || "",
+          email: service.contactEmail || "",
           isPrimary: true,
-        });
-      }
-      if (service.contactEmail) {
-        fallbackContacts.push({
-          contactType: "email",
-          value: service.contactEmail,
-          isPrimary: fallbackContacts.length === 0,
         });
       }
 
@@ -246,12 +253,13 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
         priceList: Array.isArray(service.priceList) ? service.priceList : [],
         priceUnit: service.priceUnit,
         locations: service.locations || [],
-        contacts: fallbackContacts.length > 0 ? fallbackContacts : [{ contactType: "email", value: "", isPrimary: true }],
+        contacts: fallbackContacts.length > 0 ? fallbackContacts : [{ phone: "", email: "", isPrimary: true }],
         images: service.images || [],
         imageMetadata: Array.isArray(service.imageMetadata) ? service.imageMetadata : [],
         mainImageIndex: service.mainImageIndex || 0,
         hashtags: service.hashtags || [],
         selectedPromotionalPackage: null,
+        acceptedPaymentMethods: (service as any).acceptedPaymentMethods || ["card", "twint", "cash"],
       });
       
       initializedRef.current = true;
@@ -306,45 +314,20 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
       }
     }
     
-    // Initialize contacts - create ONE contact with both phone and email if available
-    // This fixes issue (g) where two contacts were created unnecessarily
+    // Initialize contacts - create ONE contact with both phone and email fields
     if (formData.contacts.length === 0) {
-      const initialContacts: Contact[] = [];
       const userName = `${user.firstName} ${user.lastName}`.trim();
       
-      // Create a single primary contact - prefer phone if available
-      if (user.phoneNumber) {
-        initialContacts.push({
-          contactType: "phone",
-          value: user.phoneNumber,
-          name: userName || undefined,
-          isPrimary: true,
-          isVerified: user.phoneVerified,
-        });
-      }
+      // Create a single contact with both phone and email (new structure)
+      const singleContact: Contact = {
+        phone: user.phoneNumber || "",
+        email: user.email || "",
+        name: userName || undefined,
+        isPrimary: true,
+        isVerified: user.phoneVerified || user.emailVerified,
+      };
       
-      // Add email as a second contact only if phone exists, otherwise make it primary
-      if (user.email) {
-        initialContacts.push({
-          contactType: "email",
-          value: user.email,
-          name: userName || undefined,
-          isPrimary: !user.phoneNumber, // Only primary if no phone
-          isVerified: user.emailVerified,
-        });
-      }
-      
-      // Fallback: create empty email contact if nothing available
-      if (initialContacts.length === 0) {
-        initialContacts.push({
-          contactType: "email",
-          value: "",
-          name: userName || undefined,
-          isPrimary: true,
-        });
-      }
-      
-      updates.contacts = initialContacts;
+      updates.contacts = [singleContact];
       hasChanges = true;
     }
     
@@ -384,18 +367,21 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
           mainImageIndex: data.mainImageIndex,
           status: status,
           hashtags: data.hashtags,
-          contactPhone: data.contacts.find((c: Contact) => c.contactType === "phone")?.value || "",
-          contactEmail: data.contacts.find((c: Contact) => c.contactType === "email")?.value || "",
+          acceptedPaymentMethods: data.acceptedPaymentMethods,
+          // Extract first phone and email from contacts (new structure)
+          contactPhone: data.contacts.find((c: Contact) => c.phone?.trim())?.phone || "",
+          contactEmail: data.contacts.find((c: Contact) => c.email?.trim())?.email || "",
         }),
       });
 
+      // Save individual contacts
       for (const contact of data.contacts) {
-        if (contact.value.trim()) {
+        if (contact.phone?.trim() || contact.email?.trim()) {
           await apiRequest(`/api/services/${serviceData.id}/contacts`, {
             method: "POST",
             body: JSON.stringify({
-              contactType: contact.contactType,
-              value: contact.value,
+              phone: contact.phone || undefined,
+              email: contact.email || undefined,
               name: contact.name || undefined,
               role: contact.role || undefined,
               isPrimary: contact.isPrimary || false,
@@ -443,8 +429,10 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
           imageMetadata: data.imageMetadata,
           mainImageIndex: data.mainImageIndex,
           hashtags: data.hashtags,
-          contactPhone: data.contacts.find((c: Contact) => c.contactType === "phone")?.value || "",
-          contactEmail: data.contacts.find((c: Contact) => c.contactType === "email")?.value || "",
+          acceptedPaymentMethods: data.acceptedPaymentMethods,
+          // Extract first phone and email from contacts (new structure)
+          contactPhone: data.contacts.find((c: Contact) => c.phone?.trim())?.phone || "",
+          contactEmail: data.contacts.find((c: Contact) => c.email?.trim())?.email || "",
         }),
       });
 
@@ -459,13 +447,14 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
         }
       }
 
+      // Save new contacts
       for (const contact of data.contacts) {
-        if (!contact.id && contact.value.trim()) {
+        if (!contact.id && (contact.phone?.trim() || contact.email?.trim())) {
           await apiRequest(`/api/services/${service?.id}/contacts`, {
             method: "POST",
             body: JSON.stringify({
-              contactType: contact.contactType,
-              value: contact.value,
+              phone: contact.phone || undefined,
+              email: contact.email || undefined,
               name: contact.name || undefined,
               role: contact.role || undefined,
               isPrimary: contact.isPrimary || false,
@@ -511,6 +500,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
       imageMetadata: [],
       mainImageIndex: 0,
       hashtags: [],
+      acceptedPaymentMethods: ["card", "twint", "cash"],
     });
     setDraftSaved(false);
     setAddressErrors([]);
@@ -520,6 +510,10 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
     setIsManualOverride(false);
     setAiSuggestion(null);
     setIsAiCategoryLoading(false);
+    setActiveTab("main"); // Reset to first tab
+    setFieldErrors({});
+    setTouchedFields({});
+    initializedContactsRef.current = false; // Allow re-initialization on next open
   };
 
 
@@ -549,7 +543,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
   const addContact = () => {
     setFormData((prev: FormData | null) => ({
       ...prev!,
-      contacts: [...prev!.contacts, { contactType: "email", value: "", isPrimary: false }],
+      contacts: [...prev!.contacts, { phone: "", email: "", isPrimary: false }],
     }));
   };
 
@@ -561,16 +555,6 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
         ...prev,
         contacts: prev.contacts.map((contact: Contact, i: number) => {
           if (i !== index) return contact;
-          
-          // When switching contact type, clear the value since the format is different
-          if (field === 'contactType' && typeof value === 'string' && contact.contactType !== value) {
-            return { 
-              ...contact, 
-              contactType: value as "phone" | "email", 
-              value: '' 
-            };
-          }
-          
           return { ...contact, [field]: value };
         }),
       };
@@ -693,167 +677,8 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
     }
   };
 
-  const handleAISuggestHashtags = async () => {
-    if (!formData) return;
-    if (formData.images.length === 0) {
-      toast({
-        title: "No Images",
-        description: "Please upload at least one image to get hashtag suggestions",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoadingHashtags(true);
-    try {
-      // Filter valid uploaded images (object paths or HTTP URLs)
-      const validImages = formData.images.filter(img => 
-        typeof img === 'string' && (
-          img.startsWith('/objects/') || 
-          img.startsWith('http://') || 
-          img.startsWith('https://')
-        )
-      );
-      
-      if (validImages.length === 0) {
-        toast({
-          title: "Images Not Ready",
-          description: "Please wait for all images to finish uploading before requesting AI hashtags",
-          variant: "destructive",
-        });
-        setLoadingHashtags(false);
-        return;
-      }
-
-      const response = await apiRequest("/api/ai/suggest-hashtags", {
-        method: "POST",
-        body: JSON.stringify({ imageUrls: validImages }),
-      });
-      
-      if (response.hashtags && response.hashtags.length > 0) {
-        setSuggestedHashtags(response.hashtags);
-        setShowHashtagSuggestions(true);
-        toast({
-          title: "Hashtags Suggested!",
-          description: `AI suggested ${response.hashtags.length} hashtags: ${response.hashtags.slice(0, 3).join(', ')}...`,
-        });
-      } else {
-        toast({
-          title: "No Suggestions",
-          description: "AI couldn't generate hashtag suggestions from your images. Try adding them manually.",
-        });
-      }
-    } catch (error: any) {
-      console.error("Hashtag suggestion error:", error);
-      toast({
-        title: "Suggestion Failed",
-        description: "We couldn't generate hashtag suggestions right now. You can add hashtags manually instead.",
-      });
-    } finally {
-      setLoadingHashtags(false);
-    }
-  };
-
   const selectSuggestedHashtag = (tag: string) => {
     addHashtag(tag);
-  };
-
-  const handleGenerateTitle = async () => {
-    if (!formData) return;
-    if (formData.images.length === 0) {
-      toast({
-        title: "Images Required",
-        description: "Please upload at least one image to generate a title suggestion",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setGeneratingTitle(true);
-    try {
-      const validImages = formData.images.filter(img => 
-        typeof img === 'string' && (
-          img.startsWith('/objects/') || 
-          img.startsWith('http://') || 
-          img.startsWith('https://')
-        )
-      );
-
-      if (validImages.length === 0) {
-        toast({
-          title: "Images Not Ready",
-          description: "Please wait for all images to finish uploading before generating a title",
-          variant: "destructive",
-        });
-        setGeneratingTitle(false);
-        return;
-      }
-
-      const response = await apiRequest("/api/ai/generate-title", {
-        method: "POST",
-        body: JSON.stringify({ 
-          imageUrls: validImages,
-          currentTitle: formData.title || undefined
-        }),
-      });
-
-      if (response.title) {
-        setFormData((prev: FormData | null) => prev ? { ...prev, title: response.title } : prev);
-        toast({
-          title: "Title Generated!",
-          description: "AI has suggested a title based on your images",
-        });
-      }
-    } catch (error: any) {
-      console.error("Title generation error:", error);
-      toast({
-        title: "Generation Failed",
-        description: "Couldn't generate a title. Try entering one manually.",
-        variant: "destructive",
-      });
-    } finally {
-      setGeneratingTitle(false);
-    }
-  };
-
-  const handleGenerateDescription = async () => {
-    if (!formData) return;
-    if (!formData.title.trim()) {
-      toast({
-        title: "Title Required",
-        description: "Please enter a service title first",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setGeneratingDescription(true);
-    try {
-      const categoryName = categories.find(c => c.id === formData.categoryId)?.name;
-      const response = await apiRequest("/api/ai/generate-description-simple", {
-        method: "POST",
-        body: JSON.stringify({ 
-          title: formData.title,
-          categoryName
-        }),
-      });
-      
-      if (response.description) {
-        setFormData((prev: FormData | null) => ({ ...prev!, description: response.description }));
-        toast({
-          title: "Description Generated",
-          description: "AI has generated a description based on your title. Feel free to edit it!",
-        });
-      }
-    } catch (error: any) {
-      toast({
-        title: "Generation Failed",
-        description: error.message || "Couldn't generate description. Please write it manually.",
-        variant: "destructive",
-      });
-    } finally {
-      setGeneratingDescription(false);
-    }
   };
 
   // AI Suggest All - unified call for title, description, category, subcategory, and hashtags
@@ -994,13 +819,94 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
     }
   };
 
+  // Field validation helper
+  const validateField = (field: string, value: any): string => {
+    switch (field) {
+      case 'title':
+        if (!value || value.trim().length === 0) return 'Title is required';
+        if (value.trim().length < 5) return 'Title must be at least 5 characters';
+        if (value.trim().length > 100) return 'Title must be less than 100 characters';
+        return '';
+      case 'description':
+        if (!value || value.trim().length === 0) return 'Description is required';
+        if (value.trim().length < 20) return 'Description must be at least 20 characters';
+        return '';
+      case 'categoryId':
+        if (!value) return 'Please select a category';
+        return '';
+      case 'subcategoryId':
+        if (!value) return 'Please select a subcategory';
+        return '';
+      case 'price':
+        if (formData?.priceType === 'fixed' && (!value || parseFloat(value) <= 0)) {
+          return 'Please enter a valid price';
+        }
+        return '';
+      default:
+        return '';
+    }
+  };
+
+  // Handle field blur - validate and show error
+  const handleFieldBlur = (field: string) => {
+    if (!formData) return;
+    setTouchedFields(prev => ({ ...prev, [field]: true }));
+    const value = (formData as any)[field];
+    const error = validateField(field, value);
+    setFieldErrors(prev => ({ ...prev, [field]: error }));
+  };
+
+  // Scroll to first error field
+  const scrollToFirstError = (errors: { field: string; message: string }[]) => {
+    if (errors.length === 0) return;
+    
+    const firstError = errors[0];
+    const fieldRefs: Record<string, React.RefObject<any>> = {
+      title: titleRef,
+      description: descriptionRef,
+      category: categoryRef,
+      categoryId: categoryRef,
+      subcategoryId: categoryRef,
+      location: locationRef,
+      contact: contactRef,
+      price: priceRef,
+    };
+    
+    // Switch to the correct tab first
+    const tabMapping: Record<string, string> = {
+      title: 'main',
+      description: 'main',
+      category: 'main',
+      categoryId: 'main',
+      subcategoryId: 'main',
+      location: 'location',
+      contact: 'location',
+      price: 'pricing',
+    };
+    
+    const targetTab = tabMapping[firstError.field] || 'main';
+    if (activeTab !== targetTab) {
+      setActiveTab(targetTab);
+    }
+    
+    // Scroll after a short delay to allow tab switch
+    setTimeout(() => {
+      const ref = fieldRefs[firstError.field];
+      if (ref?.current) {
+        ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        ref.current.focus?.();
+      }
+    }, 100);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData) return;
     
     const validLocations = formData.locations.filter((l: string | undefined) => l && typeof l === 'string' && l.trim());
-    const validContacts = formData.contacts.filter((c: Contact) => c.value.trim());
+    // New structure: contact is valid if it has phone OR email
+    const validContacts = formData.contacts.filter((c: Contact) => c.phone?.trim() || c.email?.trim());
 
     if (settings?.enableSwissAddressValidation) {
       const addressesValid = await validateAddresses();
@@ -1041,23 +947,56 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
       // Collect all validation errors
       const errors: { field: string; message: string }[] = [];
       
-      if (!formData.title) errors.push({ field: "title", message: "Service title is required" });
-      if (!formData.description) errors.push({ field: "description", message: "Service description is required" });
+      // Validate title with minimum length
+      if (!formData.title) {
+        errors.push({ field: "title", message: "Service title is required" });
+      } else if (formData.title.trim().length < 5) {
+        errors.push({ field: "title", message: "Title must be at least 5 characters" });
+      }
+      
+      // Validate description with minimum length
+      if (!formData.description) {
+        errors.push({ field: "description", message: "Service description is required" });
+      } else if (formData.description.trim().length < 20) {
+        errors.push({ field: "description", message: "Description must be at least 20 characters" });
+      }
+      
       if (!formData.categoryId) errors.push({ field: "category", message: "Category selection is required" });
+      if (!formData.subcategoryId) errors.push({ field: "subcategoryId", message: "Subcategory selection is required" });
       if (validLocations.length === 0) errors.push({ field: "location", message: "Add at least one service location" });
-      if (validContacts.length === 0) errors.push({ field: "contact", message: "Add at least one contact method" });
+      if (contactsRequired && validContacts.length === 0) errors.push({ field: "contact", message: "Add at least one contact method" });
+      
+      // Price validation based on type
+      if (formData.priceType === 'fixed' && (!formData.price || parseFloat(formData.price) <= 0)) {
+        errors.push({ field: "price", message: "Please enter a valid price" });
+      }
       
       if (errors.length > 0) {
+        // Mark all error fields as touched
+        const touchedUpdate: Record<string, boolean> = {};
+        const errorUpdate: Record<string, string> = {};
+        errors.forEach(err => {
+          touchedUpdate[err.field] = true;
+          errorUpdate[err.field] = err.message;
+        });
+        setTouchedFields(prev => ({ ...prev, ...touchedUpdate }));
+        setFieldErrors(prev => ({ ...prev, ...errorUpdate }));
+        
+        // Scroll to first error field
+        scrollToFirstError(errors);
+        
         const fieldName = errors[0].field;
         const fieldLabels: Record<string, string> = {
           title: "Main Info",
           description: "Main Info",
           category: "Main Info",
+          subcategoryId: "Main Info",
           location: "Location & Contacts",
           contact: "Location & Contacts",
+          price: "Pricing",
         };
         toast({
-          title: `Check ${fieldLabels[fieldName]} tab`,
+          title: `Check ${fieldLabels[fieldName] || 'Main Info'} tab`,
           description: errors[0].message,
           variant: "destructive",
         });
@@ -1078,7 +1017,8 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
       return;
     }
     const validLocations = formData.locations.filter((l: string | undefined) => l && typeof l === 'string' && l.trim());
-    const validContacts = formData.contacts.filter((c: Contact) => c.value.trim());
+    // New structure: contact is valid if it has phone OR email
+    const validContacts = formData.contacts.filter((c: Contact) => c.phone?.trim() || c.email?.trim());
 
     // Basic validation for draft - only require title
     if (!formData.title) {
@@ -1102,32 +1042,42 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
 
   if (!formData) return null;
 
-  // Unsaved changes detection
+  // Unsaved changes detection - only count actual user-entered content
+  // Don't count auto-populated contacts/locations from user profile
   const hasUnsavedChanges = useMemo(() => {
     if (!formData || isEditMode) return false;
-    return formData.title.trim() !== '' ||
+    // Only consider content the user has actually typed/uploaded
+    // Title, description, images, category are definitely user-entered
+    const hasUserContent = 
+           formData.title.trim() !== '' ||
            formData.description.trim() !== '' ||
            formData.images.length > 0 ||
-           formData.categoryId !== '' ||
-           formData.contacts.some(c => c.value.trim() !== '') ||
-           formData.locations.some(l => l && l.trim() !== '');
+           formData.categoryId !== '';
+    return hasUserContent;
   }, [formData, isEditMode]);
 
   // Handle modal close with unsaved changes prompt
   const handleOpenChange = (open: boolean) => {
     if (!open && hasUnsavedChanges && !draftSaved) {
-      const shouldSave = window.confirm(
-        'You have unsaved changes. Would you like to save as a draft before closing?\n\nClick "OK" to save as draft, or "Cancel" to discard changes.'
-      );
-      if (shouldSave) {
-        handleSaveDraft();
-        return; // Don't close yet, let the save complete
-      }
+      setShowUnsavedChangesDialog(true);
+      return; // Don't close yet, show the dialog
     }
     if (!open) {
       resetForm();
     }
     onOpenChange(open);
+  };
+
+  // Handle unsaved changes dialog actions
+  const handleSaveAndClose = () => {
+    setShowUnsavedChangesDialog(false);
+    handleSaveDraft();
+  };
+
+  const handleDiscardAndClose = () => {
+    setShowUnsavedChangesDialog(false);
+    resetForm();
+    onOpenChange(false);
   };
 
   // Handle beforeunload for page navigation
@@ -1298,7 +1248,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                       ) : (
                         <>
                           <Wand2 className="w-4 h-4" />
-                          AI Suggest All
+                          Autocomplete with AI
                         </>
                       )}
                     </Button>
@@ -1312,85 +1262,74 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                 )}
               </div>
 
-              {/* Title & Description with AI */}
+              {/* Title & Description */}
               <div className="rounded-xl border p-6 space-y-4">
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                    <Sparkles className="w-5 h-5 text-purple-600" />
+                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-slate-600" />
                   </div>
                   <div>
                     <h3 className="font-semibold">Title & Description</h3>
-                    <p className="text-sm text-muted-foreground">Or use individual AI buttons to customize</p>
+                    <p className="text-sm text-muted-foreground">Describe your service</p>
                   </div>
                 </div>
                 
                 <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <Label htmlFor="title">Service Title *</Label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleGenerateTitle}
-                      disabled={formData.images.length === 0 || generatingTitle || isAiSuggestingAll}
-                      className="gap-2 bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200 hover:border-purple-300"
-                      data-testid="button-ai-generate-title"
-                    >
-                      {generatingTitle ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-                      )}
-                      {generatingTitle ? "Generating..." : "AI Suggest"}
-                    </Button>
-                  </div>
+                  <Label htmlFor="title">Service Title * <span className="text-xs text-muted-foreground">(min. 5 characters)</span></Label>
                   <Input
                     id="title"
+                    ref={titleRef}
                     placeholder="e.g., Professional House Cleaning"
                     value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="text-lg"
+                    onChange={(e) => {
+                      setFormData({ ...formData, title: e.target.value });
+                      // Clear error when typing
+                      if (touchedFields.title && e.target.value.trim().length >= 5) {
+                        setFieldErrors(prev => ({ ...prev, title: '' }));
+                      }
+                    }}
+                    onBlur={() => handleFieldBlur('title')}
+                    className={`text-lg ${touchedFields.title && fieldErrors.title ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                     data-testid="input-service-title"
                   />
+                  {touchedFields.title && fieldErrors.title && (
+                    <p className="text-sm text-red-500 flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      {fieldErrors.title}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <Label htmlFor="description">Description *</Label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleGenerateDescription}
-                      disabled={!formData.title.trim() || generatingDescription || isAiSuggestingAll}
-                      className="gap-2 bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200 hover:border-purple-300"
-                      data-testid="button-ai-generate-description"
-                    >
-                      {generatingDescription ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-                      )}
-                      {generatingDescription ? "Generating..." : "AI Generate"}
-                    </Button>
-                  </div>
+                  <Label htmlFor="description">Description * <span className="text-xs text-muted-foreground">(min. 20 characters)</span></Label>
                   <Textarea
                     id="description"
-                    placeholder="Describe your service in detail... or click 'AI Generate' for suggestions"
+                    ref={descriptionRef}
+                    placeholder="Describe your service in detail..."
                     rows={5}
                     value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, description: e.target.value });
+                      // Clear error when typing
+                      if (touchedFields.description && e.target.value.trim().length >= 20) {
+                        setFieldErrors(prev => ({ ...prev, description: '' }));
+                      }
+                    }}
+                    onBlur={() => handleFieldBlur('description')}
+                    className={touchedFields.description && fieldErrors.description ? 'border-red-500 focus-visible:ring-red-500' : ''}
                     data-testid="textarea-service-description"
                   />
-                  {!formData.title.trim() && !isAiSuggestingAll && (
-                    <p className="text-xs text-muted-foreground">
-                      Enter a title first to generate AI description
+                  {touchedFields.description && fieldErrors.description && (
+                    <p className="text-sm text-red-500 flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      {fieldErrors.description}
                     </p>
                   )}
                 </div>
               </div>
 
-              <CategorySubcategorySelector
+              <div ref={categoryRef}>
+                <CategorySubcategorySelector
                 categoryId={formData.categoryId}
                 subcategoryId={formData.subcategoryId}
                 onCategoryChange={handleCategoryChange}
@@ -1413,6 +1352,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                   </button>
                 </p>
               )}
+              </div>
 
               {/* Hashtags Section */}
               <div className="space-y-4">
@@ -1474,31 +1414,13 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                     </Button>
                   </div>
                 )}
-
-                {/* AI Suggest Button */}
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleAISuggestHashtags}
-                  disabled={formData.images.length === 0 || loadingHashtags || isAiSuggestingAll}
-                  className="w-full"
-                  data-testid="button-ai-suggest-hashtags"
-                >
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  {loadingHashtags ? "Analyzing Images..." : "AI Suggest Hashtags"}
-                </Button>
-                {formData.images.length === 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    Upload images first to get AI hashtag suggestions
-                  </p>
-                )}
               </div>
             </TabsContent>
 
             {/* Location & Contacts Tab */}
             <TabsContent value="location" className="space-y-6 mt-0">
               {/* Locations Section */}
-              <div className="rounded-xl border bg-gradient-to-br from-blue-50/50 to-white p-6 space-y-4">
+              <div ref={locationRef} className="rounded-xl border bg-gradient-to-br from-blue-50/50 to-white p-6 space-y-4">
                 <div className="flex items-center gap-2">
                   <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
                     <MapPin className="w-5 h-5 text-blue-600" />
@@ -1580,7 +1502,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
 
               {/* Contacts Section - Only show if enabled */}
               {contactsEnabled && (
-                <div className="rounded-xl border p-6 space-y-4">
+                <div ref={contactRef} className="rounded-xl border p-6 space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
@@ -1607,21 +1529,6 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                     </Button>
                   </div>
 
-                  {/* Summary of contacts added */}
-                  {formData.contacts.length > 0 && (
-                    <div className="flex flex-wrap gap-2 p-3 bg-muted/50 rounded-lg">
-                      {formData.contacts.filter(c => c.value.trim()).map((c, i) => (
-                        <Badge key={i} variant="secondary" className="flex items-center gap-1">
-                          {c.contactType === 'phone' ? <Phone className="w-3 h-3" /> : <Mail className="w-3 h-3" />}
-                          {c.value}
-                        </Badge>
-                      ))}
-                      {formData.contacts.every(c => !c.value.trim()) && (
-                        <span className="text-sm text-muted-foreground">Fill in contact details below</span>
-                      )}
-                    </div>
-                  )}
-                  
                   <div className="space-y-3">
                     {formData.contacts.map((contact: Contact, idx: number) => (
                       <ContactInput
@@ -1808,6 +1715,112 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                   />
                 </div>
               )}
+
+              {/* Accepted Payment Methods Section */}
+              <div className="rounded-xl border bg-gradient-to-br from-green-50/50 to-white p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                    <CreditCard className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Accepted Payment Methods *</h3>
+                    <p className="text-sm text-muted-foreground">How would you like to get paid for this service?</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Card Payment */}
+                  <label
+                    className={`flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                      formData.acceptedPaymentMethods.includes("card")
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <Checkbox
+                      checked={formData.acceptedPaymentMethods.includes("card")}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setFormData({ ...formData, acceptedPaymentMethods: [...formData.acceptedPaymentMethods, "card"] });
+                        } else {
+                          setFormData({ ...formData, acceptedPaymentMethods: formData.acceptedPaymentMethods.filter(m => m !== "card") });
+                        }
+                      }}
+                      data-testid="checkbox-payment-card"
+                    />
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="w-5 h-5 text-blue-500" />
+                      <div>
+                        <span className="font-medium">Card</span>
+                        <p className="text-xs text-muted-foreground">Credit/Debit via Stripe</p>
+                      </div>
+                    </div>
+                  </label>
+
+                  {/* TWINT Payment */}
+                  <label
+                    className={`flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                      formData.acceptedPaymentMethods.includes("twint")
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <Checkbox
+                      checked={formData.acceptedPaymentMethods.includes("twint")}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setFormData({ ...formData, acceptedPaymentMethods: [...formData.acceptedPaymentMethods, "twint"] });
+                        } else {
+                          setFormData({ ...formData, acceptedPaymentMethods: formData.acceptedPaymentMethods.filter(m => m !== "twint") });
+                        }
+                      }}
+                      data-testid="checkbox-payment-twint"
+                    />
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 bg-[#00AAFF] rounded flex items-center justify-center text-white text-[10px] font-bold">T</div>
+                      <div>
+                        <span className="font-medium">TWINT</span>
+                        <p className="text-xs text-muted-foreground">Swiss mobile payment</p>
+                      </div>
+                    </div>
+                  </label>
+
+                  {/* Cash Payment */}
+                  <label
+                    className={`flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                      formData.acceptedPaymentMethods.includes("cash")
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <Checkbox
+                      checked={formData.acceptedPaymentMethods.includes("cash")}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setFormData({ ...formData, acceptedPaymentMethods: [...formData.acceptedPaymentMethods, "cash"] });
+                        } else {
+                          setFormData({ ...formData, acceptedPaymentMethods: formData.acceptedPaymentMethods.filter(m => m !== "cash") });
+                        }
+                      }}
+                      data-testid="checkbox-payment-cash"
+                    />
+                    <div className="flex items-center gap-2">
+                      <Banknote className="w-5 h-5 text-green-600" />
+                      <div>
+                        <span className="font-medium">Cash</span>
+                        <p className="text-xs text-muted-foreground">Pay in person</p>
+                      </div>
+                    </div>
+                  </label>
+                </div>
+
+                {formData.acceptedPaymentMethods.length === 0 && (
+                  <p className="text-xs text-red-500 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    Please select at least one payment method
+                  </p>
+                )}
+              </div>
 
               {/* Promotional Packages Section */}
               <div className="space-y-4 mt-8 pt-8 border-t">
@@ -2087,6 +2100,28 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Unsaved Changes Confirmation Dialog */}
+      <AlertDialog open={showUnsavedChangesDialog} onOpenChange={setShowUnsavedChangesDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Would you like to save as a draft before closing?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-0">
+            <AlertDialogCancel onClick={handleDiscardAndClose} className="gap-2">
+              <Trash2 className="w-4 h-4" />
+              Discard
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleSaveAndClose} className="gap-2">
+              <Save className="w-4 h-4" />
+              Save as Draft
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

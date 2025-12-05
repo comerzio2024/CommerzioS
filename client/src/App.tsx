@@ -73,8 +73,10 @@ function Router() {
       <Route path="/contact" component={Contact} />
       <Route path="/terms" component={Terms} />
       <Route path="/privacy" component={Privacy} />
-      <Route path="/admin" component={AdminPage} />
       <Route path="/admin/escrow" component={EscrowManagementPage} />
+      <Route path="/admin/:tab/:id" component={AdminPage} />
+      <Route path="/admin/:tab" component={AdminPage} />
+      <Route path="/admin" component={AdminPage} />
       {/* Authentication routes */}
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />

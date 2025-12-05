@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { eq, sql, desc } from "drizzle-orm";
+import { eq, sql, desc, and, inArray } from "drizzle-orm";
 import { users, reviews, services, notifications, pushSubscriptions, escrowTransactions, escrowDisputes, bookings as bookingsTable, tips, reviewRemovalRequests } from "@shared/schema";
 import { setupAuth, isAuthenticated, requireEmailVerified } from "./auth";
 import { isAdmin, adminLogin, adminLogout, getAdminSession } from "./adminAuth";
@@ -698,6 +698,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  /**
+   * Get services that a vendor provided to a specific customer through completed bookings.
+   * This is used for the "Review Back" feature - vendor can review the customer
+   * for services they actually received, regardless of whether the service is still active.
+   */
+  app.get('/api/services/booked-by/:customerId', isAuthenticated, async (req: any, res) => {
+    try {
+      const vendorId = req.user!.id;
+      const customerId = req.params.customerId;
+      
+      // Find all completed/confirmed bookings between this vendor and customer
+      const completedBookings = await db
+        .select({
+          serviceId: bookingsTable.serviceId,
+          bookingId: bookingsTable.id,
+          completedAt: bookingsTable.updatedAt,
+        })
+        .from(bookingsTable)
+        .where(
+          and(
+            eq(bookingsTable.vendorId, vendorId),
+            eq(bookingsTable.customerId, customerId),
+            inArray(bookingsTable.status, ['completed', 'confirmed', 'in_progress'])
+          )
+        )
+        .orderBy(desc(bookingsTable.updatedAt));
+      
+      if (completedBookings.length === 0) {
+        return res.json([]);
+      }
+      
+      // Get unique service IDs
+      const serviceIds = [...new Set(completedBookings.map(b => b.serviceId))];
+      
+      // Fetch the services (including inactive ones)
+      const bookedServices = await db
+        .select({
+          id: services.id,
+          title: services.title,
+          description: services.description,
+          status: services.status,
+        })
+        .from(services)
+        .where(inArray(services.id, serviceIds));
+      
+      res.json(bookedServices);
+    } catch (error) {
+      console.error("Error fetching booked services:", error);
+      res.status(500).json({ message: "Failed to fetch booked services" });
+    }
+  });
+
   app.get('/api/services/:id', async (req, res) => {
     try {
       const service = await storage.getService(req.params.id);
@@ -726,17 +778,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Validate request
-      const validated = insertServiceSchema.parse(req.body);
+      // Check if this is a draft save (use relaxed validation)
+      const isDraft = req.body.status === "draft";
+      
+      // Use appropriate schema based on whether it's a draft
+      let validated;
+      if (isDraft) {
+        // Import draft schema dynamically to avoid circular dependency issues
+        const { insertServiceDraftSchema } = await import("@shared/schema");
+        validated = insertServiceDraftSchema.parse(req.body);
+      } else {
+        validated = insertServiceSchema.parse(req.body);
+      }
 
-      // AI-powered categorization if not provided
+      // AI-powered categorization if not provided and title exists
       let categoryId = validated.categoryId;
-      if (!categoryId) {
-        const suggestion = await categorizeService(validated.title, validated.description);
+      if (!categoryId && validated.title && validated.title.trim()) {
+        const suggestion = await categorizeService(validated.title, validated.description || "");
         const category = await storage.getCategoryBySlug(suggestion.categorySlug);
         if (category) {
           categoryId = category.id;
         }
+      }
+      
+      // If still no categoryId, get a default category (first one in the system)
+      if (!categoryId) {
+        const defaultCategory = await storage.getCategoryBySlug("home-services");
+        if (defaultCategory) {
+          categoryId = defaultCategory.id;
+        }
+      }
+      
+      // For active services, category is absolutely required
+      if (!isDraft && !categoryId) {
+        return res.status(400).json({ message: "Category is required for active services" });
+      }
+      
+      // Final safety check - shouldn't happen but ensures type safety
+      if (!categoryId) {
+        return res.status(400).json({ message: "Unable to determine category. Please select a category manually." });
       }
 
       // Set expiry date (14 days from now)
@@ -769,15 +849,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const createdService = await storage.createService({
+      // Build service data with proper types
+      const serviceData = {
         ...validated,
         categoryId,
         ownerId: userId,
         expiresAt,
+        status: (isDraft ? "draft" : "active") as "draft" | "active" | "paused" | "expired",
         locationLat: locationLat ? locationLat.toString() : null,
         locationLng: locationLng ? locationLng.toString() : null,
         preferredLocationName,
-      });
+        priceUnit: (validated.priceUnit || "hour") as "hour" | "job" | "consultation" | "day" | "month",
+      };
+
+      const createdService = await storage.createService(serviceData as any);
 
       // Return enriched service data with all relations including subcategory
       const enrichedService = await storage.getService(createdService.id);
@@ -1449,7 +1534,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let subcategory = null;
       if (suggestion.subcategoryId) {
         const allSubcategories = await storage.getSubcategories();
-        subcategory = allSubcategories.find(s => s.slug === suggestion.subcategoryId);
+        // Look for subcategory by slug AND matching the category
+        subcategory = allSubcategories.find(s => 
+          s.slug === suggestion.subcategoryId && s.categoryId === category.id
+        );
+        // If not found with category filter, try just by slug
+        if (!subcategory) {
+          subcategory = allSubcategories.find(s => s.slug === suggestion.subcategoryId);
+        }
       }
 
       res.json({
@@ -2056,21 +2148,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Map category/subcategory slugs to IDs
       const allCategories = await storage.getCategories();
-      const allSubcategories = await storage.getSubcategories();
+      let allSubcategories = await storage.getSubcategories();
       
       const category = allCategories.find(c => c.slug === suggestions.categorySlug);
-      const subcategory = suggestions.subcategorySlug 
-        ? allSubcategories.find(s => s.slug === suggestions.subcategorySlug)
+      
+      if (!category) {
+        return res.status(400).json({ 
+          message: "Could not determine a valid category for this service." 
+        });
+      }
+
+      // Try to find existing subcategory
+      let subcategory = suggestions.subcategorySlug 
+        ? allSubcategories.find(s => s.slug === suggestions.subcategorySlug && s.categoryId === category.id)
         : null;
+      
+      // If subcategory doesn't exist but AI suggested one, create it
+      if (!subcategory && suggestions.subcategorySlug) {
+        // Convert slug to a proper name (e.g., "accordion-lessons" -> "Accordion Lessons")
+        const subcategoryName = suggestions.subcategorySlug
+          .split('-')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+        
+        try {
+          // Create the subcategory
+          subcategory = await storage.createSubcategory({
+            name: subcategoryName,
+            slug: suggestions.subcategorySlug,
+            categoryId: category.id,
+          });
+          console.log(`Created new subcategory: ${subcategoryName} (${suggestions.subcategorySlug})`);
+        } catch (createError) {
+          console.error("Failed to create subcategory:", createError);
+          // Fall back to finding any existing subcategory in this category
+          subcategory = allSubcategories.find(s => s.categoryId === category.id) || null;
+        }
+      }
+      
+      // If still no subcategory, pick the first one from the category
+      if (!subcategory) {
+        subcategory = allSubcategories.find(s => s.categoryId === category.id) || null;
+      }
 
       res.json({
         title: suggestions.title,
         description: suggestions.description,
-        categoryId: category?.id || null,
+        categoryId: category.id,
         categorySlug: suggestions.categorySlug,
-        categoryName: category?.name || null,
+        categoryName: category.name,
         subcategoryId: subcategory?.id || null,
-        subcategorySlug: suggestions.subcategorySlug,
+        subcategorySlug: subcategory?.slug || null,
         subcategoryName: subcategory?.name || null,
         hashtags: suggestions.hashtags,
         confidence: suggestions.confidence,

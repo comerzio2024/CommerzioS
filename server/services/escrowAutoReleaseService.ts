@@ -115,7 +115,7 @@ export async function processAutoReleases(): Promise<AutoReleaseResult> {
           type: "payment",
           title: "Payment Released",
           message: `Your escrow payment of CHF ${escrowTx.amount} has been auto-released to the vendor after 48 hours.`,
-          actionUrl: `/bookings/${booking.id}`,
+          actionUrl: `/bookings?booking=${booking.id}`,
           metadata: {
             bookingId: booking.id,
             amount: escrowTx.amount,
@@ -129,7 +129,7 @@ export async function processAutoReleases(): Promise<AutoReleaseResult> {
           type: "payment",
           title: "Payment Received",
           message: `Payment of CHF ${escrowTx.vendorAmount} has been released to your account.`,
-          actionUrl: `/vendor/bookings/${booking.id}`,
+          actionUrl: `/my-bookings?booking=${booking.id}`,
           metadata: {
             bookingId: booking.id,
             amount: escrowTx.vendorAmount,
@@ -228,7 +228,7 @@ export async function sendAutoReleaseWarnings(): Promise<number> {
           type: "payment",
           title: "Payment Auto-Release Warning",
           message: `Your payment of CHF ${escrowTx.amount} will be released to the vendor in ${hoursUntilRelease} hours. Report any issues before then.`,
-          actionUrl: `/bookings/${booking.id}`,
+          actionUrl: `/bookings?booking=${booking.id}`,
           metadata: {
             bookingId: booking.id,
             amount: escrowTx.amount,

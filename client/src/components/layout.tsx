@@ -76,7 +76,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
               )}
               <Link href="/how-it-works"><span className="hover:text-primary transition-colors cursor-pointer">How it Works</span></Link>
               {isAuthenticated && user && (
-                <Link href="/bookings"><span className="hover:text-primary transition-colors cursor-pointer">My Bookings</span></Link>
+                <>
+                  <Link href="/bookings"><span className="hover:text-primary transition-colors cursor-pointer">My Bookings</span></Link>
+                  <Link href="/service-requests"><span className="hover:text-primary transition-colors cursor-pointer">Service Requests</span></Link>
+                </>
               )}
             </nav>
 

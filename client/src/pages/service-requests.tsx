@@ -207,7 +207,7 @@ export default function ServiceRequestsPage() {
     const requestId = params.get('requestId');
     const showProposals = params.get('proposals') === 'true';
     
-    if (requestId && myRequests) {
+    if (requestId && myRequests && myRequests.length > 0) {
       // Auto-switch to my requests tab
       setActiveTab("my-requests");
       
@@ -218,8 +218,11 @@ export default function ServiceRequestsPage() {
       const request = myRequests.find(r => r.id === requestId);
       if (request) {
         setSelectedRequest(request);
+        // Use setTimeout to ensure state is updated before showing modal
         if (showProposals) {
-          setShowProposalsModal(true);
+          setTimeout(() => {
+            setShowProposalsModal(true);
+          }, 100);
         }
       }
     }

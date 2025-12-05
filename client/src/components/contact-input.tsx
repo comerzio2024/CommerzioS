@@ -10,12 +10,15 @@ import { cn } from "@/lib/utils";
 
 export interface Contact {
   id?: string;
-  contactType: "phone" | "email";
-  value: string;
+  phone?: string;
+  email?: string;
   name?: string;
   role?: string;
   isPrimary?: boolean;
   isVerified?: boolean;
+  // Legacy support - keep for compatibility
+  contactType?: "phone" | "email";
+  value?: string;
 }
 
 interface ContactInputProps {
@@ -62,7 +65,7 @@ export function ContactInput({
       setShowVerificationInput(true);
       toast({
         title: "Verification Code Sent",
-        description: `A verification code has been sent to ${contact.value}`,
+        description: "A verification code has been sent",
       });
     } catch (error: any) {
       toast({
@@ -105,25 +108,32 @@ export function ContactInput({
     }
   };
 
-  const validateValue = (type: "phone" | "email", value: string): boolean | { isValid: boolean; message: string } => {
-    if (!value) return false;
-    if (type === "email") {
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-    }
+  const validatePhone = (value: string): { isValid: boolean; message: string } => {
+    if (!value) return { isValid: true, message: "" }; // Empty is valid (optional)
     // Swiss phone number validation: must start with +41 and have 9-13 digits after
-    // Formats: +41 44 123 4567, +41441234567, +41 79 123 45 67
     const swissPhoneRegex = /^\+41\s?(\d{2}\s?\d{3}\s?\d{2}\s?\d{2}|\d{9,11})$/;
     const cleanedValue = value.replace(/\s/g, '');
     const isValid = swissPhoneRegex.test(cleanedValue);
     return {
       isValid,
-      message: isValid ? "" : "Phone must be in format: +41 44 123 4567 or +41441234567"
+      message: isValid ? "" : "Phone must be in format: +41 44 123 4567"
     };
   };
 
-  const validationResult = validateValue(contact.contactType, contact.value);
-  const isValueValid = typeof validationResult === 'boolean' ? validationResult : validationResult.isValid;
-  const validationMessage = typeof validationResult === 'object' ? validationResult.message : "";
+  const validateEmail = (value: string): { isValid: boolean; message: string } => {
+    if (!value) return { isValid: true, message: "" }; // Empty is valid (optional)
+    const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+    return {
+      isValid,
+      message: isValid ? "" : "Please enter a valid email address"
+    };
+  };
+
+  const phoneValidation = validatePhone(contact.phone || "");
+  const emailValidation = validateEmail(contact.email || "");
+
+  // Check if at least one contact method is filled
+  const hasContactMethod = !!(contact.phone || contact.email);
 
   return (
     <div className="rounded-xl border bg-white p-4 space-y-4" data-testid={`contact-input-${index}`}>
@@ -144,7 +154,7 @@ export function ContactInput({
               Verified
             </Badge>
           )}
-          {showVerification && !contact.isVerified && (
+          {showVerification && !contact.isVerified && hasContactMethod && (
             <Badge variant="secondary" className="text-xs" data-testid={`badge-unverified-${index}`}>
               <AlertCircle className="w-3 h-3 mr-1" />
               Unverified
@@ -165,102 +175,71 @@ export function ContactInput({
         )}
       </div>
 
-      {/* Contact Type Selection - Visual Cards */}
-      <div className="space-y-2">
-        <Label className="text-sm">Contact Type</Label>
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => onUpdate(index, "contactType", "phone")}
-            className={cn(
-              "flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left",
-              contact.contactType === "phone"
-                ? "border-primary bg-primary/5"
-                : "border-border hover:border-primary/50"
-            )}
-            data-testid={`button-type-phone-${index}`}
-          >
-            <div className={cn(
-              "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
-              contact.contactType === "phone" ? "bg-primary/10" : "bg-muted"
-            )}>
-              <Phone className={cn(
-                "w-5 h-5",
-                contact.contactType === "phone" ? "text-primary" : "text-muted-foreground"
-              )} />
-            </div>
-            <div>
-              <div className="font-medium text-sm">Phone</div>
-              <div className="text-xs text-muted-foreground">Swiss number</div>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onUpdate(index, "contactType", "email")}
-            className={cn(
-              "flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left",
-              contact.contactType === "email"
-                ? "border-primary bg-primary/5"
-                : "border-border hover:border-primary/50"
-            )}
-            data-testid={`button-type-email-${index}`}
-          >
-            <div className={cn(
-              "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
-              contact.contactType === "email" ? "bg-primary/10" : "bg-muted"
-            )}>
-              <Mail className={cn(
-                "w-5 h-5",
-                contact.contactType === "email" ? "text-primary" : "text-muted-foreground"
-              )} />
-            </div>
-            <div>
-              <div className="font-medium text-sm">Email</div>
-              <div className="text-xs text-muted-foreground">Email address</div>
-            </div>
-          </button>
-        </div>
-      </div>
-
-      {/* Value Input - Changes based on type */}
-      <div className="space-y-2">
-        <Label htmlFor={`contact-value-${index}`}>
-          {contact.contactType === "phone" ? "Phone Number" : "Email Address"} *
-        </Label>
-        <div className="relative">
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-            {contact.contactType === "phone" ? (
-              <Phone className="w-4 h-4" />
-            ) : (
-              <Mail className="w-4 h-4" />
-            )}
-          </div>
+      {/* Phone and Email side by side - NO TABS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Phone Number */}
+        <div className="space-y-2">
+          <Label htmlFor={`contact-phone-${index}`} className="flex items-center gap-1.5">
+            <Phone className="w-3.5 h-3.5 text-muted-foreground" />
+            Phone Number
+          </Label>
           <Input
-            id={`contact-value-${index}`}
-            type={contact.contactType === "email" ? "email" : "tel"}
-            placeholder={contact.contactType === "phone" ? "+41 44 123 4567" : "contact@example.com"}
-            value={contact.value}
-            onChange={(e) => onUpdate(index, "value", e.target.value)}
+            id={`contact-phone-${index}`}
+            type="tel"
+            placeholder="+41 44 123 4567"
+            value={contact.phone || ""}
+            onChange={(e) => onUpdate(index, "phone", e.target.value)}
             className={cn(
-              "pl-10",
-              !isValueValid && contact.value ? "border-red-500 focus-visible:ring-red-500" : ""
+              !phoneValidation.isValid && contact.phone ? "border-red-500 focus-visible:ring-red-500" : ""
             )}
-            data-testid={`input-contact-value-${index}`}
+            data-testid={`input-contact-phone-${index}`}
           />
+          {!phoneValidation.isValid && contact.phone && (
+            <p className="text-xs text-red-500 flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" />
+              {phoneValidation.message}
+            </p>
+          )}
+          {!contact.phone && (
+            <p className="text-xs text-muted-foreground">
+              Swiss number starting with +41
+            </p>
+          )}
         </div>
-        {!isValueValid && contact.value && (
-          <p className="text-xs text-red-500 flex items-center gap-1">
-            <AlertCircle className="w-3 h-3" />
-            {validationMessage || `Please enter a valid ${contact.contactType === "phone" ? "phone number" : "email address"}`}
-          </p>
-        )}
-        {contact.contactType === "phone" && !contact.value && (
-          <p className="text-xs text-muted-foreground">
-            Enter your Swiss phone number starting with +41
-          </p>
-        )}
+
+        {/* Email Address */}
+        <div className="space-y-2">
+          <Label htmlFor={`contact-email-${index}`} className="flex items-center gap-1.5">
+            <Mail className="w-3.5 h-3.5 text-muted-foreground" />
+            Email Address
+          </Label>
+          <Input
+            id={`contact-email-${index}`}
+            type="email"
+            placeholder="contact@example.com"
+            value={contact.email || ""}
+            onChange={(e) => onUpdate(index, "email", e.target.value)}
+            className={cn(
+              !emailValidation.isValid && contact.email ? "border-red-500 focus-visible:ring-red-500" : ""
+            )}
+            data-testid={`input-contact-email-${index}`}
+          />
+          {!emailValidation.isValid && contact.email && (
+            <p className="text-xs text-red-500 flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" />
+              {emailValidation.message}
+            </p>
+          )}
+        </div>
       </div>
+
+      {/* Hint about filling at least one */}
+      {!hasContactMethod && (
+        <p className="text-xs text-amber-600 flex items-center gap-1">
+          <AlertCircle className="w-3 h-3" />
+          Please fill in at least a phone number or email address
+        </p>
+      )}
 
       {/* Optional Fields Toggle */}
       <div>
@@ -276,7 +255,7 @@ export function ContactInput({
 
       {/* Optional Fields */}
       {showOptionalFields && (
-        <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t">
           <div className="space-y-2">
             <Label htmlFor={`contact-name-${index}`} className="text-sm flex items-center gap-1">
               <User className="w-3 h-3" />
@@ -310,7 +289,7 @@ export function ContactInput({
       )}
 
       {/* Verification Section */}
-      {showVerification && verificationEnabled && !contact.isVerified && (
+      {showVerification && verificationEnabled && !contact.isVerified && hasContactMethod && (
         <div className="pt-3 border-t space-y-3">
           {!showVerificationInput ? (
             <Button
@@ -318,7 +297,7 @@ export function ContactInput({
               variant="outline"
               size="sm"
               onClick={handleSendVerificationCode}
-              disabled={sendingCode || !isValueValid}
+              disabled={sendingCode || (!phoneValidation.isValid && !emailValidation.isValid)}
               data-testid={`button-send-verification-${index}`}
             >
               {sendingCode ? "Sending..." : "Send Verification Code"}

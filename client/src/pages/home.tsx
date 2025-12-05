@@ -43,6 +43,7 @@ export default function Home() {
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [useLocationPermissions, setUseLocationPermissions] = useState(false);
   const locationPermissionProcessingRef = useRef(false);
+  const nearbyServicesSectionRef = useRef<HTMLElement>(null);
   
   const [nearbyMode, setNearbyMode] = useState<'slider' | 'grid'>('slider');
   const [nearbyPage, setNearbyPage] = useState(1);
@@ -210,6 +211,11 @@ export default function Home() {
       clearSuggestions();
       setLocationSearchQuery("");
 
+      // Scroll to nearby services section after location is set
+      setTimeout(() => {
+        nearbyServicesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+
       toast({
         title: "Location found",
         description: `Searching near ${result.name || result.displayName}`,
@@ -293,6 +299,11 @@ export default function Home() {
         lng,
         name: locationName,
       });
+
+      // Scroll to nearby services section after location is set
+      setTimeout(() => {
+        nearbyServicesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
 
       toast({
         title: "Location detected",
@@ -830,7 +841,7 @@ export default function Home() {
       />
 
       {searchLocation && (
-        <section className="py-12 container mx-auto px-4">
+        <section ref={nearbyServicesSectionRef} className="py-12 container mx-auto px-4">
           <div className="space-y-6">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -955,7 +966,7 @@ export default function Home() {
                 </div>
               </div>
               <Link href="/profile?tab=referrals">
-                <Button variant="secondary" className="gap-2 shadow-lg">
+                <Button variant="secondary" className="gap-2 shadow-lg hover:bg-white hover:text-purple-600 hover:scale-105 hover:shadow-xl transition-all duration-200">
                   <Users className="h-4 w-4" />
                   Start Referring
                   <ArrowRight className="h-4 w-4" />
@@ -965,6 +976,30 @@ export default function Home() {
           </div>
         </section>
       )}
+
+      {/* Service Requests CTA Banner */}
+      <section className="py-6 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-white">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                <Search className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg">Looking for a Specific Service?</h3>
+                <p className="text-white/80 text-sm">Post a request and let service providers come to you</p>
+              </div>
+            </div>
+            <Link href="/service-requests">
+              <Button variant="secondary" className="gap-2 shadow-lg hover:bg-white hover:text-teal-600 hover:scale-105 hover:shadow-xl transition-all duration-200">
+                <PlusCircle className="h-4 w-4" />
+                Browse Requests
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
 
       <section className="py-12 bg-slate-50" data-testid="services-section">
         <div className="container mx-auto px-4">

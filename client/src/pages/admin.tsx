@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,11 +29,37 @@ interface Message {
   content: string;
 }
 
+// Valid admin tabs
+const ADMIN_TABS = ["users", "services", "disputes", "reviews", "categories", "referrals", "plans", "test-users", "ai-assistant", "settings"] as const;
+type AdminTab = typeof ADMIN_TABS[number];
+
+function getTabFromPath(pathname: string): AdminTab {
+  // Extract tab from URL like /admin/disputes
+  const match = pathname.match(/^\/admin\/(.+)$/);
+  if (match && ADMIN_TABS.includes(match[1] as AdminTab)) {
+    return match[1] as AdminTab;
+  }
+  return "users"; // Default tab
+}
+
 export function AdminPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [location, setLocation] = useLocation();
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  
+  // Derive active tab from URL path
+  const activeTab = useMemo(() => getTabFromPath(location), [location]);
+  
+  // Handle tab change - update URL
+  const handleTabChange = (tab: string) => {
+    if (tab === "users") {
+      setLocation("/admin"); // Default tab doesn't need a subpath
+    } else {
+      setLocation(`/admin/${tab}`);
+    }
+  };
 
   const { data: session, refetch: refetchSession } = useQuery({
     queryKey: ["/api/admin/session"],
@@ -137,7 +164,7 @@ export function AdminPage() {
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="users" className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid w-full grid-cols-10 mb-6">
             <TabsTrigger value="users" data-testid="tab-users">
               <Users className="w-4 h-4 mr-2" />

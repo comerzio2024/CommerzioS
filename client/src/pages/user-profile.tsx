@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useParams, useLocation, Link } from "wouter";
 import { Star, CheckCircle2, Calendar, ShieldCheck, Mail, User as UserIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest, type ServiceWithDetails } from "@/lib/api";
 import { ServiceCard } from "@/components/service-card";
@@ -25,6 +25,11 @@ export default function UserProfile() {
   const [, setLocation] = useLocation();
   const userId = params.userId!;
   const [showExpired, setShowExpired] = useState(false);
+
+  // Scroll to top on page load
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [userId]);
 
   const { data: user, isLoading: userLoading, error: userError } = useQuery<User>({
     queryKey: [`/api/users/${userId}`],

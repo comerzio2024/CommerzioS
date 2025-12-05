@@ -60,6 +60,11 @@ function ServiceDetailContent({ serviceId }: { serviceId: string }) {
   const queryClient = useQueryClient();
   const reviewFormRef = useRef<HTMLDivElement>(null);
 
+  // Scroll to top on page load
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [serviceId]);
+
   const { data: service, isLoading: serviceLoading, error: serviceError } = useQuery<ServiceWithDetails>({
     queryKey: [`/api/services/${serviceId}`],
     queryFn: () => apiRequest(`/api/services/${serviceId}`),

@@ -486,7 +486,7 @@ export default function BookingSuccessPage() {
                       </Link>
                       <Button 
                         className="w-full gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
-                        onClick={() => setLocation(`/chat?vendor=${booking.vendor?.id}&booking=${booking.id}`)}
+                        onClick={() => setLocation(`/chat?vendor=${booking.vendor?.id}&booking=${booking.id}&service=${booking.service?.id}`)}
                       >
                         <MessageSquare className="w-4 h-4" />
                         Chat Now

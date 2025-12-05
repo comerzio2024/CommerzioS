@@ -609,6 +609,9 @@ export const services = pgTable("services", {
   contactEmail: varchar("contact_email", { length: 200 }).notNull(),
   viewCount: integer("view_count").default(0).notNull(),
   
+  // Payment preferences for this service
+  acceptedPaymentMethods: text("accepted_payment_methods").array().default(sql`ARRAY['card', 'twint', 'cash']::text[]`).notNull(),
+  
   // Cancellation Policy (for dispute resolution)
   cancellationPolicy: varchar("cancellation_policy", { 
     enum: ["flexible", "moderate", "strict", "custom"] 
@@ -874,6 +877,34 @@ export const insertServiceSchema = createInsertSchema(services, {
       message: "Price text is required",
     });
   }
+});
+
+// Draft schema - relaxed validation for saving incomplete services
+export const insertServiceDraftSchema = createInsertSchema(services, {
+  title: z.string().max(200).optional().default(""),
+  description: z.string().optional().default(""),
+  contactPhone: z.string().optional().default(""),
+  contactEmail: z.string().optional().default(""),
+  locations: z.array(z.string()).optional().default([]),
+  priceType: z.enum(["fixed", "list", "text"]).optional().default("fixed"),
+  price: z.string().optional(),
+  priceText: z.string().optional(),
+  priceList: z.any().optional(),
+  hashtags: z.array(z.string()).max(3).optional().default([]),
+  subcategoryId: z.string().optional().nullable(),
+  categoryId: z.string().optional().nullable(),
+  images: z.array(z.string()).optional().default([]),
+  imageMetadata: z.any().optional(),
+  mainImageIndex: z.number().optional().default(0),
+  priceUnit: z.string().optional().default("hour"),
+  acceptedPaymentMethods: z.array(z.string()).optional().default(["card", "twint", "cash"]),
+}).omit({
+  id: true,
+  ownerId: true,
+  expiresAt: true,
+  createdAt: true,
+  updatedAt: true,
+  viewCount: true,
 });
 
 export const insertReviewSchema = createInsertSchema(reviews, {
