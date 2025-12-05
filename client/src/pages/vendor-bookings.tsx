@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { BookingCard } from '@/components/booking/BookingCard';
 import { VendorAvailabilityCalendar } from '@/components/booking/VendorAvailabilityCalendar';
+import { VendorWeeklyCalendar } from '@/components/booking/VendorWeeklyCalendar';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
@@ -43,7 +44,9 @@ import {
   ListTodo,
   Settings,
   TrendingUp,
-  DollarSign
+  DollarSign,
+  CalendarDays,
+  LayoutGrid,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLocation } from 'wouter';
@@ -72,7 +75,7 @@ interface Booking {
 export default function VendorBookingsPage() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
-  const [mainTab, setMainTab] = useState<'bookings' | 'calendar'>('bookings');
+  const [mainTab, setMainTab] = useState<'bookings' | 'calendar' | 'weekly'>('bookings');
   const [activeTab, setActiveTab] = useState('pending');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [actionType, setActionType] = useState<'reject' | 'alternative' | null>(null);
@@ -303,6 +306,18 @@ export default function VendorBookingsPage() {
                 )}
               </Button>
               <Button
+                variant={mainTab === 'weekly' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setMainTab('weekly')}
+                className={cn(
+                  "gap-2 transition-all",
+                  mainTab === 'weekly' && "shadow-sm"
+                )}
+              >
+                <CalendarDays className="w-4 h-4" />
+                <span className="hidden sm:inline">Schedule</span>
+              </Button>
+              <Button
                 variant={mainTab === 'calendar' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setMainTab('calendar')}
@@ -311,8 +326,8 @@ export default function VendorBookingsPage() {
                   mainTab === 'calendar' && "shadow-sm"
                 )}
               >
-                <CalendarIcon className="w-4 h-4" />
-                <span className="hidden sm:inline">Calendar</span>
+                <LayoutGrid className="w-4 h-4" />
+                <span className="hidden sm:inline">Availability</span>
               </Button>
             </div>
           </div>
@@ -371,7 +386,12 @@ export default function VendorBookingsPage() {
             </Card>
           </div>
 
-          {/* Calendar View */}
+          {/* Weekly Schedule View - Comprehensive Calendar */}
+          {mainTab === 'weekly' && (
+            <VendorWeeklyCalendar />
+          )}
+
+          {/* Calendar View - Monthly Availability Management */}
           {mainTab === 'calendar' && (
             <VendorAvailabilityCalendar />
           )}
