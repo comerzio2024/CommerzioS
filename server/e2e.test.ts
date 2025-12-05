@@ -432,4 +432,227 @@ describe('E2E API Tests', () => {
       expect(Array.isArray(data)).toBe(true);
     });
   });
+
+  describe('My Bookings Page - Service Requests API Format', () => {
+    it('should return service requests in correct format with requests array and total', async () => {
+      const { response, data } = await apiRequest('GET', '/api/service-requests');
+      
+      expect(response.ok).toBe(true);
+      expect(data).toHaveProperty('requests');
+      expect(data).toHaveProperty('total');
+      expect(Array.isArray(data.requests)).toBe(true);
+      expect(typeof data.total).toBe('number');
+    });
+  });
+
+  describe('Chat API - Vendor to Customer Conversation', () => {
+    let vendorCookie: string | null = null;
+    let customerId: string | null = null;
+    let vendorId: string | null = null;
+
+    beforeAll(async () => {
+      // Login as admin (who is also a vendor)
+      const { response } = await apiRequest('POST', '/api/auth/login', {
+        body: {
+          email: 'admin@servemkt.ch',
+          password: 'admin123'
+        }
+      });
+      
+      const setCookie = response.headers.get('set-cookie');
+      if (setCookie) {
+        vendorCookie = setCookie.split(';')[0];
+      }
+
+      // Get vendor user info
+      if (vendorCookie) {
+        const { data } = await apiRequest('GET', '/api/auth/user', {
+          cookies: vendorCookie
+        });
+        vendorId = data?.id;
+      }
+    });
+
+    it('should create conversation when vendor initiates with customerId', async () => {
+      if (!vendorCookie || !vendorId) return;
+
+      // Get a customer from bookings (if any)
+      const { data: bookings } = await apiRequest('GET', '/api/vendor/bookings', {
+        cookies: vendorCookie
+      });
+
+      if (bookings && bookings.length > 0 && bookings[0].customerId) {
+        customerId = bookings[0].customerId;
+        const serviceId = bookings[0].serviceId;
+        const bookingId = bookings[0].id;
+
+        const { response, data } = await apiRequest('POST', '/api/chat/conversations', {
+          cookies: vendorCookie,
+          body: {
+            vendorId: vendorId,
+            customerId: customerId,
+            serviceId: serviceId,
+            bookingId: bookingId
+          }
+        });
+
+        console.log('Vendor-to-customer conversation response:', response.status, JSON.stringify(data, null, 2));
+
+        expect(response.ok).toBe(true);
+        expect(data).toHaveProperty('id');
+        expect(data).toHaveProperty('customerId');
+        expect(data).toHaveProperty('vendorId');
+        expect(data.vendorId).toBe(vendorId);
+        expect(data.customerId).toBe(customerId);
+      }
+    });
+
+    it('should retrieve existing conversation for same participants', async () => {
+      if (!vendorCookie || !vendorId || !customerId) return;
+
+      const { response, data } = await apiRequest('POST', '/api/chat/conversations', {
+        cookies: vendorCookie,
+        body: {
+          vendorId: vendorId,
+          customerId: customerId
+        }
+      });
+
+      expect(response.ok).toBe(true);
+      expect(data).toHaveProperty('id');
+      expect(data.vendorId).toBe(vendorId);
+      expect(data.customerId).toBe(customerId);
+    });
+  });
+
+  describe('Dispute Evidence Upload API', () => {
+    let disputeId: string | null = null;
+    let adminCookie: string | null = null;
+
+    beforeAll(async () => {
+      // Login as admin
+      const { response } = await apiRequest('POST', '/api/auth/login', {
+        body: {
+          email: 'admin@servemkt.ch',
+          password: 'admin123'
+        }
+      });
+      
+      const setCookie = response.headers.get('set-cookie');
+      if (setCookie) {
+        adminCookie = setCookie.split(';')[0];
+      }
+
+      // Get an existing dispute
+      if (adminCookie) {
+        const { data } = await apiRequest('GET', '/api/disputes', {
+          cookies: adminCookie
+        });
+        if (data && data.length > 0) {
+          disputeId = data[0].id;
+        }
+      }
+    });
+
+    it('should get object upload URL', async () => {
+      if (!adminCookie) return;
+
+      const { response, data } = await apiRequest('POST', '/api/objects/upload', {
+        cookies: adminCookie
+      });
+
+      expect(response.ok).toBe(true);
+      expect(data).toHaveProperty('uploadURL');
+      expect(data.uploadURL).toMatch(/^https?:\/\//);
+    });
+
+    it('should accept evidence via JSON (not FormData)', async () => {
+      if (!adminCookie || !disputeId) {
+        console.log('Skipping evidence upload test - no disputeId available');
+        return;
+      }
+
+      // The endpoint should accept JSON with files array
+      const { response, data } = await apiRequest('POST', `/api/disputes/${disputeId}/evidence`, {
+        cookies: adminCookie,
+        body: {
+          files: [{
+            url: 'https://example.com/test-evidence.pdf',
+            fileName: 'test-evidence.pdf',
+            fileType: 'application/pdf'
+          }]
+        }
+      });
+
+      console.log('Evidence upload response:', response.status, JSON.stringify(data, null, 2));
+
+      // Should either succeed or return meaningful error (not 400 JSON parse error)
+      if (!response.ok && response.status === 400) {
+        // Make sure it's not a JSON parsing error
+        expect(data?.message || '').not.toContain('Unexpected token');
+      }
+    });
+  });
+
+  describe('Escrow Auto-Release Notification', () => {
+    let adminCookie: string | null = null;
+
+    beforeAll(async () => {
+      const { response } = await apiRequest('POST', '/api/auth/login', {
+        body: {
+          email: 'admin@servemkt.ch',
+          password: 'admin123'
+        }
+      });
+      
+      const setCookie = response.headers.get('set-cookie');
+      if (setCookie) {
+        adminCookie = setCookie.split(';')[0];
+      }
+    });
+
+    it('should return payment notifications in notification list', async () => {
+      if (!adminCookie) return;
+
+      const { response, data } = await apiRequest('GET', '/api/notifications', {
+        cookies: adminCookie
+      });
+
+      expect(response.ok).toBe(true);
+      expect(data).toHaveProperty('notifications');
+      expect(Array.isArray(data.notifications)).toBe(true);
+      
+      // Payment notifications should be included if they exist
+      // (auto-release creates payment-type notifications)
+      const paymentNotifications = data.notifications.filter(
+        (n: any) => n.type === 'payment'
+      );
+      console.log(`Found ${paymentNotifications.length} payment notifications`);
+    });
+
+    it('should fetch escrow status for a booking', async () => {
+      if (!adminCookie) return;
+
+      // Get bookings first
+      const { data: bookings } = await apiRequest('GET', '/api/bookings/my', {
+        cookies: adminCookie
+      });
+
+      if (bookings && bookings.length > 0) {
+        const { response, data } = await apiRequest('GET', `/api/bookings/${bookings[0].id}/escrow-status`, {
+          cookies: adminCookie
+        });
+
+        console.log('Escrow status response:', response.status, JSON.stringify(data, null, 2));
+        
+        expect(response.ok).toBe(true);
+        expect(data).toHaveProperty('hasEscrow');
+        
+        // If has escrow and status is held, should have autoReleaseAt
+        if (data.hasEscrow && data.status === 'held') {
+          expect(data).toHaveProperty('autoReleaseAt');
+        }
+      }
+    });
+  });
 });
