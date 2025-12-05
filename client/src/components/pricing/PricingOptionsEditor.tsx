@@ -22,6 +22,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Plus, Edit2, Trash2, GripVertical, Clock, DollarSign, Settings2, Users, Layers } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchApi } from '@/lib/config';
+import { useConfirmDialog } from '@/hooks/useConfirmDialog';
 
 interface IncludedUnit {
   type: string;
@@ -97,6 +98,7 @@ interface FormData {
 
 export function PricingOptionsEditor({ serviceId, onUpdate }: PricingOptionsEditorProps) {
   const queryClient = useQueryClient();
+  const { confirm } = useConfirmDialog();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingOption, setEditingOption] = useState<PricingOption | null>(null);
   const [formData, setFormData] = useState<FormData>({
@@ -513,8 +515,15 @@ export function PricingOptionsEditor({ serviceId, onUpdate }: PricingOptionsEdit
                     size="icon"
                     variant="ghost"
                     className="h-8 w-8 text-destructive hover:text-destructive"
-                    onClick={() => {
-                      if (confirm('Remove this pricing option?')) {
+                    onClick={async () => {
+                      const confirmed = await confirm({
+                        title: "Remove Pricing Option",
+                        description: "Remove this pricing option? This action cannot be undone.",
+                        confirmText: "Remove",
+                        cancelText: "Keep",
+                        variant: "destructive"
+                      });
+                      if (confirmed) {
                         deleteMutation.mutate(option.id);
                       }
                     }}

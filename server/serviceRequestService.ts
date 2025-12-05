@@ -15,6 +15,7 @@ import {
   serviceRequests, 
   proposals, 
   vendorPaymentMethods,
+  savedServiceRequests,
   type ServiceRequest,
   type Proposal,
   type InsertServiceRequest,
@@ -31,6 +32,7 @@ import { createNotification } from "./notificationService";
 
 const PROPOSAL_EXPIRY_HOURS = 48;
 const DEFAULT_REQUEST_EXPIRY_DAYS = 14;
+const MAX_PROPOSAL_EDITS = 3;
 
 // ============================================
 // SERVICE REQUEST FUNCTIONS
@@ -1194,3 +1196,546 @@ export async function deleteServiceRequest(
 
   console.log(`[ServiceRequest] Deleted request ${requestId}, notified ${pendingProposals.length} vendors`);
 }
+
+// ============================================
+// PROPOSAL EDITING
+// ============================================
+
+/**
+ * Edit a proposal (vendor can edit up to 3 times)
+ * Customer is notified of the edit
+ */
+export async function editProposal(
+  proposalId: string,
+  vendorId: string,
+  data: {
+    price?: number;
+    coverLetter?: string;
+    estimatedDuration?: string;
+    proposedDate?: Date;
+    proposedDateEnd?: Date;
+    paymentMethod?: "card" | "twint" | "cash";
+    paymentTiming?: "upfront" | "on_completion";
+  }
+): Promise<Proposal> {
+  // Get proposal with request details
+  const [proposalWithRequest] = await db
+    .select({
+      proposal: proposals,
+      request: serviceRequests,
+    })
+    .from(proposals)
+    .innerJoin(serviceRequests, eq(proposals.serviceRequestId, serviceRequests.id))
+    .where(eq(proposals.id, proposalId))
+    .limit(1);
+
+  if (!proposalWithRequest || proposalWithRequest.proposal.vendorId !== vendorId) {
+    throw new Error("Proposal not found or unauthorized");
+  }
+
+  const { proposal, request } = proposalWithRequest;
+
+  // Check if proposal can be edited
+  if (proposal.status !== "pending" && proposal.status !== "viewed") {
+    throw new Error("Can only edit pending or viewed proposals");
+  }
+
+  // Check edit count
+  if ((proposal.editCount || 0) >= MAX_PROPOSAL_EDITS) {
+    throw new Error(`You can only edit a proposal up to ${MAX_PROPOSAL_EDITS} times`);
+  }
+
+  // Check if proposal has expired
+  if (new Date() > proposal.expiresAt) {
+    throw new Error("Proposal has expired and cannot be edited");
+  }
+
+  // For Cash/TWINT proposals, verify vendor has payment method
+  if (data.paymentMethod === "cash" || data.paymentMethod === "twint") {
+    const cashCheck = await canVendorBidCash(vendorId);
+    if (!cashCheck.canBid) {
+      throw new Error(cashCheck.reason);
+    }
+  }
+
+  // Prepare edit history entry
+  const historyEntry = {
+    editedAt: new Date().toISOString(),
+    previousPrice: proposal.price,
+    previousCoverLetter: proposal.coverLetter,
+    previousEstimatedDuration: proposal.estimatedDuration || undefined,
+  };
+
+  const currentHistory = Array.isArray(proposal.editHistory) ? proposal.editHistory : [];
+
+  // Update proposal
+  const [updated] = await db
+    .update(proposals)
+    .set({
+      price: data.price !== undefined ? data.price.toFixed(2) : proposal.price,
+      coverLetter: data.coverLetter || proposal.coverLetter,
+      estimatedDuration: data.estimatedDuration !== undefined ? data.estimatedDuration : proposal.estimatedDuration,
+      proposedDate: data.proposedDate !== undefined ? data.proposedDate : proposal.proposedDate,
+      proposedDateEnd: data.proposedDateEnd !== undefined ? data.proposedDateEnd : proposal.proposedDateEnd,
+      paymentMethod: data.paymentMethod || proposal.paymentMethod,
+      paymentTiming: data.paymentTiming || proposal.paymentTiming,
+      editCount: (proposal.editCount || 0) + 1,
+      lastEditedAt: new Date(),
+      editHistory: [...currentHistory, historyEntry],
+      updatedAt: new Date(),
+    })
+    .where(eq(proposals.id, proposalId))
+    .returning();
+
+  // Notify customer of the edit
+  await createNotification({
+    userId: request.customerId,
+    type: "service",
+    title: "Proposal Updated",
+    message: `A vendor has updated their proposal for "${request.title}"`,
+    metadata: {
+      type: "proposal_edited",
+      requestId: request.id,
+      proposalId: proposalId,
+      editCount: updated.editCount,
+    },
+    actionUrl: `/service-requests?requestId=${request.id}&proposals=true`,
+  });
+
+  console.log(`[Proposal] Vendor ${vendorId} edited proposal ${proposalId} (edit ${updated.editCount}/${MAX_PROPOSAL_EDITS})`);
+
+  return updated;
+}
+
+/**
+ * Check if vendor has an active proposal for a specific request
+ */
+export async function getVendorProposalForRequest(
+  vendorId: string,
+  requestId: string
+): Promise<Proposal | null> {
+  const [proposal] = await db
+    .select()
+    .from(proposals)
+    .where(
+      and(
+        eq(proposals.vendorId, vendorId),
+        eq(proposals.serviceRequestId, requestId),
+        ne(proposals.status, "withdrawn"),
+        ne(proposals.status, "rejected"),
+        ne(proposals.status, "expired")
+      )
+    )
+    .limit(1);
+
+  return proposal || null;
+}
+
+/**
+ * Get open service requests with vendor's proposal status (for Browse Requests tab)
+ */
+export async function getOpenServiceRequestsForVendor(
+  vendorId: string,
+  options: {
+    categoryId?: string;
+    subcategoryId?: string;
+    canton?: string;
+    limit?: number;
+    offset?: number;
+  }
+): Promise<{
+  requests: Array<Omit<ServiceRequest, "locationAddress"> & { vendorProposalId?: string; vendorProposalStatus?: string }>;
+  total: number;
+}> {
+  const { categoryId, subcategoryId, canton, limit = 20, offset = 0 } = options;
+
+  // Build where conditions
+  const conditions = [
+    eq(serviceRequests.status, "open"),
+    eq(serviceRequests.moderationStatus, "approved"),
+    gt(serviceRequests.expiresAt, new Date()),
+    ne(serviceRequests.customerId, vendorId), // Exclude vendor's own requests
+  ];
+
+  if (categoryId) {
+    conditions.push(eq(serviceRequests.categoryId, categoryId));
+  }
+
+  if (subcategoryId) {
+    conditions.push(eq(serviceRequests.subcategoryId, subcategoryId));
+  }
+
+  if (canton) {
+    conditions.push(eq(serviceRequests.locationCanton, canton));
+  }
+
+  // Get requests
+  const requestsResult = await db
+    .select({
+      id: serviceRequests.id,
+      customerId: serviceRequests.customerId,
+      title: serviceRequests.title,
+      description: serviceRequests.description,
+      categoryId: serviceRequests.categoryId,
+      subcategoryId: serviceRequests.subcategoryId,
+      budgetMin: serviceRequests.budgetMin,
+      budgetMax: serviceRequests.budgetMax,
+      budgetFlexible: serviceRequests.budgetFlexible,
+      preferredDateStart: serviceRequests.preferredDateStart,
+      preferredDateEnd: serviceRequests.preferredDateEnd,
+      flexibleDates: serviceRequests.flexibleDates,
+      urgency: serviceRequests.urgency,
+      locationCity: serviceRequests.locationCity,
+      locationCanton: serviceRequests.locationCanton,
+      locationPostalCode: serviceRequests.locationPostalCode,
+      locationLat: serviceRequests.locationLat,
+      locationLng: serviceRequests.locationLng,
+      locationRadiusKm: serviceRequests.locationRadiusKm,
+      serviceAtCustomerLocation: serviceRequests.serviceAtCustomerLocation,
+      attachmentUrls: serviceRequests.attachmentUrls,
+      status: serviceRequests.status,
+      moderationStatus: serviceRequests.moderationStatus,
+      moderationReason: serviceRequests.moderationReason,
+      moderatedAt: serviceRequests.moderatedAt,
+      publishedAt: serviceRequests.publishedAt,
+      expiresAt: serviceRequests.expiresAt,
+      viewCount: serviceRequests.viewCount,
+      proposalCount: serviceRequests.proposalCount,
+      createdAt: serviceRequests.createdAt,
+      updatedAt: serviceRequests.updatedAt,
+    })
+    .from(serviceRequests)
+    .where(and(...conditions))
+    .orderBy(desc(serviceRequests.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  // Get vendor's proposals for these requests
+  const requestIds = requestsResult.map(r => r.id);
+  
+  let vendorProposalsMap: Map<string, { id: string; status: string }> = new Map();
+  
+  if (requestIds.length > 0) {
+    const vendorProposals = await db
+      .select({
+        serviceRequestId: proposals.serviceRequestId,
+        id: proposals.id,
+        status: proposals.status,
+      })
+      .from(proposals)
+      .where(
+        and(
+          eq(proposals.vendorId, vendorId),
+          sql`${proposals.serviceRequestId} IN (${sql.join(requestIds.map(id => sql`${id}`), sql`, `)})`
+        )
+      );
+
+    for (const p of vendorProposals) {
+      vendorProposalsMap.set(p.serviceRequestId, { id: p.id, status: p.status });
+    }
+  }
+
+  // Enrich requests with vendor's proposal info
+  const enrichedRequests = requestsResult.map(r => ({
+    ...r,
+    vendorProposalId: vendorProposalsMap.get(r.id)?.id,
+    vendorProposalStatus: vendorProposalsMap.get(r.id)?.status,
+  }));
+
+  // Get total count
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(serviceRequests)
+    .where(and(...conditions));
+
+  return {
+    requests: enrichedRequests,
+    total: Number(count),
+  };
+}
+
+/**
+ * Get proposals received by vendors for customer's requests
+ */
+export async function getReceivedProposals(
+  customerId: string
+): Promise<Array<Proposal & { request: ServiceRequest; vendor: any; linkedService?: any }>> {
+  // First get all customer's requests
+  const customerRequests = await db
+    .select({ id: serviceRequests.id })
+    .from(serviceRequests)
+    .where(eq(serviceRequests.customerId, customerId));
+
+  if (customerRequests.length === 0) {
+    return [];
+  }
+
+  const requestIds = customerRequests.map(r => r.id);
+
+  // Get all proposals for these requests with vendor and service details
+  const proposalsWithDetails = await db
+    .select({
+      proposal: proposals,
+      request: serviceRequests,
+      vendor: users,
+      linkedService: services,
+    })
+    .from(proposals)
+    .innerJoin(serviceRequests, eq(proposals.serviceRequestId, serviceRequests.id))
+    .innerJoin(users, eq(proposals.vendorId, users.id))
+    .leftJoin(services, eq(proposals.serviceId, services.id))
+    .where(sql`${proposals.serviceRequestId} IN (${sql.join(requestIds.map(id => sql`${id}`), sql`, `)})`)
+    .orderBy(desc(proposals.createdAt));
+
+  return proposalsWithDetails.map(row => ({
+    ...row.proposal,
+    request: row.request,
+    vendor: {
+      id: row.vendor.id,
+      firstName: row.vendor.firstName,
+      lastName: row.vendor.lastName,
+      profileImageUrl: row.vendor.profileImageUrl,
+    },
+    linkedService: row.linkedService ? {
+      id: row.linkedService.id,
+      title: row.linkedService.title,
+      images: row.linkedService.images,
+      price: row.linkedService.price,
+    } : undefined,
+  }));
+}
+
+// ============================================
+// UPDATE SERVICE REQUEST WITH NOTIFICATION
+// ============================================
+
+/**
+ * Update a service request and notify vendors with proposals
+ * When customer edits their request, all pending proposals are cancelled
+ */
+export async function updateServiceRequestWithNotification(
+  requestId: string,
+  customerId: string,
+  data: Partial<Pick<ServiceRequest, 'title' | 'description' | 'budgetMin' | 'budgetMax' | 'budgetFlexible' | 'categoryId' | 'subcategoryId' | 'urgency' | 'locationCity' | 'locationCanton' | 'preferredDateStart' | 'preferredDateEnd' | 'flexibleDates'>>,
+  cancelProposals: boolean = false
+): Promise<ServiceRequest> {
+  // Check ownership and status
+  const [existing] = await db
+    .select()
+    .from(serviceRequests)
+    .where(eq(serviceRequests.id, requestId))
+    .limit(1);
+
+  if (!existing) {
+    throw new Error("Service request not found");
+  }
+  
+  if (existing.customerId !== customerId) {
+    throw new Error("You can only edit your own requests");
+  }
+  
+  // Can only edit if draft or open
+  if (existing.status !== "draft" && existing.status !== "open") {
+    throw new Error("Cannot edit a request that is no longer active");
+  }
+
+  // Get pending proposals before update
+  const pendingProposals = await db
+    .select()
+    .from(proposals)
+    .where(
+      and(
+        eq(proposals.serviceRequestId, requestId),
+        or(
+          eq(proposals.status, "pending"),
+          eq(proposals.status, "viewed")
+        )
+      )
+    );
+
+  // Update the request
+  const [updated] = await db
+    .update(serviceRequests)
+    .set({
+      ...data,
+      updatedAt: new Date(),
+    })
+    .where(eq(serviceRequests.id, requestId))
+    .returning();
+
+  // If cancelProposals is true, cancel all pending proposals and notify vendors
+  if (cancelProposals && pendingProposals.length > 0) {
+    // Mark all pending proposals as withdrawn
+    await db
+      .update(proposals)
+      .set({
+        status: "withdrawn",
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(proposals.serviceRequestId, requestId),
+          or(
+            eq(proposals.status, "pending"),
+            eq(proposals.status, "viewed")
+          )
+        )
+      );
+
+    // Reset proposal count
+    await db
+      .update(serviceRequests)
+      .set({
+        proposalCount: 0,
+        updatedAt: new Date(),
+      })
+      .where(eq(serviceRequests.id, requestId));
+
+    // Notify vendors
+    for (const proposal of pendingProposals) {
+      await createNotification({
+        userId: proposal.vendorId,
+        type: "service",
+        title: "Request Updated - Proposal Cancelled",
+        message: `The customer has updated their request "${existing.title}". Your proposal has been cancelled but you can submit a new one.`,
+        metadata: {
+          type: "request_updated_proposal_cancelled",
+          requestId: requestId,
+          proposalId: proposal.id,
+        },
+        actionUrl: `/service-requests`,
+      });
+    }
+
+    console.log(`[ServiceRequest] Updated request ${requestId} with ${pendingProposals.length} proposals cancelled`);
+  } else if (pendingProposals.length > 0) {
+    // Just notify vendors of the update without cancelling
+    for (const proposal of pendingProposals) {
+      await createNotification({
+        userId: proposal.vendorId,
+        type: "service",
+        title: "Request Updated",
+        message: `The customer has updated their request "${existing.title}". Please review the changes.`,
+        metadata: {
+          type: "request_updated",
+          requestId: requestId,
+          proposalId: proposal.id,
+        },
+        actionUrl: `/service-requests`,
+      });
+    }
+
+    console.log(`[ServiceRequest] Updated request ${requestId}, notified ${pendingProposals.length} vendors`);
+  }
+
+  return updated;
+}
+
+// ============================================
+// SAVED SERVICE REQUESTS
+// ============================================
+
+/**
+ * Save a service request
+ */
+export async function saveServiceRequest(
+  userId: string,
+  requestId: string
+): Promise<void> {
+  // Check if request exists and is open
+  const [request] = await db
+    .select()
+    .from(serviceRequests)
+    .where(eq(serviceRequests.id, requestId))
+    .limit(1);
+
+  if (!request) {
+    throw new Error("Service request not found");
+  }
+
+  // Check if already saved
+  const [existing] = await db
+    .select()
+    .from(savedServiceRequests)
+    .where(
+      and(
+        eq(savedServiceRequests.userId, userId),
+        eq(savedServiceRequests.serviceRequestId, requestId)
+      )
+    )
+    .limit(1);
+
+  if (existing) {
+    return; // Already saved
+  }
+
+  await db.insert(savedServiceRequests).values({
+    userId,
+    serviceRequestId: requestId,
+  });
+
+  console.log(`[SavedRequest] User ${userId} saved request ${requestId}`);
+}
+
+/**
+ * Unsave a service request
+ */
+export async function unsaveServiceRequest(
+  userId: string,
+  requestId: string
+): Promise<void> {
+  await db
+    .delete(savedServiceRequests)
+    .where(
+      and(
+        eq(savedServiceRequests.userId, userId),
+        eq(savedServiceRequests.serviceRequestId, requestId)
+      )
+    );
+
+  console.log(`[SavedRequest] User ${userId} unsaved request ${requestId}`);
+}
+
+/**
+ * Get user's saved service requests
+ */
+export async function getSavedServiceRequests(
+  userId: string
+): Promise<Array<ServiceRequest & { savedAt: Date }>> {
+  const saved = await db
+    .select({
+      request: serviceRequests,
+      savedAt: savedServiceRequests.createdAt,
+    })
+    .from(savedServiceRequests)
+    .innerJoin(serviceRequests, eq(savedServiceRequests.serviceRequestId, serviceRequests.id))
+    .where(eq(savedServiceRequests.userId, userId))
+    .orderBy(desc(savedServiceRequests.createdAt));
+
+  return saved.map(row => ({
+    ...row.request,
+    savedAt: row.savedAt,
+  }));
+}
+
+/**
+ * Check if a service request is saved by user
+ */
+export async function isServiceRequestSaved(
+  userId: string,
+  requestId: string
+): Promise<boolean> {
+  const [saved] = await db
+    .select()
+    .from(savedServiceRequests)
+    .where(
+      and(
+        eq(savedServiceRequests.userId, userId),
+        eq(savedServiceRequests.serviceRequestId, requestId)
+      )
+    )
+    .limit(1);
+
+  return !!saved;
+}
+

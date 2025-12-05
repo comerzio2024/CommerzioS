@@ -25,7 +25,7 @@ import {
   pointsLog,
 } from "@shared/schema";
 // Security middleware imports
-import { pricingLimiter, authLimiter } from "./middleware/rateLimiter";
+import { pricingLimiter, authLimiter, aiLimiter, verificationLimiter } from "./middleware/rateLimiter";
 import { idempotencyMiddleware } from "./middleware/idempotency";
 import { verifyReauthPassword } from "./middleware/reauth";
 import { logPricingOptionCreate, logPricingOptionUpdate, logPricingOptionDelete } from "./services/auditService";
@@ -1064,7 +1064,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Cron job endpoint to expire old services (would be called by scheduler)
-  app.post('/api/cron/expire-services', async (_req, res) => {
+  // Protected by checking for a secret token in production
+  app.post('/api/cron/expire-services', async (req: any, res) => {
+    // In production, require a secret cron token
+    if (process.env.NODE_ENV === 'production') {
+      const cronSecret = req.headers['x-cron-secret'];
+      if (!cronSecret || cronSecret !== process.env.CRON_SECRET) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+    }
     try {
       await storage.expireOldServices();
       res.json({ message: "Services expired successfully" });
@@ -1409,7 +1417,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/ai/user-support', async (req: any, res) => {
+  app.post('/api/ai/user-support', aiLimiter, async (req: any, res) => {
     try {
       const schema = z.object({
         query: z.string().min(1, "Query is required"),
@@ -1468,7 +1476,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/ai/validate-category', async (req, res) => {
+  app.post('/api/ai/validate-category', aiLimiter, async (req, res) => {
     try {
       const schema = z.object({
         categoryName: z.string().min(1, "Category name is required"),
@@ -1487,7 +1495,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/ai/suggest-category-alternative', async (req, res) => {
+  app.post('/api/ai/suggest-category-alternative', aiLimiter, async (req, res) => {
     try {
       const schema = z.object({
         categoryName: z.string().min(1, "Category name is required"),
@@ -1506,7 +1514,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/ai/suggest-category-subcategory', async (req, res) => {
+  app.post('/api/ai/suggest-category-subcategory', aiLimiter, async (req, res) => {
     try {
       const schema = z.object({
         title: z.string().min(1, "Title is required"),
@@ -1748,14 +1756,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/contacts/:id/send-verification', async (req, res) => {
+  app.post('/api/contacts/:id/send-verification', isAuthenticated, verificationLimiter, async (req: any, res) => {
     try {
-      // Get contact details
+      const userId = req.user!.id;
+      
+      // Get contact details - verify it belongs to user's service
       const contacts = await storage.getServiceContacts('');
       const contact = contacts.find(c => c.id === req.params.id);
       
       if (!contact) {
         return res.status(404).json({ message: "Contact not found" });
+      }
+      
+      // Verify the contact belongs to a service owned by the current user
+      const userServices = await storage.getUserServices(userId, false);
+      const ownsContact = userServices.some((s: any) => s.id === contact.serviceId);
+      if (!ownsContact) {
+        return res.status(403).json({ message: "You do not have permission to verify this contact" });
       }
 
       // Send verification code
@@ -1774,13 +1791,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/contacts/:id/verify', async (req, res) => {
+  app.post('/api/contacts/:id/verify', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user!.id;
+      
       const schema = z.object({
         code: z.string().min(6, "Verification code is required"),
       });
 
       const validated = schema.parse(req.body);
+      
+      // Verify ownership before allowing verification
+      const contacts = await storage.getServiceContacts('');
+      const contact = contacts.find(c => c.id === req.params.id);
+      
+      if (!contact) {
+        return res.status(404).json({ message: "Contact not found" });
+      }
+      
+      // Verify the contact belongs to a service owned by the current user
+      const userServices = await storage.getUserServices(userId, false);
+      const ownsContact = userServices.some((s: any) => s.id === contact.serviceId);
+      if (!ownsContact) {
+        return res.status(403).json({ message: "You do not have permission to verify this contact" });
+      }
+      
       const success = await storage.verifyServiceContact(req.params.id, validated.code);
       
       if (success) {
@@ -3001,6 +3036,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===========================================
+  // VENDOR REVIEW REQUEST ROUTES
+  // ===========================================
+
+  const { 
+    canVendorRequestReview, 
+    sendVendorReviewRequest, 
+    getVendorPendingReviewBookings 
+  } = await import('./reviewRequestService');
+
+  // Check if vendor can request review for a booking
+  app.get('/api/bookings/:bookingId/can-request-review', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const result = await canVendorRequestReview(userId, req.params.bookingId);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error checking review request eligibility:", error);
+      res.status(400).json({ message: error.message || "Failed to check eligibility" });
+    }
+  });
+
+  // Send review request to customer
+  app.post('/api/bookings/:bookingId/request-review', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const { customMessage } = req.body;
+      const result = await sendVendorReviewRequest(userId, req.params.bookingId, customMessage);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error sending review request:", error);
+      res.status(400).json({ message: error.message || "Failed to send review request" });
+    }
+  });
+
+  // Get bookings pending review (for vendors)
+  app.get('/api/vendor/bookings/pending-review', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const bookings = await getVendorPendingReviewBookings(userId);
+      res.json(bookings);
+    } catch (error) {
+      console.error("Error fetching pending review bookings:", error);
+      res.status(500).json({ message: "Failed to fetch pending review bookings" });
+    }
+  });
+
   // Create customer review
   app.post('/api/bookings/:bookingId/customer-review', isAuthenticated, async (req: any, res) => {
     try {
@@ -3188,16 +3270,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     createServiceRequest,
     publishServiceRequest,
     getOpenServiceRequests,
+    getOpenServiceRequestsForVendor,
     getMyServiceRequests,
     getServiceRequestById,
     submitProposal,
+    editProposal,
     getProposalsForRequest,
+    getReceivedProposals,
     acceptProposal,
+    rejectProposal,
     getMyProposals,
+    getVendorProposalForRequest,
     updateServiceRequest,
+    updateServiceRequestWithNotification,
     deactivateServiceRequest,
     reactivateServiceRequest,
     deleteServiceRequest,
+    saveServiceRequest,
+    unsaveServiceRequest,
+    getSavedServiceRequests,
+    isServiceRequestSaved,
   } = await import('./serviceRequestService');
 
   // Create a new service request (customer posts what they need)
@@ -3354,6 +3446,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reject a proposal (customer)
+  app.post('/api/proposals/:id/reject', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const result = await rejectProposal(req.params.id, userId, req.body.reason);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error rejecting proposal:", error);
+      res.status(400).json({ message: error.message || "Failed to reject proposal" });
+    }
+  });
+
   // Get my submitted proposals (vendor)
   app.get('/api/proposals/mine', isAuthenticated, async (req: any, res) => {
     try {
@@ -3363,6 +3467,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching my proposals:", error);
       res.status(500).json({ message: "Failed to fetch proposals" });
+    }
+  });
+
+  // Get proposals received (for customers - Proposals Received tab)
+  app.get('/api/proposals/received', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const proposals = await getReceivedProposals(userId);
+      res.json(proposals);
+    } catch (error) {
+      console.error("Error fetching received proposals:", error);
+      res.status(500).json({ message: "Failed to fetch received proposals" });
+    }
+  });
+
+  // Edit a proposal (vendor can edit up to 3 times)
+  app.patch('/api/proposals/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const proposal = await editProposal(req.params.id, userId, req.body);
+      res.json(proposal);
+    } catch (error: any) {
+      console.error("Error editing proposal:", error);
+      res.status(400).json({ message: error.message || "Failed to edit proposal" });
+    }
+  });
+
+  // Check if vendor has proposal for a request
+  app.get('/api/service-requests/:id/my-proposal', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const proposal = await getVendorProposalForRequest(userId, req.params.id);
+      res.json(proposal);
+    } catch (error) {
+      console.error("Error checking vendor proposal:", error);
+      res.status(500).json({ message: "Failed to check proposal" });
+    }
+  });
+
+  // Get open service requests for vendor (with proposal status)
+  app.get('/api/service-requests/browse', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const { categoryId, subcategoryId, canton, limit, offset } = req.query;
+      const result = await getOpenServiceRequestsForVendor(userId, {
+        categoryId: categoryId as string,
+        subcategoryId: subcategoryId as string,
+        canton: canton as string,
+        limit: limit ? parseInt(limit as string) : undefined,
+        offset: offset ? parseInt(offset as string) : undefined,
+      });
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching service requests for vendor:", error);
+      res.status(500).json({ message: "Failed to fetch service requests" });
+    }
+  });
+
+  // Update service request with notification (cancel proposals option)
+  app.patch('/api/service-requests/:id/edit', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const { cancelProposals, ...data } = req.body;
+      const request = await updateServiceRequestWithNotification(
+        req.params.id, 
+        userId, 
+        data, 
+        cancelProposals === true
+      );
+      res.json(request);
+    } catch (error: any) {
+      console.error("Error updating service request:", error);
+      res.status(400).json({ message: error.message || "Failed to update service request" });
+    }
+  });
+
+  // Save a service request
+  app.post('/api/service-requests/:id/save', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      await saveServiceRequest(userId, req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error saving service request:", error);
+      res.status(400).json({ message: error.message || "Failed to save service request" });
+    }
+  });
+
+  // Unsave a service request
+  app.delete('/api/service-requests/:id/save', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      await unsaveServiceRequest(userId, req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error unsaving service request:", error);
+      res.status(400).json({ message: error.message || "Failed to unsave service request" });
+    }
+  });
+
+  // Get saved service requests
+  app.get('/api/service-requests/saved', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const requests = await getSavedServiceRequests(userId);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching saved service requests:", error);
+      res.status(500).json({ message: "Failed to fetch saved service requests" });
+    }
+  });
+
+  // Check if request is saved
+  app.get('/api/service-requests/:id/saved', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const saved = await isServiceRequestSaved(userId, req.params.id);
+      res.json({ saved });
+    } catch (error) {
+      console.error("Error checking saved status:", error);
+      res.status(500).json({ message: "Failed to check saved status" });
     }
   });
 

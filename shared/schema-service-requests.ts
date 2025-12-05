@@ -169,6 +169,16 @@ export const proposals = pgTable("proposals", {
   // Expiry (proposals expire after 48 hours if not responded to)
   expiresAt: timestamp("expires_at").notNull(),
   
+  // Edit tracking (vendors can edit proposals up to 3 times)
+  editCount: integer("edit_count").default(0).notNull(),
+  lastEditedAt: timestamp("last_edited_at"),
+  editHistory: jsonb("edit_history").$type<{
+    editedAt: string;
+    previousPrice: string;
+    previousCoverLetter: string;
+    previousEstimatedDuration?: string;
+  }[]>().default([]),
+  
   // Timestamps
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -179,6 +189,24 @@ export const proposals = pgTable("proposals", {
   expiresIdx: index("proposals_expires_idx").on(table.expiresAt),
   // One proposal per vendor per request
   uniqueVendorRequest: unique("proposals_vendor_request_unique").on(table.vendorId, table.serviceRequestId),
+}));
+
+// ============================================
+// SAVED SERVICE REQUESTS
+// ============================================
+
+export const savedServiceRequests = pgTable("saved_service_requests", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  serviceRequestId: uuid("service_request_id").notNull().references(() => serviceRequests.id, { onDelete: "cascade" }),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index("saved_service_requests_user_idx").on(table.userId),
+  requestIdx: index("saved_service_requests_request_idx").on(table.serviceRequestId),
+  uniqueUserRequest: unique("saved_service_requests_unique").on(table.userId, table.serviceRequestId),
 }));
 
 // ============================================
@@ -264,6 +292,7 @@ export const serviceRequestsRelations = relations(serviceRequests, ({ one, many 
     references: [users.id],
   }),
   proposals: many(proposals),
+  savedBy: many(savedServiceRequests),
 }));
 
 export const proposalsRelations = relations(proposals, ({ one }) => ({
@@ -278,6 +307,17 @@ export const proposalsRelations = relations(proposals, ({ one }) => ({
   service: one(services, {
     fields: [proposals.serviceId],
     references: [services.id],
+  }),
+}));
+
+export const savedServiceRequestsRelations = relations(savedServiceRequests, ({ one }) => ({
+  user: one(users, {
+    fields: [savedServiceRequests.userId],
+    references: [users.id],
+  }),
+  serviceRequest: one(serviceRequests, {
+    fields: [savedServiceRequests.serviceRequestId],
+    references: [serviceRequests.id],
   }),
 }));
 
@@ -307,6 +347,8 @@ export type ServiceRequest = typeof serviceRequests.$inferSelect;
 export type InsertServiceRequest = typeof serviceRequests.$inferInsert;
 export type Proposal = typeof proposals.$inferSelect;
 export type InsertProposal = typeof proposals.$inferInsert;
+export type SavedServiceRequest = typeof savedServiceRequests.$inferSelect;
+export type InsertSavedServiceRequest = typeof savedServiceRequests.$inferInsert;
 export type VendorPaymentMethod = typeof vendorPaymentMethods.$inferSelect;
 export type InsertVendorPaymentMethod = typeof vendorPaymentMethods.$inferInsert;
 export type PlatformDebt = typeof platformDebts.$inferSelect;

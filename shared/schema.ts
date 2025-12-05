@@ -1605,8 +1605,12 @@ export const bookings = pgTable("bookings", {
   // Reminders sent
   reminderSentAt: timestamp("reminder_sent_at"),
   
-  // Review request tracking
+  // Review request tracking (automatic system-sent request)
   reviewRequestSentAt: timestamp("review_request_sent_at"),
+  
+  // Manual review request by vendor (max 2 requests, 3-day cooldown)
+  vendorReviewRequestCount: integer("vendor_review_request_count").default(0),
+  lastVendorReviewRequestAt: timestamp("last_vendor_review_request_at"),
   
   // Timestamps for status changes
   acceptedAt: timestamp("accepted_at"),

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Map, ZoomIn, ZoomOut, X, Navigation, ExternalLink, AlertTriangle } from "lucide-react";
 import type { ServiceWithDetails } from "@/lib/api";
 import { geocodeLocation } from '@/lib/geocoding';
+import { useToast } from "@/hooks/use-toast";
 
 interface GoogleMapsProps {
   services: (ServiceWithDetails & { distance?: number })[];
@@ -31,6 +32,7 @@ export function GoogleMaps({
   onExpandedChange,
 }: GoogleMapsProps) {
   // All hooks must be called at the top, before any conditional returns
+  const { toast } = useToast();
   const [internalExpanded, setInternalExpanded] = useState(defaultExpanded);
   
   // Use controlled state if provided, otherwise use internal state
@@ -815,7 +817,11 @@ export function GoogleMaps({
 
   const handleToggleMap = () => {
     if (!apiKey) {
-      alert("Google Maps API key is not configured. Please add it in the admin panel settings.");
+      toast({
+        title: "Google Maps Not Configured",
+        description: "Google Maps API key is not configured. Please contact the administrator.",
+        variant: "destructive"
+      });
       return;
     }
     setIsMapVisible(!isMapVisible);

@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { FloatingChatWidget } from "@/components/floating-chat-widget";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ConfirmDialogProvider } from "@/hooks/useConfirmDialog";
 import { usePageContext } from "@/hooks/use-page-context";
 import { createContext, useContext } from "react";
 import type { PageContextActions } from "@/hooks/use-page-context";
@@ -117,11 +118,13 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <PageContextActionsContext.Provider value={contextActions}>
-            <Toaster />
-            <Router />
-            <FloatingChatWidget pageContext={pageContext} />
-          </PageContextActionsContext.Provider>
+          <ConfirmDialogProvider>
+            <PageContextActionsContext.Provider value={contextActions}>
+              <Toaster />
+              <Router />
+              <FloatingChatWidget pageContext={pageContext} />
+            </PageContextActionsContext.Provider>
+          </ConfirmDialogProvider>
         </TooltipProvider>
       </QueryClientProvider>
     </ErrorBoundary>

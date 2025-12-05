@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/api";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,6 +46,7 @@ function getTabFromPath(pathname: string): AdminTab {
 export function AdminPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { confirm } = useConfirmDialog();
   const [location, setLocation] = useLocation();
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -4120,6 +4122,7 @@ function DisputesManagement() {
 function ReviewsManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { confirm } = useConfirmDialog();
   const [selectedReview, setSelectedReview] = useState<any>(null);
 
   const { data: reviews = [], isLoading } = useQuery<any[]>({
@@ -4203,8 +4206,15 @@ function ReviewsManagement() {
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => {
-                            if (confirm("Are you sure you want to delete this review?")) {
+                          onClick={async () => {
+                            const confirmed = await confirm({
+                              title: "Delete Review",
+                              description: "Are you sure you want to delete this review? This action cannot be undone.",
+                              confirmText: "Delete",
+                              cancelText: "Cancel",
+                              variant: "destructive"
+                            });
+                            if (confirmed) {
                               deleteReviewMutation.mutate(review.id);
                             }
                           }}

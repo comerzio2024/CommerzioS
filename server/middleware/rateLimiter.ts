@@ -164,9 +164,31 @@ export const strictLimiter = createRateLimiter('strict', {
   message: 'This action is rate limited. Please try again later.',
 });
 
+/**
+ * AI endpoint rate limiter
+ * 50 requests per hour (prevents abuse and controls costs)
+ */
+export const aiLimiter = createRateLimiter('ai', {
+  windowMs: 60 * 60 * 1000, // 1 hour
+  maxRequests: 50,
+  message: 'Too many AI requests. Please try again later.',
+});
+
+/**
+ * Verification code rate limiter
+ * 3 requests per 15 minutes (prevents spam)
+ */
+export const verificationLimiter = createRateLimiter('verification', {
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  maxRequests: 3,
+  message: 'Too many verification requests. Please try again later.',
+});
+
 export default {
   apiLimiter,
   pricingLimiter,
   authLimiter,
   strictLimiter,
+  aiLimiter,
+  verificationLimiter,
 };

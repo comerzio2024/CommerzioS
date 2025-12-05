@@ -31,6 +31,7 @@ import { Slider } from "@/components/ui/slider";
 import { AddressAutocomplete } from "@/components/address-autocomplete";
 import { geocodeLocation } from "@/lib/geocoding";
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
+import { VendorEscrowDashboard } from "@/components/vendor/VendorEscrowDashboard";
 
 export default function Profile() {
   // Scroll to top on mount and tab change
@@ -309,6 +310,29 @@ export default function Profile() {
       toast({
         title: "Error",
         description: error.message || "Failed to submit review",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation to request a review from customer (vendor action)
+  const requestReviewMutation = useMutation({
+    mutationFn: async (bookingId: string) => {
+      return apiRequest(`/api/bookings/${bookingId}/request-review`, {
+        method: "POST",
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Review Request Sent!",
+        description: "The customer has been notified to leave a review.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/me/bookings-pending-review"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to request review",
         variant: "destructive",
       });
     },
@@ -2125,7 +2149,10 @@ export default function Profile() {
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-lg">Awaiting Customer Reviews</CardTitle>
-                      <CardDescription>Completed bookings where the customer hasn't left a review yet</CardDescription>
+                      <CardDescription>
+                        Completed bookings where the customer hasn't left a review yet. 
+                        You can request a review up to 2 times with a 3-day cooldown.
+                      </CardDescription>
                     </CardHeader>
                     <CardContent>
                       {bookingsPendingReview.length === 0 ? (
@@ -2135,28 +2162,58 @@ export default function Profile() {
                         </div>
                       ) : (
                         <div className="space-y-4">
-                          {bookingsPendingReview.map((booking: any) => (
-                            <div key={booking.id} className="border rounded-lg p-4 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
-                              <div className="flex items-start justify-between">
-                                <div className="flex items-center gap-3">
-                                  <img 
-                                    src={booking.customer.profileImageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${booking.customer.id}`}
-                                    alt={booking.customer.firstName}
-                                    className="w-10 h-10 rounded-full"
-                                  />
-                                  <div>
-                                    <p className="font-medium">{booking.customer.firstName} {booking.customer.lastName}</p>
-                                    <p className="text-xs text-muted-foreground">Service: {booking.service?.title}</p>
-                                    <p className="text-xs text-muted-foreground">Completed: {booking.completedAt ? new Date(booking.completedAt).toLocaleDateString() : 'N/A'}</p>
+                          {bookingsPendingReview.map((booking: any) => {
+                            const canRequest = (booking.vendorReviewRequestCount || 0) < 2 && 
+                              (!booking.vendorLastReviewRequestAt || 
+                               new Date().getTime() - new Date(booking.vendorLastReviewRequestAt).getTime() > 3 * 24 * 60 * 60 * 1000);
+                            const requestCount = booking.vendorReviewRequestCount || 0;
+                            
+                            return (
+                              <div key={booking.id} className="border rounded-lg p-4 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <img 
+                                      src={booking.customer.profileImageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${booking.customer.id}`}
+                                      alt={booking.customer.firstName}
+                                      className="w-10 h-10 rounded-full"
+                                    />
+                                    <div>
+                                      <p className="font-medium">{booking.customer.firstName} {booking.customer.lastName}</p>
+                                      <p className="text-xs text-muted-foreground">Service: {booking.service?.title}</p>
+                                      <p className="text-xs text-muted-foreground">Completed: {booking.completedAt ? new Date(booking.completedAt).toLocaleDateString() : 'N/A'}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-col items-end gap-2">
+                                    <Badge variant="outline" className="text-amber-600 border-amber-300">
+                                      <Clock className="w-3 h-3 mr-1" />
+                                      Awaiting review
+                                    </Badge>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs text-muted-foreground">
+                                        Requests: {requestCount}/2
+                                      </span>
+                                      <Button
+                                        size="sm"
+                                        variant={canRequest ? "default" : "outline"}
+                                        disabled={!canRequest || requestReviewMutation?.isPending}
+                                        onClick={() => requestReviewMutation?.mutate(booking.id)}
+                                        className="gap-1"
+                                      >
+                                        <Mail className="w-3 h-3" />
+                                        {canRequest ? "Request Review" : 
+                                          requestCount >= 2 ? "Max requests sent" : "Cooldown active"}
+                                      </Button>
+                                    </div>
+                                    {booking.vendorLastReviewRequestAt && (
+                                      <span className="text-xs text-muted-foreground">
+                                        Last requested: {new Date(booking.vendorLastReviewRequestAt).toLocaleDateString()}
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
-                                <Badge variant="outline" className="text-amber-600 border-amber-300">
-                                  <Clock className="w-3 h-3 mr-1" />
-                                  Awaiting review
-                                </Badge>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </CardContent>
@@ -2530,6 +2587,11 @@ export default function Profile() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Escrow Dashboard for Vendors */}
+              {services && services.length > 0 && (
+                <VendorEscrowDashboard />
+              )}
 
               {/* TWINT Eligibility Info */}
               <Card className="border-purple-200 bg-purple-50/50 dark:bg-purple-900/10">
