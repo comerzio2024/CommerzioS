@@ -6146,20 +6146,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Start or get conversation
   app.post('/api/chat/conversations', isAuthenticated, async (req: any, res) => {
     try {
-      const { vendorId, bookingId, orderId, serviceId } = req.body;
+      const { vendorId, customerId, bookingId, orderId, serviceId } = req.body;
       
       if (!vendorId) {
         return res.status(400).json({ message: "vendorId is required" });
       }
 
+      // Determine customer and vendor based on context
+      // If customerId is provided and vendorId === current user, the vendor is initiating
+      // If vendorId is provided and customerId is not, the customer is initiating
+      let actualCustomerId = req.user!.id;
+      let actualVendorId = vendorId;
+
+      if (customerId && vendorId === req.user!.id) {
+        // Vendor is initiating conversation with customer
+        actualCustomerId = customerId;
+        actualVendorId = req.user!.id;
+      }
+
       // Prevent chatting with yourself
-      if (vendorId === req.user!.id) {
+      if (actualVendorId === actualCustomerId) {
         return res.status(400).json({ message: "Cannot start conversation with yourself" });
       }
 
       const conversation = await getOrCreateConversation({
-        customerId: req.user!.id,
-        vendorId,
+        customerId: actualCustomerId,
+        vendorId: actualVendorId,
         bookingId,
         orderId,
         serviceId,

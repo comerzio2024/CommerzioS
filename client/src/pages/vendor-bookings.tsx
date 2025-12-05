@@ -70,6 +70,19 @@ interface Booking {
   rejectionReason: string | null;
   queuePosition?: number | null;
   createdAt: string;
+  customerId?: string;
+  serviceId?: string;
+  customer?: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    profileImageUrl: string | null;
+  };
+  service?: {
+    id: string;
+    title: string;
+    images: string[];
+  };
 }
 
 export default function VendorBookingsPage() {
@@ -441,7 +454,9 @@ export default function VendorBookingsPage() {
                     key={booking.id}
                     booking={booking}
                     role="vendor"
-                    otherPartyName="Customer"
+                    otherPartyName={(booking as any).customer ? `${(booking as any).customer.firstName || ''} ${(booking as any).customer.lastName || ''}`.trim() || 'Customer' : 'Customer'}
+                    otherPartyImage={(booking as any).customer?.profileImageUrl}
+                    serviceName={(booking as any).service?.title}
                     onAccept={() => acceptMutation.mutate(booking.id)}
                     onReject={() => {
                       setSelectedBooking(booking);
@@ -451,7 +466,21 @@ export default function VendorBookingsPage() {
                       setSelectedBooking(booking);
                       setActionType('alternative');
                     }}
-                    onChat={() => setLocation(`/chat?booking=${booking.id}`)}
+                    onChat={() => {
+                      // Navigate to chat with customer - vendor is the current user
+                      const customerId = (booking as any).customerId || (booking as any).customer?.id;
+                      const serviceId = (booking as any).serviceId || (booking as any).service?.id;
+                      if (customerId) {
+                        // For vendor chatting with customer, we pass vendor=currentUserId to trigger getOrCreate
+                        // but the API expects vendorId, so we need to use a different approach
+                        // The chat page creates conversation with: POST /api/chat/conversations { vendorId, bookingId, serviceId }
+                        // But we are the vendor, so we need to pass customerId differently
+                        // Let's use a query param that chat page can handle
+                        setLocation(`/chat?customer=${customerId}&booking=${booking.id}&service=${serviceId}`);
+                      } else {
+                        setLocation(`/chat?booking=${booking.id}`);
+                      }
+                    }}
                     isLoading={
                       acceptMutation.isPending || 
                       rejectMutation.isPending || 

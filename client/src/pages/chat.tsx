@@ -79,19 +79,35 @@ export default function ChatPage() {
     const bookingId = params.get('booking');
     const orderId = params.get('order');
     const vendorId = params.get('vendor');
+    const customerId = params.get('customer'); // For vendor-to-customer chat
     const serviceId = params.get('service');
 
-    // If we have a vendor ID, start or get a conversation
-    if (vendorId && user) {
+    // If we have a vendor ID (customer initiating chat) or customer ID (vendor initiating chat)
+    if ((vendorId || customerId) && user) {
+      // Build conversation request body
+      // The API expects vendorId always - if we're the vendor, we use customerId from params
+      // If we're the customer, we use vendorId from params
+      const requestBody: any = {
+        bookingId,
+        orderId,
+        serviceId,
+      };
+
+      if (vendorId) {
+        // Customer initiating chat with vendor
+        requestBody.vendorId = vendorId;
+      } else if (customerId) {
+        // Vendor initiating chat with customer - need to pass our userId as vendorId
+        // and customerId will be set by the server based on context
+        // Actually, we need to create conversation where we are vendor and customerId is the customer
+        requestBody.vendorId = user.id; // Current user is the vendor
+        requestBody.customerId = customerId; // Override customerId
+      }
+
       fetchApi('/api/chat/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          vendorId,
-          bookingId,
-          orderId,
-          serviceId,
-        }),
+        body: JSON.stringify(requestBody),
       })
         .then(async res => {
         if (!res.ok) {

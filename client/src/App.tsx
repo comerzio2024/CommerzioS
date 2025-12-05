@@ -33,6 +33,7 @@ import VerifyEmailPage from "@/pages/verify-email";
 import ReferralsPage from "@/pages/referrals";
 import ChatPage from "@/pages/chat";
 import VendorBookingsPage from "@/pages/vendor-bookings";
+import MyBookingsPage from "@/pages/my-bookings";
 import BookServicePage from "@/pages/book-service";
 import BookingSuccessPage from "@/pages/booking-success";
 import NotificationsPage from "@/pages/notifications";
@@ -103,7 +104,7 @@ function Router() {
       <Route path="/request-service" component={ServiceRequestsPage} />
       {/* Vendor routes */}
       <Route path="/vendor/bookings" component={VendorBookingsPage} />
-      <Route path="/my-bookings" component={VendorBookingsPage} />
+      <Route path="/my-bookings" component={MyBookingsPage} />
       <Route component={NotFound} />
     </Switch>
   );

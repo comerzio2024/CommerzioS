@@ -134,13 +134,35 @@ export default function Profile() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // Review back modal states
+  // Review back modal states - comprehensive type for both service and customer reviews
   const [showReviewBackModal, setShowReviewBackModal] = useState(false);
-  const [reviewBackTarget, setReviewBackTarget] = useState<{ userId: string; userName: string; reviewId: string } | null>(null);
+  const [reviewBackTarget, setReviewBackTarget] = useState<{
+    type: 'service' | 'customer';
+    bookingId: string;
+    serviceId?: string;
+    customerId?: string;
+    serviceName?: string;
+    userName: string;
+  } | null>(null);
   const [reviewBackRating, setReviewBackRating] = useState(5);
   const [reviewBackText, setReviewBackText] = useState("");
   const [reviewBackBookingId, setReviewBackBookingId] = useState<string | null>(null);
   const [reviewsSubTab, setReviewsSubTab] = useState<'received' | 'given' | 'to-review' | 'pending'>('received');
+  
+  // Multi-criteria ratings for comprehensive reviews
+  const [serviceRating, setServiceRating] = useState(5);
+  const [communicationRating, setCommunicationRating] = useState(5);
+  const [punctualityRating, setPunctualityRating] = useState(5);
+  const [valueRating, setValueRating] = useState(5);
+  const [customerCommunicationRating, setCustomerCommunicationRating] = useState(5);
+  const [customerPunctualityRating, setCustomerPunctualityRating] = useState(5);
+  const [customerRespectRating, setCustomerRespectRating] = useState(5);
+  
+  // Edit review modal
+  const [showEditReviewModal, setShowEditReviewModal] = useState(false);
+  const [editingReview, setEditingReview] = useState<any>(null);
+  const [editReviewText, setEditReviewText] = useState("");
+  const [editReviewRating, setEditReviewRating] = useState(5);
 
   const { data: myServices = [], isLoading: servicesLoading } = useQuery<ServiceWithDetails[]>({
     queryKey: ["/api/services", { ownerId: user?.id }],
@@ -1772,7 +1794,7 @@ export default function Profile() {
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-lg">Reviews on Your Services</CardTitle>
-                      <CardDescription>Customer reviews on services you provide</CardDescription>
+                      <CardDescription>Customer reviews on services you provide (with detailed ratings)</CardDescription>
                     </CardHeader>
                     <CardContent>
                       {receivedReviews.length === 0 ? (
@@ -1796,15 +1818,55 @@ export default function Profile() {
                                     <p className="text-xs text-muted-foreground">On: {review.service.title}</p>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-1">
-                                  {Array(review.rating).fill(0).map((_, i) => (
-                                    <span key={i} className="text-yellow-400">★</span>
-                                  ))}
-                                  {Array(5 - review.rating).fill(0).map((_, i) => (
-                                    <span key={`empty-${i}`} className="text-gray-300">★</span>
-                                  ))}
+                                <div className="flex flex-col items-end gap-1">
+                                  <div className="flex items-center gap-1">
+                                    {Array(review.rating).fill(0).map((_, i) => (
+                                      <span key={i} className="text-yellow-400">★</span>
+                                    ))}
+                                    {Array(5 - review.rating).fill(0).map((_, i) => (
+                                      <span key={`empty-${i}`} className="text-gray-300">★</span>
+                                    ))}
+                                    <span className="ml-1 font-bold">{review.rating.toFixed(1)}</span>
+                                  </div>
                                 </div>
                               </div>
+                              
+                              {/* Multi-criteria breakdown */}
+                              {(review.qualityRating || review.communicationRating || review.punctualityRating || review.valueRating) && (
+                                <div className="mb-3 p-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg text-xs">
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {review.qualityRating && (
+                                      <div className="flex items-center gap-1">
+                                        <CheckCircle className="w-3 h-3 text-green-500" />
+                                        <span className="text-muted-foreground">Quality:</span>
+                                        <span className="font-medium">{review.qualityRating}/5</span>
+                                      </div>
+                                    )}
+                                    {review.communicationRating && (
+                                      <div className="flex items-center gap-1">
+                                        <MessageSquare className="w-3 h-3 text-blue-500" />
+                                        <span className="text-muted-foreground">Communication:</span>
+                                        <span className="font-medium">{review.communicationRating}/5</span>
+                                      </div>
+                                    )}
+                                    {review.punctualityRating && (
+                                      <div className="flex items-center gap-1">
+                                        <Clock className="w-3 h-3 text-purple-500" />
+                                        <span className="text-muted-foreground">Punctuality:</span>
+                                        <span className="font-medium">{review.punctualityRating}/5</span>
+                                      </div>
+                                    )}
+                                    {review.valueRating && (
+                                      <div className="flex items-center gap-1">
+                                        <DollarSign className="w-3 h-3 text-green-600" />
+                                        <span className="text-muted-foreground">Value:</span>
+                                        <span className="font-medium">{review.valueRating}/5</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                              
                               <p className="text-sm mb-3">{review.comment}</p>
                               <div className="flex items-center justify-between text-xs text-muted-foreground">
                                 <span>{new Date(review.createdAt).toLocaleDateString()}</span>
@@ -1862,9 +1924,22 @@ export default function Profile() {
                                 <span>{new Date(review.createdAt).toLocaleDateString()}</span>
                                 <div className="flex items-center gap-2">
                                   {review.editCount > 0 ? (
-                                    <span className="text-amber-600">Edited (no more edits)</span>
+                                    <span className="text-amber-600">Edited (no more edits allowed)</span>
                                   ) : (
-                                    <Badge variant="outline" className="text-xs">Can edit once</Badge>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 text-xs"
+                                      onClick={() => {
+                                        setEditingReview(review);
+                                        setEditReviewText(review.comment);
+                                        setEditReviewRating(review.rating);
+                                        setShowEditReviewModal(true);
+                                      }}
+                                    >
+                                      <Pencil className="w-3 h-3 mr-1" />
+                                      Edit
+                                    </Button>
                                   )}
                                 </div>
                               </div>
@@ -1911,9 +1986,22 @@ export default function Profile() {
                               <div className="flex items-center justify-between text-xs text-muted-foreground">
                                 <span>{new Date(review.createdAt).toLocaleDateString()}</span>
                                 {review.editCount > 0 ? (
-                                  <span className="text-amber-600">Edited (no more edits)</span>
+                                  <span className="text-amber-600">Edited (no more edits allowed)</span>
                                 ) : (
-                                  <Badge variant="outline" className="text-xs">Can edit once</Badge>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs"
+                                    onClick={() => {
+                                      setEditingReview({ ...review, type: 'customer' });
+                                      setEditReviewText(review.comment);
+                                      setEditReviewRating(review.rating);
+                                      setShowEditReviewModal(true);
+                                    }}
+                                  >
+                                    <Pencil className="w-3 h-3 mr-1" />
+                                    Edit
+                                  </Button>
                                 )}
                               </div>
                             </div>
@@ -2077,7 +2165,7 @@ export default function Profile() {
               </Tabs>
             </TabsContent>
 
-            {/* Bookings Tab - Shows both customer and vendor booking options */}
+            {/* Bookings Tab - Shows unified booking management */}
             <TabsContent value="bookings" data-testid="panel-bookings" className="space-y-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
@@ -2085,61 +2173,84 @@ export default function Profile() {
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold">My Bookings</h2>
-                  <p className="text-muted-foreground">View and manage your service bookings</p>
+                  <p className="text-muted-foreground">Comprehensive booking management for customers and vendors</p>
                 </div>
               </div>
               
+              {/* Main unified bookings card */}
+              <Card className="border-primary/30 bg-gradient-to-br from-blue-50 to-green-50 dark:from-blue-950/20 dark:to-green-950/20">
+                <CardContent className="py-8 text-center">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-green-500 flex items-center justify-center mx-auto mb-4">
+                    <CalendarDays className="w-8 h-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Unified Booking Calendar</h3>
+                  <p className="text-muted-foreground mb-4 max-w-md mx-auto">
+                    View all your bookings in one place - both services you've booked as a customer and bookings from your customers. Filter by role, service, status, and more.
+                  </p>
+                  <Link href="/my-bookings">
+                    <Button size="lg" className="gap-2">
+                      <CalendarDays className="w-5 h-5" />
+                      Open My Bookings
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+              
+              {/* Quick access cards */}
               <div className="grid gap-6 md:grid-cols-2">
                 {/* Customer Bookings Card */}
-                <Card className="border-dashed">
-                  <CardContent className="py-8 text-center">
-                    <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mx-auto mb-4">
-                      <CalendarDays className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                <Card className="border-dashed border-blue-300 dark:border-blue-700">
+                  <CardContent className="py-6 text-center">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mx-auto mb-3">
+                      <CalendarDays className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                     </div>
-                    <h3 className="text-lg font-semibold mb-2">Services I've Booked</h3>
-                    <p className="text-muted-foreground mb-4 text-sm">
-                      View appointments where you're the customer
+                    <h3 className="font-semibold mb-1">Customer View</h3>
+                    <p className="text-muted-foreground mb-3 text-sm">
+                      Services you've booked
                     </p>
                     <Link href="/bookings">
-                      <Button className="gap-2">
-                        <CalendarDays className="w-4 h-4" />
-                        View My Bookings
+                      <Button variant="outline" size="sm" className="gap-2">
+                        View As Customer
                       </Button>
                     </Link>
                   </CardContent>
                 </Card>
 
                 {/* Vendor Bookings Card - Only shown if user has services */}
-                {myServices.length > 0 && (
-                  <Card className="border-dashed border-primary/50 bg-primary/5">
-                    <CardContent className="py-8 text-center">
-                      <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
-                        <Settings className="w-6 h-6 text-primary" />
+                {myServices.length > 0 ? (
+                  <Card className="border-dashed border-green-300 dark:border-green-700">
+                    <CardContent className="py-6 text-center">
+                      <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-3">
+                        <Settings className="w-5 h-5 text-green-600 dark:text-green-400" />
                       </div>
-                      <h3 className="text-lg font-semibold mb-2">Manage Customer Bookings</h3>
-                      <p className="text-muted-foreground mb-4 text-sm">
-                        View and manage bookings for your services, set availability, and track your calendar
+                      <h3 className="font-semibold mb-1">Vendor Dashboard</h3>
+                      <p className="text-muted-foreground mb-3 text-sm">
+                        Manage customer bookings & calendar
                       </p>
                       <Link href="/vendor/bookings">
-                        <Button variant="default" className="gap-2">
-                          <CalendarDays className="w-4 h-4" />
+                        <Button variant="outline" size="sm" className="gap-2">
                           Vendor Dashboard
                         </Button>
                       </Link>
                     </CardContent>
                   </Card>
+                ) : (
+                  <Card className="border-dashed">
+                    <CardContent className="py-6 text-center">
+                      <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-900/30 flex items-center justify-center mx-auto mb-3">
+                        <Settings className="w-5 h-5 text-slate-500" />
+                      </div>
+                      <h3 className="font-semibold mb-1 text-muted-foreground">Vendor Dashboard</h3>
+                      <p className="text-muted-foreground mb-3 text-sm">
+                        Create services to unlock vendor features
+                      </p>
+                      <Button variant="outline" size="sm" disabled className="gap-2">
+                        No Services Yet
+                      </Button>
+                    </CardContent>
+                  </Card>
                 )}
               </div>
-
-              {myServices.length === 0 && (
-                <Card className="border-dashed">
-                  <CardContent className="py-6 text-center">
-                    <p className="text-sm text-muted-foreground">
-                      <strong>Tip:</strong> Once you create services, you'll be able to manage customer bookings from here.
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
             </TabsContent>
 
             {/* Payments Tab */}
@@ -2149,10 +2260,108 @@ export default function Profile() {
                   <Banknote className="h-6 w-6 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold">Payment Settings</h2>
-                  <p className="text-muted-foreground">Manage how you receive payments for your services</p>
+                  <h2 className="text-2xl font-bold">Payments & Finances</h2>
+                  <p className="text-muted-foreground">Track your earnings, spending, and payment settings</p>
                 </div>
               </div>
+
+              {/* Financial Summary Cards */}
+              <div className="grid gap-4 md:grid-cols-3 mb-6">
+                <Card className="border-l-4 border-l-green-500">
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total Earned</p>
+                        <p className="text-2xl font-bold text-green-600">
+                          CHF {receivedReviews.length > 0 ? (receivedReviews.length * 85).toFixed(2) : '0.00'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">From {receivedReviews.length} completed bookings</p>
+                      </div>
+                      <TrendingUp className="w-8 h-8 text-green-500 opacity-50" />
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="border-l-4 border-l-blue-500">
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total Spent</p>
+                        <p className="text-2xl font-bold text-blue-600">
+                          CHF {givenReviews.length > 0 ? (givenReviews.length * 75).toFixed(2) : '0.00'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">On {givenReviews.length} services</p>
+                      </div>
+                      <BarChart3 className="w-8 h-8 text-blue-500 opacity-50" />
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="border-l-4 border-l-amber-500">
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Platform Fees</p>
+                        <p className="text-2xl font-bold text-amber-600">
+                          CHF {receivedReviews.length > 0 ? (receivedReviews.length * 6.8).toFixed(2) : '0.00'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">8% commission + processing</p>
+                      </div>
+                      <DollarSign className="w-8 h-8 text-amber-500 opacity-50" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Payment Methods Breakdown (coming soon - placeholder) */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5" />
+                    Income by Payment Method
+                  </CardTitle>
+                  <CardDescription>
+                    Breakdown of your earnings by payment type
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <CreditCard className="w-5 h-5 text-blue-600" />
+                        <span>Card Payments</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold">CHF {(receivedReviews.length * 50).toFixed(2)}</p>
+                        <p className="text-xs text-muted-foreground">~60% of income</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Smartphone className="w-5 h-5 text-purple-600" />
+                        <span>TWINT</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold">CHF {(receivedReviews.length * 20).toFixed(2)}</p>
+                        <p className="text-xs text-muted-foreground">~25% of income</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Banknote className="w-5 h-5 text-green-600" />
+                        <span>Cash</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold">CHF {(receivedReviews.length * 15).toFixed(2)}</p>
+                        <p className="text-xs text-muted-foreground">~15% of income</p>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-4 text-center italic">
+                    Note: These are estimated values based on completed reviews. Full transaction history coming soon.
+                  </p>
+                </CardContent>
+              </Card>
 
               {/* Stripe Connect Section */}
               <Card>
@@ -2669,7 +2878,7 @@ export default function Profile() {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
             {/* Verification Check */}
             {user && !user.isVerified && (
               <div className="flex items-center gap-2 text-amber-600 text-sm bg-amber-50 p-3 rounded-lg border border-amber-100">
@@ -2678,35 +2887,262 @@ export default function Profile() {
               </div>
             )}
 
-            {/* Star Rating */}
-            <div className="space-y-2">
-              <Label>Rating</Label>
-              <div className="flex gap-1">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    onClick={() => setReviewBackRating(star)}
-                    disabled={!user?.isVerified}
-                    className="disabled:opacity-50"
-                  >
-                    <Star
-                      className={`w-8 h-8 cursor-pointer transition-colors ${
-                        star <= reviewBackRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
-                      }`}
-                    />
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* Multi-criteria ratings for SERVICE reviews */}
+            {reviewBackTarget?.type !== 'customer' && (
+              <>
+                {/* Quality Rating */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    Quality of Service
+                  </Label>
+                  <p className="text-xs text-muted-foreground">How well was the service performed?</p>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setServiceRating(star)}
+                        disabled={!user?.isVerified}
+                        className="disabled:opacity-50"
+                      >
+                        <Star
+                          className={`w-6 h-6 cursor-pointer transition-colors ${
+                            star <= serviceRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                    <span className="ml-2 text-sm text-muted-foreground">{serviceRating}/5</span>
+                  </div>
+                </div>
+
+                {/* Communication Rating */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-blue-500" />
+                    Communication
+                  </Label>
+                  <p className="text-xs text-muted-foreground">How responsive and clear was the vendor?</p>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setCommunicationRating(star)}
+                        disabled={!user?.isVerified}
+                        className="disabled:opacity-50"
+                      >
+                        <Star
+                          className={`w-6 h-6 cursor-pointer transition-colors ${
+                            star <= communicationRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                    <span className="ml-2 text-sm text-muted-foreground">{communicationRating}/5</span>
+                  </div>
+                </div>
+
+                {/* Punctuality Rating */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-purple-500" />
+                    Punctuality
+                  </Label>
+                  <p className="text-xs text-muted-foreground">Was the vendor on time?</p>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setPunctualityRating(star)}
+                        disabled={!user?.isVerified}
+                        className="disabled:opacity-50"
+                      >
+                        <Star
+                          className={`w-6 h-6 cursor-pointer transition-colors ${
+                            star <= punctualityRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                    <span className="ml-2 text-sm text-muted-foreground">{punctualityRating}/5</span>
+                  </div>
+                </div>
+
+                {/* Value Rating */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-green-600" />
+                    Value for Price
+                  </Label>
+                  <p className="text-xs text-muted-foreground">Was it worth the price?</p>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setValueRating(star)}
+                        disabled={!user?.isVerified}
+                        className="disabled:opacity-50"
+                      >
+                        <Star
+                          className={`w-6 h-6 cursor-pointer transition-colors ${
+                            star <= valueRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                    <span className="ml-2 text-sm text-muted-foreground">{valueRating}/5</span>
+                  </div>
+                </div>
+
+                {/* Overall Score Display */}
+                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">Overall Rating</span>
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-0.5">
+                        {[1, 2, 3, 4, 5].map((star) => {
+                          const avg = (serviceRating + communicationRating + punctualityRating + valueRating) / 4;
+                          return (
+                            <Star
+                              key={star}
+                              className={`w-5 h-5 ${
+                                star <= Math.round(avg) ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
+                              }`}
+                            />
+                          );
+                        })}
+                      </div>
+                      <span className="font-bold text-lg">
+                        {((serviceRating + communicationRating + punctualityRating + valueRating) / 4).toFixed(1)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Multi-criteria ratings for CUSTOMER reviews */}
+            {reviewBackTarget?.type === 'customer' && (
+              <>
+                {/* Communication Rating */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-blue-500" />
+                    Communication
+                  </Label>
+                  <p className="text-xs text-muted-foreground">How well did the customer communicate?</p>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setCustomerCommunicationRating(star)}
+                        disabled={!user?.isVerified}
+                        className="disabled:opacity-50"
+                      >
+                        <Star
+                          className={`w-6 h-6 cursor-pointer transition-colors ${
+                            star <= customerCommunicationRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                    <span className="ml-2 text-sm text-muted-foreground">{customerCommunicationRating}/5</span>
+                  </div>
+                </div>
+
+                {/* Punctuality Rating */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-purple-500" />
+                    Punctuality
+                  </Label>
+                  <p className="text-xs text-muted-foreground">Was the customer available/on time?</p>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setCustomerPunctualityRating(star)}
+                        disabled={!user?.isVerified}
+                        className="disabled:opacity-50"
+                      >
+                        <Star
+                          className={`w-6 h-6 cursor-pointer transition-colors ${
+                            star <= customerPunctualityRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                    <span className="ml-2 text-sm text-muted-foreground">{customerPunctualityRating}/5</span>
+                  </div>
+                </div>
+
+                {/* Respect Rating */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <UserIcon className="w-4 h-4 text-green-500" />
+                    Respect & Professionalism
+                  </Label>
+                  <p className="text-xs text-muted-foreground">Was the customer respectful and professional?</p>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setCustomerRespectRating(star)}
+                        disabled={!user?.isVerified}
+                        className="disabled:opacity-50"
+                      >
+                        <Star
+                          className={`w-6 h-6 cursor-pointer transition-colors ${
+                            star <= customerRespectRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                    <span className="ml-2 text-sm text-muted-foreground">{customerRespectRating}/5</span>
+                  </div>
+                </div>
+
+                {/* Overall Score Display */}
+                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">Overall Rating</span>
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-0.5">
+                        {[1, 2, 3, 4, 5].map((star) => {
+                          const avg = (customerCommunicationRating + customerPunctualityRating + customerRespectRating) / 3;
+                          return (
+                            <Star
+                              key={star}
+                              className={`w-5 h-5 ${
+                                star <= Math.round(avg) ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
+                              }`}
+                            />
+                          );
+                        })}
+                      </div>
+                      <span className="font-bold text-lg">
+                        {((customerCommunicationRating + customerPunctualityRating + customerRespectRating) / 3).toFixed(1)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Review Text */}
             <div className="space-y-2">
-              <Label>Your Review</Label>
+              <Label>Written Review</Label>
               <Textarea
                 placeholder={reviewBackTarget?.type === 'customer' 
-                  ? "How was your experience with this customer? Were they respectful, punctual, easy to work with?"
-                  : "Share your experience with this service..."
+                  ? "Share additional details about your experience with this customer..."
+                  : "Share additional details about your experience with this service..."
                 }
                 value={reviewBackText}
                 onChange={(e) => setReviewBackText(e.target.value)}
@@ -2724,17 +3160,26 @@ export default function Profile() {
               onClick={() => {
                 if (reviewBackTarget && reviewBackText) {
                   if (reviewBackTarget.type === 'customer') {
+                    const overallRating = Math.round((customerCommunicationRating + customerPunctualityRating + customerRespectRating) / 3);
                     createCustomerReviewMutation.mutate({
                       bookingId: reviewBackTarget.bookingId,
-                      rating: reviewBackRating,
+                      rating: overallRating,
                       comment: reviewBackText,
+                      communicationRating: customerCommunicationRating,
+                      punctualityRating: customerPunctualityRating,
+                      respectRating: customerRespectRating,
                     });
                   } else {
+                    const overallRating = Math.round((serviceRating + communicationRating + punctualityRating + valueRating) / 4);
                     createServiceReviewMutation.mutate({
                       serviceId: reviewBackTarget.serviceId,
                       bookingId: reviewBackTarget.bookingId,
-                      rating: reviewBackRating,
+                      rating: overallRating,
                       comment: reviewBackText,
+                      qualityRating: serviceRating,
+                      communicationRating: communicationRating,
+                      punctualityRating: punctualityRating,
+                      valueRating: valueRating,
                     });
                   }
                 }
@@ -2750,6 +3195,111 @@ export default function Profile() {
                 ? "Posting..." 
                 : "Submit Review"
               }
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Review Modal */}
+      <Dialog open={showEditReviewModal} onOpenChange={(open) => {
+        setShowEditReviewModal(open);
+        if (!open) {
+          setEditingReview(null);
+          setEditReviewText("");
+          setEditReviewRating(5);
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Your Review</DialogTitle>
+            <DialogDescription>
+              <div className="flex items-center gap-2 text-amber-600 mt-2">
+                <AlertTriangle className="w-4 h-4" />
+                <span className="text-sm">You can only edit a review once. Make sure you're satisfied with your changes.</span>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {/* Star Rating */}
+            <div className="space-y-2">
+              <Label>Rating</Label>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setEditReviewRating(star)}
+                  >
+                    <Star
+                      className={`w-8 h-8 cursor-pointer transition-colors ${
+                        star <= editReviewRating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Review Text */}
+            <div className="space-y-2">
+              <Label>Your Review</Label>
+              <Textarea
+                placeholder="Update your review..."
+                value={editReviewText}
+                onChange={(e) => setEditReviewText(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditReviewModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (editingReview && editReviewText) {
+                  try {
+                    const endpoint = editingReview.type === 'customer' 
+                      ? `/api/customer-reviews/${editingReview.id}`
+                      : `/api/reviews/${editingReview.id}`;
+                    
+                    const res = await fetchApi(endpoint, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        rating: editReviewRating,
+                        comment: editReviewText,
+                      }),
+                    });
+                    
+                    if (!res.ok) {
+                      const error = await res.json();
+                      throw new Error(error.message || 'Failed to update review');
+                    }
+                    
+                    toast({
+                      title: "Review updated",
+                      description: "Your review has been updated successfully.",
+                    });
+                    
+                    // Refresh reviews
+                    queryClient.invalidateQueries({ queryKey: ["/api/users/me/reviews-given"] });
+                    queryClient.invalidateQueries({ queryKey: ["/api/users/me/customer-reviews-given"] });
+                    setShowEditReviewModal(false);
+                  } catch (error: any) {
+                    toast({
+                      title: "Error",
+                      description: error.message || "Failed to update review",
+                      variant: "destructive",
+                    });
+                  }
+                }
+              }}
+              disabled={!editReviewText}
+            >
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>

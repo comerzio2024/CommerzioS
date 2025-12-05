@@ -77,7 +77,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <Link href="/how-it-works"><span className="hover:text-primary transition-colors cursor-pointer">How it Works</span></Link>
               {isAuthenticated && user && (
                 <>
-                  <Link href="/bookings"><span className="hover:text-primary transition-colors cursor-pointer">My Bookings</span></Link>
+                  <Link href="/my-bookings"><span className="hover:text-primary transition-colors cursor-pointer">My Bookings</span></Link>
                   <Link href="/service-requests"><span className="hover:text-primary transition-colors cursor-pointer">Service Requests</span></Link>
                 </>
               )}
@@ -134,7 +134,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         <Star className="w-4 h-4 mr-2" />
                         Reviews
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setLocation("/bookings")} data-testid="menu-item-my-bookings">
+                      <DropdownMenuItem onClick={() => setLocation("/my-bookings")} data-testid="menu-item-my-bookings">
                         <CalendarDays className="w-4 h-4 mr-2" />
                         My Bookings
                       </DropdownMenuItem>
@@ -216,7 +216,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <div className="h-px bg-border my-2" />
                   {isAuthenticated && user && (
                     <>
-                      <Link href="/bookings">
+                      <Link href="/my-bookings">
                         <span className="text-lg font-medium cursor-pointer flex items-center gap-2">
                           <CalendarDays className="w-5 h-5" />
                           My Bookings

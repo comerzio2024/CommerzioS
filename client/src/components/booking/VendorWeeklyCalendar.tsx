@@ -806,17 +806,17 @@ export function VendorWeeklyCalendar({ className }: VendorWeeklyCalendarProps) {
               <div className="space-y-2">
                 <Label>Apply to Service (optional)</Label>
                 <Select
-                  value={blockFormData.serviceId}
+                  value={blockFormData.serviceId || '__all__'}
                   onValueChange={(value) => setBlockFormData(prev => ({
                     ...prev,
-                    serviceId: value
+                    serviceId: value === '__all__' ? '' : value
                   }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="All services" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All services</SelectItem>
+                    <SelectItem value="__all__">All services</SelectItem>
                     {services.map(service => (
                       <SelectItem key={service.id} value={service.id}>
                         {service.title}

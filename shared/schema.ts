@@ -698,13 +698,22 @@ export const aiConversationsRelations = relations(aiConversations, ({ one }) => 
   }),
 }));
 
-// Reviews table
+// Reviews table - comprehensive multi-criteria reviews from customers on services
 export const reviews = pgTable("reviews", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   serviceId: varchar("service_id").notNull().references(() => services.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   bookingId: varchar("booking_id").references(() => bookings.id, { onDelete: "set null" }),
+  
+  // Overall rating (calculated average of criteria)
   rating: integer("rating").notNull(),
+  
+  // Multi-criteria ratings (1-5 stars each) for service reviews
+  qualityRating: integer("quality_rating"), // Quality of service delivered
+  communicationRating: integer("communication_rating"), // Vendor communication
+  punctualityRating: integer("punctuality_rating"), // Timeliness and scheduling
+  valueRating: integer("value_rating"), // Value for the price paid
+  
   comment: text("comment").notNull(),
   editCount: integer("edit_count").default(0).notNull(),
   lastEditedAt: timestamp("last_edited_at"),
@@ -773,13 +782,21 @@ export const reviewsRelations = relations(reviews, ({ one }) => ({
   }),
 }));
 
-// Customer Reviews - vendors review customers after completed bookings
+// Customer Reviews - vendors review customers after completed bookings (multi-criteria)
 export const customerReviews = pgTable("customer_reviews", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   vendorId: varchar("vendor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   customerId: varchar("customer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   bookingId: varchar("booking_id").notNull().references(() => bookings.id, { onDelete: "cascade" }).unique(),
+  
+  // Overall rating (calculated average of criteria)
   rating: integer("rating").notNull(),
+  
+  // Multi-criteria ratings (1-5 stars each) for customer reviews
+  communicationRating: integer("communication_rating"), // Customer communication
+  punctualityRating: integer("punctuality_rating"), // Customer timeliness
+  respectRating: integer("respect_rating"), // Customer respect and professionalism
+  
   comment: text("comment").notNull(),
   editCount: integer("edit_count").default(0).notNull(),
   lastEditedAt: timestamp("last_edited_at"),
