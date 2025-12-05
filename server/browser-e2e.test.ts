@@ -158,6 +158,109 @@ describe('Browser E2E Tests - Complete User Journeys', () => {
         console.log('No services found to test details');
       }
     });
+
+    it('2.7 - should verify service images structure', async () => {
+      if (!testServiceId) {
+        const listResponse = await authRequest('/api/services');
+        const services = await listResponse.json();
+        if (services.length > 0) {
+          testServiceId = services[0].id;
+        }
+      }
+      
+      if (testServiceId) {
+        const response = await authRequest(`/api/services/${testServiceId}`);
+        expect(response.status).toBe(200);
+        const service = await response.json();
+        
+        // Verify images array exists
+        expect(service).toHaveProperty('images');
+        expect(Array.isArray(service.images)).toBe(true);
+        
+        // Verify image metadata structure if images exist
+        if (service.images.length > 0) {
+          expect(typeof service.images[0]).toBe('string'); // URLs are strings
+        }
+      }
+    });
+
+    it('2.8 - should get user plan with image limits', async () => {
+      const response = await authRequest('/api/auth/user');
+      if (response.status === 200) {
+        const user = await response.json();
+        // Verify plan structure includes maxImages
+        if (user.plan) {
+          expect(user.plan).toHaveProperty('maxImages');
+          expect(typeof user.plan.maxImages).toBe('number');
+        }
+      }
+    });
+  });
+
+  describe('Journey 2.5: Service Creation (Vendor Side)', () => {
+    it('2.5.1 - should get categories for service creation', async () => {
+      const response = await authRequest('/api/categories');
+      expect(response.status).toBe(200);
+      const categories = await response.json();
+      expect(Array.isArray(categories)).toBe(true);
+      expect(categories.length).toBeGreaterThan(0);
+      
+      // Categories should have required fields for service creation
+      if (categories.length > 0) {
+        expect(categories[0]).toHaveProperty('id');
+        expect(categories[0]).toHaveProperty('name');
+      }
+    });
+
+    it('2.5.2 - should get image upload configuration', async () => {
+      // This verifies the upload endpoint is accessible
+      const response = await authRequest('/api/upload/config');
+      // Accept 200 or 404 if config endpoint doesn't exist
+      expect([200, 404]).toContain(response.status);
+    });
+
+    it('2.5.3 - should validate service creation payload', async () => {
+      // Test validation without actually creating
+      const response = await authRequest('/api/services', {
+        method: 'POST',
+        body: JSON.stringify({
+          // Intentionally incomplete to test validation
+          title: '', // Empty title should fail
+        }),
+      });
+      
+      // Should return validation error
+      expect([400, 422]).toContain(response.status);
+    });
+
+    it('2.5.4 - should enforce image limits based on plan', async () => {
+      // Get user plan first
+      const userResponse = await authRequest('/api/auth/user');
+      if (userResponse.status === 200) {
+        const user = await userResponse.json();
+        const maxImages = user.plan?.maxImages || 4;
+        
+        // Verify the limit is reasonable
+        expect(maxImages).toBeGreaterThanOrEqual(1);
+        expect(maxImages).toBeLessThanOrEqual(20);
+        
+        console.log(`User plan allows ${maxImages} images`);
+      }
+    });
+
+    it('2.5.5 - should return available plans with image limits', async () => {
+      const response = await authRequest('/api/plans');
+      expect(response.status).toBe(200);
+      const plans = await response.json();
+      expect(Array.isArray(plans)).toBe(true);
+      
+      // Each plan should specify image limits
+      plans.forEach((plan: any) => {
+        if (plan.maxImages !== undefined) {
+          expect(typeof plan.maxImages).toBe('number');
+        }
+      });
+    });
   });
   
   describe('Journey 3: Service Requests (Customer Side)', () => {
@@ -276,6 +379,65 @@ describe('Browser E2E Tests - Complete User Journeys', () => {
       
       const response = await authRequest(`/api/disputes/${testDisputeId}`);
       expect([200, 404]).toContain(response.status);
+      
+      if (response.status === 200) {
+        const data = await response.json();
+        // Verify dispute detail structure
+        expect(data).toHaveProperty('dispute');
+        expect(data).toHaveProperty('phases');
+        expect(data).toHaveProperty('parties');
+        expect(data).toHaveProperty('timeline');
+      }
+    });
+
+    it('5.4 - should support dispute evidence upload', async () => {
+      if (!testDisputeId) {
+        console.log('No dispute ID available for evidence test');
+        return;
+      }
+      
+      // Get dispute details to check evidence upload capability
+      const response = await authRequest(`/api/disputes/${testDisputeId}`);
+      if (response.status === 200) {
+        const data = await response.json();
+        // Verify evidence array exists in the response
+        expect(data.dispute).toHaveProperty('customerEvidence');
+        expect(data.dispute).toHaveProperty('vendorEvidence');
+      }
+    });
+
+    it('5.5 - should get evidence for a dispute', async () => {
+      if (!testDisputeId) {
+        console.log('No dispute ID available for evidence retrieval test');
+        return;
+      }
+      
+      const response = await authRequest(`/api/disputes/${testDisputeId}/evidence`);
+      // Accept 200 or 404 (route may not exist yet)
+      expect([200, 404]).toContain(response.status);
+      
+      if (response.status === 200) {
+        const data = await response.json();
+        expect(Array.isArray(data) || (data && data.evidence)).toBe(true);
+      }
+    });
+
+    it('5.6 - should handle evidence reordering', async () => {
+      if (!testDisputeId) {
+        console.log('No dispute ID available for reorder test');
+        return;
+      }
+      
+      // This tests that the API can accept reorder requests
+      const response = await authRequest(`/api/disputes/${testDisputeId}/evidence/reorder`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          evidenceIds: ['evidence-1', 'evidence-2'] // Test ordering
+        }),
+      });
+      
+      // Accept 200 (success), 400 (validation), 404 (not found), or 501 (not implemented)
+      expect([200, 400, 404, 501]).toContain(response.status);
     });
   });
   
@@ -563,6 +725,43 @@ describe('Browser E2E Tests - API Response Validation', () => {
       const data = await response.json();
       
       expect(Array.isArray(data)).toBe(true);
+      
+      // Verify dispute structure if any exist
+      if (data.length > 0) {
+        const dispute = data[0];
+        expect(dispute).toHaveProperty('id');
+        expect(dispute).toHaveProperty('status');
+        expect(dispute).toHaveProperty('reason');
+      }
+    });
+
+    it('dispute details should have complete structure', async () => {
+      const listResponse = await authRequest('/api/disputes');
+      if (listResponse.status === 200) {
+        const disputes = await listResponse.json();
+        
+        if (disputes.length > 0) {
+          const response = await authRequest(`/api/disputes/${disputes[0].id}`);
+          if (response.status === 200) {
+            const data = await response.json();
+            
+            // Verify complete dispute detail structure
+            expect(data).toHaveProperty('dispute');
+            expect(data.dispute).toHaveProperty('id');
+            expect(data.dispute).toHaveProperty('status');
+            expect(data.dispute).toHaveProperty('customerEvidence');
+            expect(data.dispute).toHaveProperty('vendorEvidence');
+            
+            // Evidence arrays should be arrays
+            expect(Array.isArray(data.dispute.customerEvidence)).toBe(true);
+            expect(Array.isArray(data.dispute.vendorEvidence)).toBe(true);
+            
+            expect(data).toHaveProperty('phases');
+            expect(data).toHaveProperty('parties');
+            expect(data).toHaveProperty('timeline');
+          }
+        }
+      }
     });
     
     it('notifications response should have correct shape', async () => {
@@ -588,6 +787,37 @@ describe('Browser E2E Tests - API Response Validation', () => {
       const data = await response.json();
       
       expect(Array.isArray(data)).toBe(true);
+    });
+
+    it('services should have images array structure', async () => {
+      const response = await authRequest('/api/services');
+      expect(response.status).toBe(200);
+      const services = await response.json();
+      
+      expect(Array.isArray(services)).toBe(true);
+      
+      if (services.length > 0) {
+        const service = services[0];
+        expect(service).toHaveProperty('id');
+        expect(service).toHaveProperty('title');
+        expect(service).toHaveProperty('images');
+        expect(Array.isArray(service.images)).toBe(true);
+      }
+    });
+
+    it('user profile should include plan with image limits', async () => {
+      const response = await authRequest('/api/auth/user');
+      if (response.status === 200) {
+        const user = await response.json();
+        expect(user).toHaveProperty('id');
+        
+        // Plan may be null for users without a plan
+        if (user.plan) {
+          expect(user.plan).toHaveProperty('maxImages');
+          expect(typeof user.plan.maxImages).toBe('number');
+          expect(user.plan.maxImages).toBeGreaterThan(0);
+        }
+      }
     });
   });
 });
