@@ -458,7 +458,7 @@ export default function Home() {
     });
   };
 
-  const { data: nearbyData = [], isLoading: nearbyLoading } = useQuery<Array<ServiceWithDetails & { distance: number }>>({
+  const { data: nearbyData = [], isLoading: nearbyLoading, isFetching: nearbyFetching } = useQuery<Array<ServiceWithDetails & { distance: number }>>({
     queryKey: ["/api/services/nearby", searchLocation, radiusKm],
     queryFn: () => apiRequest("/api/services/nearby", {
       method: "POST",
@@ -473,10 +473,16 @@ export default function Home() {
       }
     }),
     enabled: !!searchLocation,
+    // Keep previous data visible while refetching with new radius
+    // This prevents the map from disappearing during radius changes
+    placeholderData: (previousData) => previousData,
   });
 
   const nearbyServices = useMemo(() => {
-    if (!searchLocation || nearbyLoading) return [];
+    // Only block on initial load when we have no data at all
+    // During refetch (radius change), placeholderData keeps previous data available
+    if (!searchLocation) return [];
+    if (nearbyLoading && nearbyData.length === 0) return [];
 
     let filtered = nearbyData || [];
 
