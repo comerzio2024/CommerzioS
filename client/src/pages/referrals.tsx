@@ -16,11 +16,11 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { fetchApi } from "@/lib/config";
-import { 
-  Copy, 
-  Users, 
-  Gift, 
-  TrendingUp, 
+import {
+  Copy,
+  Users,
+  Gift,
+  TrendingUp,
   Star,
   History,
   Award,
@@ -326,10 +326,10 @@ export default function ReferralsPage() {
       <div className="container mx-auto py-8 px-4">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-3xl font-bold text-white">
             Referral Program
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
+          <p className="text-slate-400 mt-2">
             Invite friends and earn rewards for every referral
           </p>
         </div>
@@ -362,15 +362,15 @@ export default function ReferralsPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+          <Card className="bg-gradient-to-br from-teal-500 to-cyan-600 text-white">
             <CardHeader className="pb-2">
-              <CardDescription className="text-purple-100">Commission Earned</CardDescription>
+              <CardDescription className="text-teal-100">Commission Earned</CardDescription>
               <CardTitle className="text-3xl">
                 CHF {(stats?.totalCommissionEarned || 0).toFixed(2)}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center text-purple-100 text-sm">
+              <div className="flex items-center text-teal-100 text-sm">
                 <Clock className="h-4 w-4 mr-1" />
                 Pending: CHF {(stats?.pendingCommission || 0).toFixed(2)}
               </div>
@@ -463,7 +463,7 @@ export default function ReferralsPage() {
                 Share
               </Button>
             </div>
-            
+
             {/* Social Share Buttons */}
             <div className="flex flex-wrap gap-2 pt-2 border-t">
               <Button variant="outline" size="sm" onClick={shareToWhatsApp} className="text-green-600 hover:bg-green-50">
@@ -471,11 +471,11 @@ export default function ReferralsPage() {
                 WhatsApp
               </Button>
               <Button variant="outline" size="sm" onClick={shareToFacebook} className="text-blue-600 hover:bg-blue-50">
-                <svg className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                <svg className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" /></svg>
                 Facebook
               </Button>
               <Button variant="outline" size="sm" onClick={shareToTwitter} className="text-sky-500 hover:bg-sky-50">
-                <svg className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                <svg className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
                 X
               </Button>
               <Button variant="outline" size="sm" onClick={shareByEmail} className="text-gray-600 hover:bg-gray-50">
@@ -738,11 +738,10 @@ export default function ReferralsPage() {
                         className="flex items-center justify-between p-4 border rounded-lg"
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                            entry.points > 0 
-                              ? "bg-green-100 text-green-600" 
+                          <div className={`h-10 w-10 rounded-full flex items-center justify-center ${entry.points > 0
+                              ? "bg-green-100 text-green-600"
                               : "bg-red-100 text-red-600"
-                          }`}>
+                            }`}>
                             {entry.points > 0 ? (
                               <TrendingUp className="h-5 w-5" />
                             ) : (
@@ -757,9 +756,8 @@ export default function ReferralsPage() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className={`font-bold ${
-                            entry.points > 0 ? "text-green-600" : "text-red-600"
-                          }`}>
+                          <p className={`font-bold ${entry.points > 0 ? "text-green-600" : "text-red-600"
+                            }`}>
                             {entry.points > 0 ? "+" : ""}{entry.points}
                           </p>
                           <p className="text-sm text-gray-500">

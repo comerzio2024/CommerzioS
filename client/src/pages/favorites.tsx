@@ -53,10 +53,10 @@ export default function Saved() {
       <Layout>
         <div className="container mx-auto px-4 py-20">
           <div className="text-center">
-            <div className="mx-auto w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-              <Sparkles className="w-8 h-8 text-slate-400 animate-pulse" />
+            <div className="mx-auto w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4">
+              <Sparkles className="w-8 h-8 text-cyan-400 animate-pulse" />
             </div>
-            <h3 className="text-lg font-semibold text-slate-900">Loading your saved services...</h3>
+            <h3 className="text-lg font-semibold text-white">Loading your saved services...</h3>
           </div>
         </div>
       </Layout>
@@ -69,15 +69,15 @@ export default function Saved() {
       <Layout>
         <div className="container mx-auto px-4 py-20">
           <div className="text-center max-w-lg mx-auto">
-            <div className="mx-auto w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-              <Heart className="w-8 h-8 text-slate-400" />
+            <div className="mx-auto w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4">
+              <Heart className="w-8 h-8 text-cyan-400" />
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">Sign In to View Saved Services</h2>
-            <p className="text-slate-600 mb-6">
+            <h2 className="text-2xl font-bold text-white mb-2">Sign In to View Saved Services</h2>
+            <p className="text-slate-400 mb-6">
               You need to be signed in to save and view your saved services.
             </p>
             <Link href="/">
-              <Button className="gap-2">
+              <Button className="gap-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-400 hover:to-cyan-400">
                 Browse Services <ArrowRight className="w-4 h-4" />
               </Button>
             </Link>
@@ -89,17 +89,17 @@ export default function Saved() {
 
   return (
     <Layout>
-      <div className="bg-gradient-to-b from-slate-50 to-white">
-        <div className="bg-white border-b">
+      <div className="bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
+        <div className="backdrop-blur-xl bg-slate-900/50 border-b border-slate-800">
           <div className="container mx-auto px-4 py-8">
             {/* Page Header */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-red-50 rounded-full">
-                  <Heart className="w-6 h-6 text-red-500 fill-red-500" />
+                <div className="p-3 bg-cyan-500/20 rounded-full">
+                  <Heart className="w-6 h-6 text-cyan-400 fill-cyan-400" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-slate-900">Your Saved Listings</h1>
+                  <h1 className="text-3xl font-bold text-white">Your Saved Listings</h1>
                   {saved.length > 0 && (
                     <div className="text-slate-600 mt-1">
                       You have <Badge variant="secondary" className="mx-1">{saved.length}</Badge> saved service{saved.length !== 1 ? 's' : ''}
@@ -107,7 +107,7 @@ export default function Saved() {
                   )}
                 </div>
               </div>
-              
+
               <Link href="/">
                 <Button variant="outline" className="gap-2" data-testid="button-browse-services">
                   Browse More Services <ArrowRight className="w-4 h-4" />
@@ -187,7 +187,7 @@ export default function Saved() {
             </motion.div>
           )}
         </div>
-        </div>
+      </div>
     </Layout>
   );
 }

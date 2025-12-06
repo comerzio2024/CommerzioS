@@ -7,12 +7,12 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { 
-  Bell, 
-  Check, 
-  CheckCheck, 
-  X, 
-  Filter, 
+import {
+  Bell,
+  Check,
+  CheckCheck,
+  X,
+  Filter,
   Search,
   Loader2,
   Trash2,
@@ -99,7 +99,7 @@ export default function NotificationsPage() {
       if (filterType !== "all") {
         params.set('types', filterType);
       }
-      
+
       const res = await fetchApi(`/api/notifications?${params.toString()}`);
       if (!res.ok) {
         const error = await res.json().catch(() => ({ message: "Failed to fetch notifications" }));
@@ -116,8 +116,8 @@ export default function NotificationsPage() {
   const unreadCount = data?.unreadCount || 0;
 
   // Filter by search query
-  const filteredNotifications = notifications.filter(n => 
-    searchQuery === "" || 
+  const filteredNotifications = notifications.filter(n =>
+    searchQuery === "" ||
     n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     n.message.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -127,12 +127,12 @@ export default function NotificationsPage() {
     const date = format(new Date(notification.createdAt), "yyyy-MM-dd");
     const today = format(new Date(), "yyyy-MM-dd");
     const yesterday = format(new Date(Date.now() - 86400000), "yyyy-MM-dd");
-    
+
     let groupKey: string;
     if (date === today) groupKey = "Today";
     else if (date === yesterday) groupKey = "Yesterday";
     else groupKey = format(new Date(notification.createdAt), "MMMM d, yyyy");
-    
+
     if (!groups[groupKey]) groups[groupKey] = [];
     groups[groupKey].push(notification);
     return groups;
@@ -206,22 +206,22 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 dark:from-slate-950 dark:to-indigo-950">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
       <div className="container max-w-4xl mx-auto py-8 px-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
             <Link href="/">
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
             </Link>
             <div>
-              <h1 className="text-3xl font-bold flex items-center gap-3">
-                <Bell className="h-8 w-8 text-indigo-600" />
+              <h1 className="text-3xl font-bold flex items-center gap-3 text-white">
+                <Bell className="h-8 w-8 text-cyan-400" />
                 Notifications
               </h1>
-              <p className="text-muted-foreground mt-1">
+              <p className="text-slate-400 mt-1">
                 {unreadCount > 0 ? `${unreadCount} unread notifications` : "All caught up!"}
               </p>
             </div>
@@ -246,7 +246,7 @@ export default function NotificationsPage() {
                   Mark all as read
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   className="text-destructive"
                   onClick={() => clearAllMutation.mutate()}
                 >
@@ -298,7 +298,7 @@ export default function NotificationsPage() {
             <TabsTrigger value="unread" className="flex items-center gap-2">
               Unread
               {unreadCount > 0 && (
-                <Badge className="bg-indigo-500 text-white">{unreadCount}</Badge>
+                <Badge className="bg-cyan-500 text-white">{unreadCount}</Badge>
               )}
             </TabsTrigger>
           </TabsList>
@@ -311,14 +311,14 @@ export default function NotificationsPage() {
             ) : filteredNotifications.length === 0 ? (
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-20 text-center">
-                  <div className="w-16 h-16 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center mb-4">
-                    <Bell className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+                  <div className="w-16 h-16 rounded-full bg-cyan-500/20 flex items-center justify-center mb-4">
+                    <Bell className="h-8 w-8 text-cyan-400" />
                   </div>
                   <h3 className="text-lg font-semibold mb-1">
                     {activeTab === "unread" ? "All caught up!" : "No notifications yet"}
                   </h3>
                   <p className="text-muted-foreground text-sm max-w-sm">
-                    {activeTab === "unread" 
+                    {activeTab === "unread"
                       ? "You've read all your notifications. Great job staying on top of things!"
                       : "When you get notifications, they'll show up here."}
                   </p>
@@ -334,9 +334,9 @@ export default function NotificationsPage() {
                     <div className="space-y-2">
                       {notifs.map((notification) => {
                         const info = typeInfo[notification.type] || typeInfo.system;
-                        
+
                         return (
-                          <Card 
+                          <Card
                             key={notification.id}
                             className={cn(
                               "transition-all cursor-pointer hover:shadow-md",
@@ -375,7 +375,7 @@ export default function NotificationsPage() {
                                   <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
                                     {notification.message}
                                   </p>
-                                  
+
                                   {/* Destination hint */}
                                   {notification.actionUrl && (
                                     <div className="flex items-center gap-1 mt-2 text-xs text-indigo-600 dark:text-indigo-400">
@@ -424,7 +424,7 @@ export default function NotificationsPage() {
                                   >
                                     <X className="h-4 w-4" />
                                   </Button>
-                                  
+
                                   {/* Click arrow */}
                                   {notification.actionUrl && (
                                     <ChevronRight className="w-5 h-5 text-muted-foreground/40 mt-1" />

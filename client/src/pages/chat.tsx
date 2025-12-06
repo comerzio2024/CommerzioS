@@ -94,21 +94,21 @@ export default function ChatPage() {
         }),
       })
         .then(async res => {
-        if (!res.ok) {
-          const error = await res.json().catch(() => ({ message: 'Failed to create conversation' }));
-          console.error('Failed to create conversation:', error);
-          throw new Error(error.message || 'Failed to create conversation');
-        }
-        return res.json();
-      })
+          if (!res.ok) {
+            const error = await res.json().catch(() => ({ message: 'Failed to create conversation' }));
+            console.error('Failed to create conversation:', error);
+            throw new Error(error.message || 'Failed to create conversation');
+          }
+          return res.json();
+        })
         .then(conversation => {
           console.log('[ChatPage] Conversation created/retrieved:', conversation);
           setSelectedConversation(conversation);
           setIsMobileViewingChat(true);
-          
+
           // Aggressively invalidate and refetch all conversation queries
           queryClient.invalidateQueries({ queryKey: ['conversations'] });
-          
+
           // Wait a bit then refetch to ensure backend has processed
           setTimeout(() => {
             queryClient.refetchQueries({ queryKey: ['conversations'] });
@@ -154,31 +154,31 @@ export default function ChatPage() {
   }
 
   const currentUserRole = selectedConversation?.customerId === user.id ? 'customer' : 'vendor';
-  
+
   // Get the other party info
-  const otherParty = currentUserRole === 'customer' 
-    ? selectedConversation?.vendor 
+  const otherParty = currentUserRole === 'customer'
+    ? selectedConversation?.vendor
     : selectedConversation?.customer;
-  
-  const otherPartyName = otherParty 
-    ? `${otherParty.firstName} ${otherParty.lastName}` 
+
+  const otherPartyName = otherParty
+    ? `${otherParty.firstName} ${otherParty.lastName}`
     : undefined;
 
   return (
     <Layout>
-      <div className="min-h-[calc(100vh-80px)] bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900">
+      <div className="min-h-[calc(100vh-80px)] bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
         <div className="container max-w-7xl py-4 md:py-6 px-4">
           {/* Header - Clean and minimal */}
           <div className="mb-4 md:mb-6 flex items-center justify-between">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
                 Messages
               </h1>
               <p className="text-sm text-muted-foreground mt-0.5">
                 Chat with vendors and customers
               </p>
             </div>
-            <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full">
+            <div className="hidden md:flex items-center gap-2 text-xs text-slate-300 bg-slate-800/50 backdrop-blur-xl px-3 py-1.5 rounded-full border border-slate-700">
               <Sparkles className="w-3.5 h-3.5" />
               <span>Real-time messaging</span>
             </div>
@@ -250,7 +250,7 @@ export default function ChatPage() {
                   <ArrowLeft className="w-4 h-4 mr-1.5" />
                   <span className="font-medium">All chats</span>
                 </Button>
-                
+
                 <Card className="flex-1 border shadow-lg overflow-hidden">
                   <ChatWindow
                     conversationId={selectedConversation.id}
