@@ -2148,7 +2148,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Map category/subcategory slugs to IDs
       const allCategories = await storage.getCategories();
-      let allSubcategories = await storage.getSubcategories();
+      const allSubcategories = await storage.getSubcategories();
       
       const category = allCategories.find(c => c.slug === suggestions.categorySlug);
       
