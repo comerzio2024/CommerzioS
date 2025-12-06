@@ -33,8 +33,8 @@ export default function Home() {
   const [, setLocation] = useLocation();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [radiusKm, setRadiusKm] = useState(10);
-  
-  const [searchLocation, setSearchLocation] = useState<{lat: number; lng: number; name: string} | null>(null);
+
+  const [searchLocation, setSearchLocation] = useState<{ lat: number; lng: number; name: string } | null>(null);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [isNearbyExpanded, setIsNearbyExpanded] = useState(false);
   const [isAllListingsExpanded, setIsAllListingsExpanded] = useState(false);
@@ -44,38 +44,38 @@ export default function Home() {
   const [useLocationPermissions, setUseLocationPermissions] = useState(false);
   const locationPermissionProcessingRef = useRef(false);
   const nearbyServicesSectionRef = useRef<HTMLElement>(null);
-  
+
   const [nearbyMode, setNearbyMode] = useState<'slider' | 'grid'>('slider');
   const [nearbyPage, setNearbyPage] = useState(1);
   const NEARBY_ITEMS_PER_PAGE = 12;
-  
+
   // Independent state for All Listings tab
   const [allListingsCategory, setAllListingsCategory] = useState<string | null>(null);
   const [allListingsSort, setAllListingsSort] = useState<SortOption>("newest");
-  
+
   // State for Saved Listings tab
   const [savedListingsSort, setSavedListingsSort] = useState<SortOption>("newest");
-  
+
   // Pagination state for All Listings and Saved Listings
   const [allListingsPage, setAllListingsPage] = useState(1);
   const [savedListingsPage, setSavedListingsPage] = useState(1);
   const ALL_LISTINGS_PER_PAGE = 12; // Divisible by 1,2,3,4 columns for complete rows
   const SAVED_LISTINGS_PER_PAGE = 12; // Divisible by 1,2,3,4 columns for complete rows
-  
+
   // Use shared geocoding hook for location search
-  const { 
-    query: locationSearchQuery, 
-    setQuery: setLocationSearchQuery, 
-    suggestions: addressSuggestions, 
-    isLoading: isLoadingSuggestions, 
-    clearSuggestions 
+  const {
+    query: locationSearchQuery,
+    setQuery: setLocationSearchQuery,
+    suggestions: addressSuggestions,
+    isLoading: isLoadingSuggestions,
+    clearSuggestions
   } = useGeocoding({
     minQueryLength: 2,
     debounceMs: 300,
     limit: 10,
     autoSearch: true,
   });
-  
+
   // Scroll to top on page load
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
@@ -180,7 +180,7 @@ export default function Home() {
 
   const handleLocationSearch = async (suggestion?: GeocodingSuggestion) => {
     const selectedLocation = suggestion || (addressSuggestions.length > 0 ? addressSuggestions[0] : null);
-    
+
     if (!locationSearchQuery.trim() && !selectedLocation) {
       toast({
         title: "Location required",
@@ -192,8 +192,8 @@ export default function Home() {
 
     setIsGeocoding(true);
     try {
-      let result: {lat: number; lng: number; displayName: string; name: string};
-      
+      let result: { lat: number; lng: number; displayName: string; name: string };
+
       if (selectedLocation) {
         // Use shared helper to normalize suggestion
         result = suggestionToGeocodeResult(selectedLocation);
@@ -207,7 +207,7 @@ export default function Home() {
         lng: result.lng,
         name: result.name || result.displayName
       });
-      
+
       clearSuggestions();
       setLocationSearchQuery("");
 
@@ -289,7 +289,7 @@ export default function Home() {
             "Content-Type": "application/json",
           },
         });
-        
+
         // Invalidate user query cache to ensure fresh data
         queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       }
@@ -312,7 +312,7 @@ export default function Home() {
     } catch (error: any) {
       console.error("Geolocation error:", error);
       let errorMessage = "Unable to get your location";
-      
+
       if (error.code === 1) {
         errorMessage = "Location permission denied. Please enable location access in your browser settings.";
       } else if (error.code === 2) {
@@ -339,7 +339,7 @@ export default function Home() {
     }
 
     setUseLocationPermissions(checked);
-    
+
     if (checked) {
       locationPermissionProcessingRef.current = true;
       try {
@@ -423,7 +423,7 @@ export default function Home() {
     }
 
     const locationName = `${selectedAddress.street}, ${selectedAddress.postalCode} ${selectedAddress.city}`;
-    
+
     setSearchLocation({
       lat: lat,
       lng: lng,
@@ -444,7 +444,7 @@ export default function Home() {
             "Content-Type": "application/json",
           },
         });
-        
+
         // Invalidate user query cache to ensure fresh data
         queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       } catch (error) {
@@ -477,14 +477,14 @@ export default function Home() {
 
   const nearbyServices = useMemo(() => {
     if (!searchLocation || nearbyLoading) return [];
-    
+
     let filtered = nearbyData || [];
-    
+
     // Filter by selected category
     if (selectedCategory) {
       filtered = filtered.filter(service => service.categoryId === selectedCategory);
     }
-    
+
     return filtered;
   }, [nearbyData, searchLocation, nearbyLoading, selectedCategory]);
 
@@ -508,7 +508,7 @@ export default function Home() {
     });
     return counts;
   }, [services]);
-  
+
   // Sorting function
   const sortServices = (servicesList: ServiceWithDetails[], sortBy: SortOption) => {
     return [...servicesList].sort((a, b) => {
@@ -520,22 +520,22 @@ export default function Home() {
         case "most-viewed":
           return b.viewCount - a.viewCount;
         case "price-low": {
-          const priceA = a.priceType === "fixed" && a.price !== null 
-            ? (typeof a.price === 'string' ? parseFloat(a.price) : a.price) 
+          const priceA = a.priceType === "fixed" && a.price !== null
+            ? (typeof a.price === 'string' ? parseFloat(a.price) : a.price)
             : 0;
-          const priceB = b.priceType === "fixed" && b.price !== null 
-            ? (typeof b.price === 'string' ? parseFloat(b.price) : b.price) 
+          const priceB = b.priceType === "fixed" && b.price !== null
+            ? (typeof b.price === 'string' ? parseFloat(b.price) : b.price)
             : 0;
           const safePriceA = isNaN(priceA) ? 0 : priceA;
           const safePriceB = isNaN(priceB) ? 0 : priceB;
           return safePriceA - safePriceB;
         }
         case "price-high": {
-          const priceA2 = a.priceType === "fixed" && a.price !== null 
-            ? (typeof a.price === 'string' ? parseFloat(a.price) : a.price) 
+          const priceA2 = a.priceType === "fixed" && a.price !== null
+            ? (typeof a.price === 'string' ? parseFloat(a.price) : a.price)
             : 0;
-          const priceB2 = b.priceType === "fixed" && b.price !== null 
-            ? (typeof b.price === 'string' ? parseFloat(b.price) : b.price) 
+          const priceB2 = b.priceType === "fixed" && b.price !== null
+            ? (typeof b.price === 'string' ? parseFloat(b.price) : b.price)
             : 0;
           const safePriceA2 = isNaN(priceA2) ? 0 : priceA2;
           const safePriceB2 = isNaN(priceB2) ? 0 : priceB2;
@@ -546,7 +546,7 @@ export default function Home() {
       }
     });
   };
-  
+
   // Filtered and sorted All Listings
   const filteredAllListings = useMemo(() => {
     let filtered = services;
@@ -555,7 +555,7 @@ export default function Home() {
     }
     return sortServices(filtered, allListingsSort);
   }, [services, allListingsCategory, allListingsSort]);
-  
+
   // Category counts for All Listings
   const allListingsCategoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -564,7 +564,7 @@ export default function Home() {
     });
     return counts;
   }, [services]);
-  
+
   // Filtered and sorted Saved Listings
   const filteredSavedListings = useMemo(() => {
     const savedServices = favorites?.map(fav => fav.service) || [];
@@ -574,7 +574,7 @@ export default function Home() {
     }
     return sortServices(filtered, savedListingsSort);
   }, [favorites, selectedCategory, savedListingsSort]);
-  
+
 
   // Pagination logic for All Listings
   const paginatedAllListings = useMemo(() => {
@@ -618,19 +618,19 @@ export default function Home() {
 
   return (
     <Layout>
-      <section className="relative bg-slate-900 text-white overflow-hidden">
+      <section className="relative bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white overflow-hidden">
         <div className="absolute inset-0 z-0">
-          <img 
-            src={heroImg} 
-            alt="Hero Background" 
-            className="w-full h-full object-cover opacity-40"
+          <img
+            src={heroImg}
+            alt="Hero Background"
+            className="w-full h-full object-cover opacity-30"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-900/50 via-slate-900/60 to-slate-50" />
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-900/80 to-slate-950" />
         </div>
 
         <div className="container mx-auto px-4 py-8 md:py-12 relative z-10">
           <div className="max-w-3xl mx-auto text-center space-y-4">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
@@ -641,17 +641,17 @@ export default function Home() {
               </span>
               <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-4 leading-tight">
                 Find Trusted Professionals
-                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400">
+                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
                   for Any Service
                 </span>
               </h1>
               <p className="text-base md:text-lg text-slate-300 mb-8 max-w-2xl mx-auto">
-                Connect with verified service providers across Switzerland. 
+                Connect with verified service providers across Switzerland.
                 Book instantly with secure payments and complete peace of mind.
               </p>
             </motion.div>
 
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
@@ -689,7 +689,7 @@ export default function Home() {
                         <Button
                           onClick={() => handleLocationSearch()}
                           disabled={isGeocoding || !locationSearchQuery.trim() || isGettingLocation}
-                          className="bg-primary hover:bg-primary/90"
+                          className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-400 hover:to-cyan-400 text-white shadow-lg shadow-cyan-500/25 border-0"
                           data-testid="button-hero-search-location"
                         >
                           {isGeocoding ? (
@@ -699,7 +699,7 @@ export default function Home() {
                           )}
                         </Button>
                       </div>
-                      
+
                       {addressSuggestions.length > 0 && (
                         <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
                           {addressSuggestions.map((suggestion, idx) => (
@@ -737,12 +737,12 @@ export default function Home() {
                     <Label htmlFor="hero-radius-select" className="text-white text-sm font-medium mb-2 block">
                       Radius
                     </Label>
-                    <Select 
-                      value={radiusKm.toString()} 
+                    <Select
+                      value={radiusKm.toString()}
                       onValueChange={(value) => setRadiusKm(parseInt(value, 10))}
                     >
-                      <SelectTrigger 
-                        id="hero-radius-select" 
+                      <SelectTrigger
+                        id="hero-radius-select"
                         className="bg-white/95 border-white/30 text-slate-900"
                         data-testid="select-hero-radius"
                       >
@@ -792,7 +792,7 @@ export default function Home() {
 
                   {isAuthenticated && userAddresses.length > 0 && (
                     <Select onValueChange={handleAddressSwitch}>
-                      <SelectTrigger 
+                      <SelectTrigger
                         className="w-auto bg-white/90 border-white/30 text-slate-900 h-8"
                         data-testid="select-hero-address-switcher"
                       >
@@ -865,15 +865,15 @@ export default function Home() {
                 {nearbyMode === 'slider' ? 'Expand' : 'Collapse'}
               </Button>
             </div>
-            
-            <GoogleMaps 
+
+            <GoogleMaps
               services={nearbyServices}
               userLocation={searchLocation}
               maxServices={10}
               defaultExpanded={false}
               apiKey={mapsConfig?.apiKey || ""}
             />
-            
+
             {nearbyLoading ? (
               <div className="text-center py-20">
                 <div className="mx-auto w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
@@ -888,7 +888,7 @@ export default function Home() {
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-2">No Services Found Nearby</h3>
                 <p className="text-slate-500 mb-6 max-w-md mx-auto">
-                  We couldn't find any services within {radiusKm} km of your location. 
+                  We couldn't find any services within {radiusKm} km of your location.
                   Try expanding your search radius or browse all services below.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -1038,11 +1038,11 @@ export default function Home() {
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     <div className="flex items-center gap-3">
                       {allListingsCategory && (
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
                           onClick={() => setAllListingsCategory(null)}
                           data-testid="button-clear-all-category-filter"
@@ -1054,7 +1054,7 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="mt-6">
                 {servicesLoading ? (
                   <div className="text-center py-20">
@@ -1105,7 +1105,7 @@ export default function Home() {
                       {allListingsCategory ? 'No Services in This Category' : 'No Services Yet'}
                     </h3>
                     <p className="text-slate-500 mb-6 max-w-md mx-auto">
-                      {allListingsCategory 
+                      {allListingsCategory
                         ? 'Be the first to offer a service in this category and reach customers looking for exactly what you provide.'
                         : 'Be the first to post a service and start connecting with customers in your area.'
                       }
@@ -1160,7 +1160,7 @@ export default function Home() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="mt-6">
                     {filteredSavedListings.length > 0 ? (
                       <div>
