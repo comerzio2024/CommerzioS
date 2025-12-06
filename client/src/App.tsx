@@ -36,6 +36,7 @@ import BookServicePage from "@/pages/book-service";
 import BookingSuccessPage from "@/pages/booking-success";
 import NotificationsPage from "@/pages/notifications";
 import CustomerBookingsPage from "@/pages/bookings";
+import MyBookingsPage from "@/pages/my-bookings";
 import DisputesPage from "@/pages/disputes";
 import ServiceRequestsPage from "@/pages/service-requests";
 
@@ -110,7 +111,7 @@ function Router() {
       <Route path="/request-service" component={ServiceRequestsPage} />
       {/* Vendor routes */}
       <Route path="/vendor/bookings" component={VendorBookingsPage} />
-      <Route path="/my-bookings" component={CustomerBookingsPage} />
+      <Route path="/my-bookings" component={MyBookingsPage} />
       {/* UI Preview routes */}
       <Route path="/redesign/:page?" component={RedesignPreviewPage} />
       <Route path="/ui2/:page?" component={UI2PreviewPage} />
