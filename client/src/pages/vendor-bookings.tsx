@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { BookingCard } from '@/components/booking/BookingCard';
 import { VendorAvailabilityCalendar } from '@/components/booking/VendorAvailabilityCalendar';
+import { VendorWeeklyCalendar } from '@/components/booking/VendorWeeklyCalendar';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
@@ -43,7 +44,9 @@ import {
   ListTodo,
   Settings,
   TrendingUp,
-  DollarSign
+  DollarSign,
+  CalendarDays,
+  LayoutGrid,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLocation } from 'wouter';
@@ -67,12 +70,25 @@ interface Booking {
   rejectionReason: string | null;
   queuePosition?: number | null;
   createdAt: string;
+  customerId?: string;
+  serviceId?: string;
+  customer?: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    profileImageUrl: string | null;
+  };
+  service?: {
+    id: string;
+    title: string;
+    images: string[];
+  };
 }
 
 export default function VendorBookingsPage() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
-  const [mainTab, setMainTab] = useState<'bookings' | 'calendar'>('bookings');
+  const [mainTab, setMainTab] = useState<'bookings' | 'calendar' | 'weekly'>('bookings');
   const [activeTab, setActiveTab] = useState('pending');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [actionType, setActionType] = useState<'reject' | 'alternative' | null>(null);
@@ -303,6 +319,18 @@ export default function VendorBookingsPage() {
                 )}
               </Button>
               <Button
+                variant={mainTab === 'weekly' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setMainTab('weekly')}
+                className={cn(
+                  "gap-2 transition-all",
+                  mainTab === 'weekly' && "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-md"
+                )}
+              >
+                <CalendarDays className="w-4 h-4" />
+                <span className="hidden sm:inline">Schedule</span>
+              </Button>
+              <Button
                 variant={mainTab === 'calendar' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setMainTab('calendar')}
@@ -311,8 +339,8 @@ export default function VendorBookingsPage() {
                   mainTab === 'calendar' && "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-md"
                 )}
               >
-                <CalendarIcon className="w-4 h-4" />
-                <span className="hidden sm:inline">Calendar</span>
+                <LayoutGrid className="w-4 h-4" />
+                <span className="hidden sm:inline">Availability</span>
               </Button>
             </div>
           </div>
@@ -371,7 +399,12 @@ export default function VendorBookingsPage() {
             </Card>
           </div>
 
-          {/* Calendar View */}
+          {/* Weekly Schedule View - Comprehensive Calendar */}
+          {mainTab === 'weekly' && (
+            <VendorWeeklyCalendar />
+          )}
+
+          {/* Calendar View - Monthly Availability Management */}
           {mainTab === 'calendar' && (
             <VendorAvailabilityCalendar />
           )}
@@ -403,8 +436,8 @@ export default function VendorBookingsPage() {
                     ))}
                   </div>
                 ) : bookings.length === 0 ? (
-                  <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-800/50">
-                    <CardContent className="flex flex-col items-center justify-center py-12 text-slate-400">
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                       <CalendarIcon className="w-12 h-12 mb-3 opacity-50" />
                       <p className="font-medium">No bookings found</p>
                       <p className="text-sm">
@@ -421,7 +454,9 @@ export default function VendorBookingsPage() {
                         key={booking.id}
                         booking={booking}
                         role="vendor"
-                        otherPartyName="Customer"
+                        otherPartyName={(booking as any).customer ? `${(booking as any).customer.firstName || ''} ${(booking as any).customer.lastName || ''}`.trim() || 'Customer' : 'Customer'}
+                        otherPartyImage={(booking as any).customer?.profileImageUrl}
+                        serviceName={(booking as any).service?.title}
                         onAccept={() => acceptMutation.mutate(booking.id)}
                         onReject={() => {
                           setSelectedBooking(booking);
@@ -431,7 +466,21 @@ export default function VendorBookingsPage() {
                           setSelectedBooking(booking);
                           setActionType('alternative');
                         }}
-                        onChat={() => setLocation(`/chat?booking=${booking.id}`)}
+                        onChat={() => {
+                          // Navigate to chat with customer - vendor is the current user
+                          const customerId = (booking as any).customerId || (booking as any).customer?.id;
+                          const serviceId = (booking as any).serviceId || (booking as any).service?.id;
+                          if (customerId) {
+                            // For vendor chatting with customer, we pass vendor=currentUserId to trigger getOrCreate
+                            // but the API expects vendorId, so we need to use a different approach
+                            // The chat page creates conversation with: POST /api/chat/conversations { vendorId, bookingId, serviceId }
+                            // But we are the vendor, so we need to pass customerId differently
+                            // Let's use a query param that chat page can handle
+                            setLocation(`/chat?customer=${customerId}&booking=${booking.id}&service=${serviceId}`);
+                          } else {
+                            setLocation(`/chat?booking=${booking.id}`);
+                          }
+                        }}
                         isLoading={
                           acceptMutation.isPending ||
                           rejectMutation.isPending ||
