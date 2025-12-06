@@ -31,9 +31,9 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { fetchApi } from '@/lib/config';
-import { 
-  Calendar as CalendarIcon, 
-  Clock, 
+import {
+  Calendar as CalendarIcon,
+  Clock,
   AlertCircle,
   CheckCircle2,
   XCircle,
@@ -87,11 +87,11 @@ export default function VendorBookingsPage() {
     const params = new URLSearchParams(window.location.search);
     const bookingId = params.get('booking');
     const tab = params.get('tab');
-    
+
     if (tab && ['pending', 'accepted', 'confirmed', 'in_progress', 'completed', 'all'].includes(tab)) {
       setActiveTab(tab);
     }
-    
+
     if (bookingId) {
       setHighlightedBookingId(bookingId);
       // Fetch the specific booking to show in detail
@@ -184,15 +184,15 @@ export default function VendorBookingsPage() {
 
   // Propose alternative
   const alternativeMutation = useMutation({
-    mutationFn: async ({ 
-      bookingId, 
-      startTime, 
-      endTime, 
-      message 
-    }: { 
-      bookingId: string; 
-      startTime: string; 
-      endTime: string; 
+    mutationFn: async ({
+      bookingId,
+      startTime,
+      endTime,
+      message
+    }: {
+      bookingId: string;
+      startTime: string;
+      endTime: string;
       message: string;
     }) => {
       const res = await fetchApi(`/api/bookings/${bookingId}/propose-alternative`, {
@@ -272,26 +272,26 @@ export default function VendorBookingsPage() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900">
+      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
         <div className="container max-w-6xl py-6 md:py-8 px-4">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold">Booking Management</h1>
-              <p className="text-muted-foreground mt-1">
+              <h1 className="text-2xl md:text-3xl font-bold text-white">Booking Management</h1>
+              <p className="text-slate-400 mt-1">
                 Manage your booking requests, schedule, and availability
               </p>
             </div>
-            
+
             {/* Main Tab Switcher */}
-            <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+            <div className="flex gap-2 p-1 bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-lg">
               <Button
                 variant={mainTab === 'bookings' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setMainTab('bookings')}
                 className={cn(
                   "gap-2 transition-all",
-                  mainTab === 'bookings' && "shadow-sm"
+                  mainTab === 'bookings' && "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-md"
                 )}
               >
                 <ListTodo className="w-4 h-4" />
@@ -308,7 +308,7 @@ export default function VendorBookingsPage() {
                 onClick={() => setMainTab('calendar')}
                 className={cn(
                   "gap-2 transition-all",
-                  mainTab === 'calendar' && "shadow-sm"
+                  mainTab === 'calendar' && "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-md"
                 )}
               >
                 <CalendarIcon className="w-4 h-4" />
@@ -319,53 +319,53 @@ export default function VendorBookingsPage() {
 
           {/* Stats Cards */}
           <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-4 mb-6">
-            <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
+            <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-800/50 hover:border-cyan-500/30 transition-all">
               <CardContent className="p-4 flex items-center gap-3">
-                <div className="p-2.5 bg-amber-100 dark:bg-amber-900/30 rounded-xl">
-                  <Clock className="w-5 h-5 text-amber-600" />
+                <div className="p-2.5 bg-amber-500/20 rounded-xl">
+                  <Clock className="w-5 h-5 text-amber-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{pendingData?.count || 0}</p>
-                  <p className="text-xs text-muted-foreground">Pending</p>
+                  <p className="text-2xl font-bold text-white">{pendingData?.count || 0}</p>
+                  <p className="text-xs text-slate-400">Pending</p>
                 </div>
               </CardContent>
             </Card>
-            <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
+            <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-800/50 hover:border-cyan-500/30 transition-all">
               <CardContent className="p-4 flex items-center gap-3">
-                <div className="p-2.5 bg-green-100 dark:bg-green-900/30 rounded-xl">
-                  <CheckCircle2 className="w-5 h-5 text-green-600" />
+                <div className="p-2.5 bg-emerald-500/20 rounded-xl">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">
+                  <p className="text-2xl font-bold text-white">
                     {bookings.filter(b => b.status === 'confirmed' || b.status === 'accepted').length}
                   </p>
-                  <p className="text-xs text-muted-foreground">Confirmed</p>
+                  <p className="text-xs text-slate-400">Confirmed</p>
                 </div>
               </CardContent>
             </Card>
-            <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
+            <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-800/50 hover:border-cyan-500/30 transition-all">
               <CardContent className="p-4 flex items-center gap-3">
-                <div className="p-2.5 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-                  <RefreshCw className="w-5 h-5 text-blue-600" />
+                <div className="p-2.5 bg-blue-500/20 rounded-xl">
+                  <RefreshCw className="w-5 h-5 text-blue-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">
+                  <p className="text-2xl font-bold text-white">
                     {bookings.filter(b => b.status === 'in_progress').length}
                   </p>
-                  <p className="text-xs text-muted-foreground">In Progress</p>
+                  <p className="text-xs text-slate-400">In Progress</p>
                 </div>
               </CardContent>
             </Card>
-            <Card className="border-0 shadow-md hover:shadow-lg transition-shadow">
+            <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-800/50 hover:border-cyan-500/30 transition-all">
               <CardContent className="p-4 flex items-center gap-3">
-                <div className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl">
-                  <CheckCircle2 className="w-5 h-5 text-slate-600" />
+                <div className="p-2.5 bg-cyan-500/20 rounded-xl">
+                  <CheckCircle2 className="w-5 h-5 text-cyan-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">
+                  <p className="text-2xl font-bold text-white">
                     {bookings.filter(b => b.status === 'completed').length}
                   </p>
-                  <p className="text-xs text-muted-foreground">Completed</p>
+                  <p className="text-xs text-slate-400">Completed</p>
                 </div>
               </CardContent>
             </Card>
@@ -378,172 +378,172 @@ export default function VendorBookingsPage() {
 
           {/* Bookings View */}
           {mainTab === 'bookings' && (
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-4">
-            <TabsTrigger value="pending" className="relative">
-              Pending
-              {pendingData?.count > 0 && (
-                <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full">
-                  {pendingData.count}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="accepted">Accepted</TabsTrigger>
-            <TabsTrigger value="confirmed">Confirmed</TabsTrigger>
-            <TabsTrigger value="in_progress">In Progress</TabsTrigger>
-            <TabsTrigger value="completed">Completed</TabsTrigger>
-            <TabsTrigger value="all">All</TabsTrigger>
-          </TabsList>
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="mb-4 bg-slate-800/50 border border-slate-700/50">
+                <TabsTrigger value="pending" className="relative">
+                  Pending
+                  {pendingData?.count > 0 && (
+                    <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full">
+                      {pendingData.count}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="accepted">Accepted</TabsTrigger>
+                <TabsTrigger value="confirmed">Confirmed</TabsTrigger>
+                <TabsTrigger value="in_progress">In Progress</TabsTrigger>
+                <TabsTrigger value="completed">Completed</TabsTrigger>
+                <TabsTrigger value="all">All</TabsTrigger>
+              </TabsList>
 
-          <TabsContent value={activeTab}>
-            {isLoading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-48" />
-                ))}
-              </div>
-            ) : bookings.length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                  <CalendarIcon className="w-12 h-12 mb-3 opacity-50" />
-                  <p className="font-medium">No bookings found</p>
-                  <p className="text-sm">
-                    {activeTab === 'pending' 
-                      ? "You don't have any pending booking requests"
-                      : `No ${activeTab} bookings`}
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {bookings.map((booking) => (
-                  <BookingCard
-                    key={booking.id}
-                    booking={booking}
-                    role="vendor"
-                    otherPartyName="Customer"
-                    onAccept={() => acceptMutation.mutate(booking.id)}
-                    onReject={() => {
-                      setSelectedBooking(booking);
-                      setActionType('reject');
-                    }}
-                    onProposeAlternative={() => {
-                      setSelectedBooking(booking);
-                      setActionType('alternative');
-                    }}
-                    onChat={() => setLocation(`/chat?booking=${booking.id}`)}
-                    isLoading={
-                      acceptMutation.isPending || 
-                      rejectMutation.isPending || 
-                      alternativeMutation.isPending
-                    }
-                  />
-                ))}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+              <TabsContent value={activeTab}>
+                {isLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-48" />
+                    ))}
+                  </div>
+                ) : bookings.length === 0 ? (
+                  <Card className="bg-slate-900/50 backdrop-blur-xl border-slate-800/50">
+                    <CardContent className="flex flex-col items-center justify-center py-12 text-slate-400">
+                      <CalendarIcon className="w-12 h-12 mb-3 opacity-50" />
+                      <p className="font-medium">No bookings found</p>
+                      <p className="text-sm">
+                        {activeTab === 'pending'
+                          ? "You don't have any pending booking requests"
+                          : `No ${activeTab} bookings`}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-4">
+                    {bookings.map((booking) => (
+                      <BookingCard
+                        key={booking.id}
+                        booking={booking}
+                        role="vendor"
+                        otherPartyName="Customer"
+                        onAccept={() => acceptMutation.mutate(booking.id)}
+                        onReject={() => {
+                          setSelectedBooking(booking);
+                          setActionType('reject');
+                        }}
+                        onProposeAlternative={() => {
+                          setSelectedBooking(booking);
+                          setActionType('alternative');
+                        }}
+                        onChat={() => setLocation(`/chat?booking=${booking.id}`)}
+                        isLoading={
+                          acceptMutation.isPending ||
+                          rejectMutation.isPending ||
+                          alternativeMutation.isPending
+                        }
+                      />
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           )}
 
-        {/* Reject Dialog */}
-        <Dialog open={actionType === 'reject'} onOpenChange={() => setActionType(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Reject Booking</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="reason">Reason for rejection</Label>
-                <Textarea
-                  id="reason"
-                  placeholder="Let the customer know why you can't accept this booking..."
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                  rows={3}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setActionType(null)}>
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => selectedBooking && rejectMutation.mutate({
-                  bookingId: selectedBooking.id,
-                  reason: rejectReason,
-                })}
-                disabled={rejectMutation.isPending}
-              >
-                Reject Booking
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Alternative Time Dialog */}
-        <Dialog open={actionType === 'alternative'} onOpenChange={() => setActionType(null)}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Propose Alternative Time</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Select Date</Label>
-                <Calendar
-                  mode="single"
-                  selected={alternativeDate}
-                  onSelect={setAlternativeDate}
-                  disabled={(date) => date < new Date()}
-                  className="rounded-md border"
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
+          {/* Reject Dialog */}
+          <Dialog open={actionType === 'reject'} onOpenChange={() => setActionType(null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Reject Booking</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="start-time">Start Time</Label>
-                  <Input
-                    id="start-time"
-                    type="time"
-                    value={alternativeTime.start}
-                    onChange={(e) => setAlternativeTime({ ...alternativeTime, start: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="end-time">End Time</Label>
-                  <Input
-                    id="end-time"
-                    type="time"
-                    value={alternativeTime.end}
-                    onChange={(e) => setAlternativeTime({ ...alternativeTime, end: e.target.value })}
+                  <Label htmlFor="reason">Reason for rejection</Label>
+                  <Textarea
+                    id="reason"
+                    placeholder="Let the customer know why you can't accept this booking..."
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    rows={3}
                   />
                 </div>
               </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setActionType(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => selectedBooking && rejectMutation.mutate({
+                    bookingId: selectedBooking.id,
+                    reason: rejectReason,
+                  })}
+                  disabled={rejectMutation.isPending}
+                >
+                  Reject Booking
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
-              <div className="space-y-2">
-                <Label htmlFor="alt-message">Message to Customer</Label>
-                <Textarea
-                  id="alt-message"
-                  placeholder="Explain why you're proposing a different time..."
-                  value={alternativeMessage}
-                  onChange={(e) => setAlternativeMessage(e.target.value)}
-                  rows={2}
-                />
+          {/* Alternative Time Dialog */}
+          <Dialog open={actionType === 'alternative'} onOpenChange={() => setActionType(null)}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Propose Alternative Time</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Select Date</Label>
+                  <Calendar
+                    mode="single"
+                    selected={alternativeDate}
+                    onSelect={setAlternativeDate}
+                    disabled={(date) => date < new Date()}
+                    className="rounded-md border"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="start-time">Start Time</Label>
+                    <Input
+                      id="start-time"
+                      type="time"
+                      value={alternativeTime.start}
+                      onChange={(e) => setAlternativeTime({ ...alternativeTime, start: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="end-time">End Time</Label>
+                    <Input
+                      id="end-time"
+                      type="time"
+                      value={alternativeTime.end}
+                      onChange={(e) => setAlternativeTime({ ...alternativeTime, end: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="alt-message">Message to Customer</Label>
+                  <Textarea
+                    id="alt-message"
+                    placeholder="Explain why you're proposing a different time..."
+                    value={alternativeMessage}
+                    onChange={(e) => setAlternativeMessage(e.target.value)}
+                    rows={2}
+                  />
+                </div>
               </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setActionType(null)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleProposeAlternative}
-                disabled={!alternativeDate || alternativeMutation.isPending}
-              >
-                Send Proposal
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setActionType(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleProposeAlternative}
+                  disabled={!alternativeDate || alternativeMutation.isPending}
+                >
+                  Send Proposal
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     </Layout>

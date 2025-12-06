@@ -161,7 +161,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         <Star className="w-4 h-4 mr-2" />
                         Reviews
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setLocation("/bookings")} className="cursor-pointer hover:bg-white/10 focus:bg-white/10" data-testid="menu-item-my-bookings">
+                      <DropdownMenuItem onClick={() => setLocation("/my-bookings")} className="cursor-pointer hover:bg-white/10 focus:bg-white/10" data-testid="menu-item-my-bookings">
                         <CalendarDays className="w-4 h-4 mr-2" />
                         My Bookings
                       </DropdownMenuItem>

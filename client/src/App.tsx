@@ -110,7 +110,7 @@ function Router() {
       <Route path="/request-service" component={ServiceRequestsPage} />
       {/* Vendor routes */}
       <Route path="/vendor/bookings" component={VendorBookingsPage} />
-      <Route path="/my-bookings" component={VendorBookingsPage} />
+      <Route path="/my-bookings" component={CustomerBookingsPage} />
       {/* UI Preview routes */}
       <Route path="/redesign/:page?" component={RedesignPreviewPage} />
       <Route path="/ui2/:page?" component={UI2PreviewPage} />
