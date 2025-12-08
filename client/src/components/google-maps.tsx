@@ -151,77 +151,77 @@ export function GoogleMaps({
         const isMaxZoom = currentZoom >= 16;
         const isDark = document.documentElement.classList.contains("dark");
 
-        // Match the app's dark theme: oklch(0.18 0.015 250) ≈ #1a2332, oklch(0.24 0.02 250) ≈ #283548
         const bg = isDark ? "#1a2332" : "#ffffff";
         const text = isDark ? "#f8fafc" : "#1a2332";
         const muted = isDark ? "#94a3b8" : "#6b7280";
-        const border = isDark ? "#283548" : "#e5e7eb";
+        const border = isDark ? "#334155" : "#e2e8f0";
         const accent = "#3b82f6";
-        const closeIconFilter = isDark ? "invert(1)" : "none";
+
+        // Hide Google's close button completely, we add our own
+        const hideGoogleClose = `.gm-ui-hover-effect{display:none!important;}`;
+        const infoWindowStyles = `
+          .gm-style-iw-c{background:transparent!important;padding:0!important;box-shadow:none!important;max-width:none!important;}
+          .gm-style-iw-d{background:transparent!important;overflow:visible!important;max-width:none!important;max-height:none!important;}
+          .gm-style-iw-tc{display:none!important;}
+          ${hideGoogleClose}
+        `;
+
+        const closeBtnBg = isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)";
+        const closeBtnStyle = `position:absolute;top:12px;right:12px;width:32px;height:32px;border:none;background:${closeBtnBg};border-radius:50%;cursor:pointer;font-size:18px;color:${muted};line-height:32px;text-align:center;`;
 
         if (isSingle) {
           const s = items[0].service;
-          const img = s.images?.[0] ? `<img src="${s.images[0]}" style="width:100%;height:140px;object-fit:cover;border-radius:8px;margin-bottom:12px;"/>` : "";
+          const img = s.images?.[0] ? `<img src="${s.images[0]}" style="width:100%;height:180px;object-fit:cover;border-radius:10px;margin-bottom:16px;"/>` : "";
           const price = s.priceType === "fixed" ? `CHF ${s.price}` : s.priceType === "list" ? `From CHF ${(s.priceList as any)?.[0]?.price || "N/A"}` : "Contact for pricing";
 
           const content = `
-            <style>
-              .gm-style-iw-c{background:transparent!important;padding:0!important;box-shadow:none!important;}
-              .gm-style-iw-d{background:transparent!important;overflow:visible!important;}
-              .gm-style-iw-tc{display:none!important;}
-              .gm-ui-hover-effect{top:12px!important;right:12px!important;width:32px!important;height:32px!important;background:${isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)"}!important;border-radius:50%!important;opacity:1!important;}
-              .gm-ui-hover-effect>span{background-color:${isDark ? "#fff" : "#000"}!important;}
-            </style>
-            <div style="width:300px;padding:16px;background:${bg};color:${text};font-family:system-ui,sans-serif;border:1px solid ${border};border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.25);">
+            <style>${infoWindowStyles}</style>
+            <div style="position:relative;width:380px;padding:20px;background:${bg};color:${text};font-family:system-ui,sans-serif;border:1px solid ${border};border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,0.3);">
+              <button style="${closeBtnStyle}" onclick="this.closest('.gm-style-iw').style.display='none';">✕</button>
               ${img}
-              <h3 style="margin:0 0 8px 0;font-size:16px;font-weight:600;line-height:1.3;">${s.title}</h3>
-              <p style="margin:0 0 8px 0;font-size:15px;font-weight:600;color:${accent};">${price}</p>
-              <p style="margin:0 0 12px 0;font-size:11px;color:${muted};">Approximate location</p>
-              <a href="/service/${s.id}" style="display:block;background:${accent};color:#fff;text-align:center;padding:10px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600;">View Details</a>
+              <h3 style="margin:0 0 10px 0;font-size:20px;font-weight:600;line-height:1.3;padding-right:40px;">${s.title}</h3>
+              <p style="margin:0 0 10px 0;font-size:18px;font-weight:700;color:${accent};">${price}</p>
+              <p style="margin:0 0 16px 0;font-size:12px;color:${muted};">📍 Approximate location shown</p>
+              <a href="/service/${s.id}" style="display:block;background:${accent};color:#fff;text-align:center;padding:14px;border-radius:8px;text-decoration:none;font-size:15px;font-weight:600;">View Details</a>
             </div>
           `;
 
           if (infoWindowRef.current) infoWindowRef.current.close();
-          const infoWindow = new google.maps.InfoWindow({ content, maxWidth: 320 });
+          const infoWindow = new google.maps.InfoWindow({ content, maxWidth: 420 });
           infoWindow.open(map, marker);
           infoWindowRef.current = infoWindow;
         } else if (isMaxZoom) {
-          const rows = items.slice(0, 8).map((i) => {
+          const rows = items.slice(0, 10).map((i) => {
             const s = i.service;
             const img = s.images?.[0] || "";
             const price = s.priceType === "fixed" ? `CHF ${s.price}` : s.priceType === "list" ? `From CHF ${(s.priceList as any)?.[0]?.price || "N/A"}` : "Contact";
 
             return `
-              <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid ${border};">
-                ${img ? `<img src="${img}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;flex-shrink:0;"/>` : `<div style="width:60px;height:60px;background:${border};border-radius:6px;flex-shrink:0;"></div>`}
+              <div style="display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid ${border};">
+                ${img ? `<img src="${img}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;flex-shrink:0;"/>` : `<div style="width:80px;height:80px;background:${border};border-radius:8px;flex-shrink:0;"></div>`}
                 <div style="flex:1;min-width:0;">
-                  <div style="font-size:13px;font-weight:600;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.title}</div>
-                  <div style="font-size:12px;font-weight:500;color:${accent};margin-bottom:6px;">${price}</div>
-                  <a href="/service/${s.id}" style="display:inline-block;background:${accent};color:#fff;padding:6px 12px;border-radius:4px;text-decoration:none;font-size:11px;font-weight:600;">View</a>
+                  <div style="font-size:15px;font-weight:600;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.title}</div>
+                  <div style="font-size:14px;font-weight:600;color:${accent};margin-bottom:8px;">${price}</div>
+                  <a href="/service/${s.id}" style="display:inline-block;background:${accent};color:#fff;padding:8px 16px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;">View Details</a>
                 </div>
               </div>
             `;
           }).join("");
 
-          const moreCount = items.length > 8 ? items.length - 8 : 0;
-          const moreHtml = moreCount > 0 ? `<div style="text-align:center;padding:8px 0;font-size:11px;color:${muted};">+${moreCount} more services</div>` : "";
+          const moreCount = items.length > 10 ? items.length - 10 : 0;
+          const moreHtml = moreCount > 0 ? `<div style="text-align:center;padding:12px 0;font-size:12px;color:${muted};">+${moreCount} more services</div>` : "";
 
           const content = `
-            <style>
-              .gm-style-iw-c{background:transparent!important;padding:0!important;box-shadow:none!important;}
-              .gm-style-iw-d{background:transparent!important;overflow:visible!important;}
-              .gm-style-iw-tc{display:none!important;}
-              .gm-ui-hover-effect{top:12px!important;right:12px!important;width:32px!important;height:32px!important;background:${isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)"}!important;border-radius:50%!important;opacity:1!important;}
-              .gm-ui-hover-effect>span{background-color:${isDark ? "#fff" : "#000"}!important;}
-            </style>
-            <div id="cluster-popup" style="width:340px;max-width:85vw;padding:16px;background:${bg};color:${text};font-family:system-ui,sans-serif;border:1px solid ${border};border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.25);">
-              <h2 style="margin:0 0 12px 0;font-size:15px;font-weight:700;padding-bottom:10px;border-bottom:1px solid ${border};">${count} Services</h2>
-              <div style="max-height:300px;overflow-y:auto;">${rows}${moreHtml}</div>
+            <style>${infoWindowStyles}</style>
+            <div id="cluster-popup" style="position:relative;width:440px;max-width:90vw;padding:20px;background:${bg};color:${text};font-family:system-ui,sans-serif;border:1px solid ${border};border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,0.3);">
+              <button style="${closeBtnStyle}" onclick="this.closest('.gm-style-iw').style.display='none';">✕</button>
+              <h2 style="margin:0 0 16px 0;font-size:18px;font-weight:700;padding-bottom:12px;border-bottom:2px solid ${border};padding-right:40px;">${count} Services in this area</h2>
+              <div style="max-height:400px;overflow-y:auto;">${rows}${moreHtml}</div>
             </div>
           `;
 
           if (infoWindowRef.current) infoWindowRef.current.close();
-          const infoWindow = new google.maps.InfoWindow({ content, maxWidth: 360 });
+          const infoWindow = new google.maps.InfoWindow({ content, maxWidth: 480 });
           infoWindow.open(map, marker);
           infoWindowRef.current = infoWindow;
 
