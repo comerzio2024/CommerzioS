@@ -1,167 +1,167 @@
 import { Layout } from "@/components/layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Mail } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Search, Mail, Book, Shield, DollarSign, User, ArrowRight, MessageCircle } from "lucide-react";
+import { useState } from "react";
 
 export default function HelpCenter() {
+  const [searchQuery, setSearchQuery] = useState("");
+
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-12">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl font-bold text-center mb-4">Help Center</h1>
-          <p className="text-lg text-muted-foreground text-center mb-12">
-            Find answers to common questions about using Commerzio Services
+      {/* Hero Section */}
+      <div className="bg-background border-b border-border">
+        <div className="container mx-auto px-4 py-16 md:py-24 text-center">
+          <h1 className="text-4xl md:text-5xl font-bold mb-6 tracking-tight bg-gradient-to-br from-foreground to-muted-foreground bg-clip-text text-transparent">
+            How can we help?
+          </h1>
+          <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
+            Search our knowledge base or browse common topics below.
           </p>
 
+          <div className="max-w-xl mx-auto relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              className="pl-12 h-12 text-lg shadow-sm"
+              placeholder="Search for answers..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-4 py-16">
+        {/* Topic Grid */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+          <TopicCard
+            icon={<Book className="h-6 w-6 text-blue-500" />}
+            title="Getting Started"
+            description="Learn the basics of posting and booking services."
+          />
+          <TopicCard
+            icon={<User className="h-6 w-6 text-purple-500" />}
+            title="Account & Profile"
+            description="Manage your settings, verification, and security."
+          />
+          <TopicCard
+            icon={<DollarSign className="h-6 w-6 text-green-500" />}
+            title="Payments"
+            description="Understanding pricing, fees, and escrow protection."
+          />
+          <TopicCard
+            icon={<Shield className="h-6 w-6 text-orange-500" />}
+            title="Trust & Safety"
+            description="Community guidelines, disputes, and safety tips."
+          />
+        </div>
+
+        {/* FAQ Section */}
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-2xl font-bold mb-8 text-center">Frequently Asked Questions</h2>
+
           <Accordion type="single" collapsible className="space-y-4">
-            {/* How to Post a Service */}
-            <AccordionItem value="post-service" className="bg-white rounded-lg border px-6">
-              <AccordionTrigger className="text-lg font-semibold hover:no-underline" data-testid="accordion-post-service">
+            <AccordionItem value="post-service" className="bg-card border rounded-lg px-6 shadow-sm">
+              <AccordionTrigger className="text-lg font-medium hover:no-underline py-6">
                 How do I post a service?
               </AccordionTrigger>
-              <AccordionContent className="text-muted-foreground space-y-3">
-                <p>Posting a service on Commerzio Services is quick and easy:</p>
-                <ol className="list-decimal list-inside space-y-2 ml-4">
+              <AccordionContent className="text-muted-foreground pb-6">
+                <p className="mb-4">Posting a service on Commerzio Services is quick and easy:</p>
+                <ol className="list-decimal list-inside space-y-2 ml-4 mb-4">
                   <li>Log in to your account or create a new one</li>
                   <li>Click the "Post Service" button in the navigation bar</li>
                   <li>Fill in your service details including title, description, and price in CHF</li>
                   <li>Choose a category (our AI can help suggest the best category)</li>
                   <li>Add your location and contact information</li>
-                  <li>Review and publish your listing</li>
                 </ol>
-                <p className="mt-3">
+                <p>
                   Your service will be live immediately and will remain active for 14 days. You can renew or upgrade your listing at any time from your dashboard.
                 </p>
               </AccordionContent>
             </AccordionItem>
 
-            {/* How to Find Services */}
-            <AccordionItem value="find-services" className="bg-white rounded-lg border px-6">
-              <AccordionTrigger className="text-lg font-semibold hover:no-underline" data-testid="accordion-find-services">
-                How do I find services?
+            <AccordionItem value="find-services" className="bg-card border rounded-lg px-6 shadow-sm">
+              <AccordionTrigger className="text-lg font-medium hover:no-underline py-6">
+                How do I find trustworthy providers?
               </AccordionTrigger>
-              <AccordionContent className="text-muted-foreground space-y-3">
-                <p>Finding the right service provider is simple:</p>
+              <AccordionContent className="text-muted-foreground pb-6">
+                <p className="mb-4">We prioritize safety and trust in our community:</p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
-                  <li>Use the search bar at the top of the page to search by keywords</li>
-                  <li>Browse by category to explore different types of services</li>
-                  <li>Filter results by location, price range, and rating</li>
-                  <li>Read reviews and ratings from other users</li>
-                  <li>Check the provider's profile and service details</li>
+                  <li>Look for the <strong>Verified</strong> badge next to provider names</li>
+                  <li>Check ratings and read detailed reviews from other users</li>
+                  <li>Use our secure messaging system to ask questions before booking</li>
+                  <li>Always keep payments within the platform for Escrow protection</li>
                 </ul>
-                <p className="mt-3">
-                  Once you find a service you're interested in, you can contact the provider directly using the contact information provided on their listing.
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="payment-pricing" className="bg-card border rounded-lg px-6 shadow-sm">
+              <AccordionTrigger className="text-lg font-medium hover:no-underline py-6">
+                How does payment protection work?
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground pb-6">
+                <p className="mb-4">Commerzio uses a secure Escrow system to protect both parties:</p>
+                <p className="mb-4">
+                  When you book a service, your payment is held securely by us. The funds are only released to the provider <strong>after</strong> you confirm the service has been completed to your satisfaction.
+                </p>
+                <p>
+                  If there is a dispute, our support team steps in to mediate. This ensures you never pay for work that isn't done, and providers always get paid for completed work.
                 </p>
               </AccordionContent>
             </AccordionItem>
 
-            {/* Payment and Pricing */}
-            <AccordionItem value="payment-pricing" className="bg-white rounded-lg border px-6">
-              <AccordionTrigger className="text-lg font-semibold hover:no-underline" data-testid="accordion-payment-pricing">
-                How does payment and pricing work?
+            <AccordionItem value="fees" className="bg-card border rounded-lg px-6 shadow-sm">
+              <AccordionTrigger className="text-lg font-medium hover:no-underline py-6">
+                Are there any fees?
               </AccordionTrigger>
-              <AccordionContent className="text-muted-foreground space-y-3">
-                <p>All prices on Commerzio Services are displayed in Swiss Francs (CHF):</p>
-                <ul className="list-disc list-inside space-y-2 ml-4">
-                  <li><strong>For Customers:</strong> Payment is handled directly between you and the service provider. Commerzio Services does not process payments.</li>
-                  <li><strong>For Providers:</strong> You set your own prices and payment terms. Discuss payment methods with customers directly.</li>
-                  <li><strong>Listing Fees:</strong> Basic listings are free for 14 days. Premium marketing packages are available for increased visibility.</li>
-                  <li><strong>No Commission:</strong> We don't take a commission on transactions between customers and providers.</li>
-                </ul>
-                <p className="mt-3">
-                  Always agree on pricing and payment terms before starting work. We recommend documenting the agreement in writing.
+              <AccordionContent className="text-muted-foreground pb-6">
+                <p>
+                  <strong>For Customers:</strong> Booking is free. You only pay the listed price for the service.
                 </p>
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Account Management */}
-            <AccordionItem value="account-management" className="bg-white rounded-lg border px-6">
-              <AccordionTrigger className="text-lg font-semibold hover:no-underline" data-testid="accordion-account-management">
-                How do I manage my account?
-              </AccordionTrigger>
-              <AccordionContent className="text-muted-foreground space-y-3">
-                <p>Managing your Commerzio Services account is easy through your dashboard:</p>
-                <ul className="list-disc list-inside space-y-2 ml-4">
-                  <li><strong>Profile Settings:</strong> Update your personal information, contact details, and profile picture</li>
-                  <li><strong>My Services:</strong> View, edit, renew, or delete your service listings</li>
-                  <li><strong>Verification:</strong> Complete identity verification to build trust and unlock features</li>
-                  <li><strong>Notifications:</strong> Manage your email preferences and notification settings</li>
-                  <li><strong>Account Security:</strong> Update your password and security settings</li>
-                </ul>
-                <p className="mt-3">
-                  Access your dashboard by clicking on your profile icon in the top right corner.
-                </p>
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Reviews and Ratings */}
-            <AccordionItem value="reviews-ratings" className="bg-white rounded-lg border px-6">
-              <AccordionTrigger className="text-lg font-semibold hover:no-underline" data-testid="accordion-reviews-ratings">
-                How do reviews and ratings work?
-              </AccordionTrigger>
-              <AccordionContent className="text-muted-foreground space-y-3">
-                <p>Reviews help build trust in our community:</p>
-                <ul className="list-disc list-inside space-y-2 ml-4">
-                  <li><strong>Who Can Review:</strong> Only verified users who have completed a transaction can leave reviews</li>
-                  <li><strong>Rating System:</strong> Rate services from 1 to 5 stars based on your experience</li>
-                  <li><strong>Written Reviews:</strong> Share detailed feedback to help others make informed decisions</li>
-                  <li><strong>Response:</strong> Service providers can respond to reviews</li>
-                  <li><strong>Authenticity:</strong> All reviews are checked for authenticity and compliance with our guidelines</li>
-                </ul>
-                <p className="mt-3">
-                  Reviews cannot be deleted or edited once submitted, so please provide honest and constructive feedback.
-                </p>
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Listing Expiration */}
-            <AccordionItem value="listing-expiration" className="bg-white rounded-lg border px-6">
-              <AccordionTrigger className="text-lg font-semibold hover:no-underline" data-testid="accordion-listing-expiration">
-                Why do listings expire after 14 days?
-              </AccordionTrigger>
-              <AccordionContent className="text-muted-foreground space-y-3">
-                <p>Listings expire to ensure our marketplace stays fresh and up-to-date:</p>
-                <ul className="list-disc list-inside space-y-2 ml-4">
-                  <li>Ensures all services displayed are currently available</li>
-                  <li>Encourages providers to keep information accurate and current</li>
-                  <li>Maintains a high-quality user experience for customers</li>
-                </ul>
-                <p className="mt-3">
-                  You can easily renew your listing from your dashboard before or after it expires. Renewal is free for basic listings.
+                <p className="mt-2">
+                  <strong>For Providers:</strong> Basic listings are free. We charge a small service fee (5%) only on successful bookings processed through our platform. Premium visibility packages are optional.
                 </p>
               </AccordionContent>
             </AccordionItem>
           </Accordion>
+        </div>
 
-          {/* Contact Support Section */}
-          <Card className="mt-12 bg-primary/5 border-primary/20">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Mail className="w-5 h-5" />
-                Still need help?
-              </CardTitle>
-              <CardDescription>
-                Our support team is here to assist you with any questions or issues.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground mb-4">
-                Contact us at:{" "}
-                <a 
-                  href="mailto:support@servemkt.ch" 
-                  className="text-primary font-medium hover:underline"
-                  data-testid="link-support-email"
-                >
-                  support@servemkt.ch
-                </a>
-              </p>
-              <p className="text-sm text-muted-foreground">
-                We typically respond within 24 hours during business days.
-              </p>
-            </CardContent>
-          </Card>
+        {/* Contact Support */}
+        <div className="max-w-3xl mx-auto mt-20 p-8 rounded-2xl bg-muted/30 border border-border text-center">
+          <MessageCircle className="w-12 h-12 mx-auto text-primary mb-4" />
+          <h3 className="text-2xl font-bold mb-2">Still have questions?</h3>
+          <p className="text-muted-foreground mb-8 max-w-lg mx-auto">
+            Can't find the answer you're looking for? Our friendly support team is here to help you 7 days a week.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button size="lg" className="gap-2">
+              <Mail className="h-4 w-4" />
+              Email Support
+            </Button>
+            <Button size="lg" variant="outline" className="gap-2 bg-background">
+              Visit Community Forum <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </Layout>
+  );
+}
+
+function TopicCard({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) {
+  return (
+    <Card className="hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer group">
+      <CardHeader>
+        <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center mb-4 group-hover:bg-primary/5 transition-colors">
+          {icon}
+        </div>
+        <CardTitle className="text-xl">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <CardDescription className="text-base">{description}</CardDescription>
+      </CardContent>
+    </Card>
   );
 }

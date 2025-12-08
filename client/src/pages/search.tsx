@@ -10,6 +10,13 @@ import { useQuery } from "@tanstack/react-query";
 import { apiRequest, type ServiceWithDetails } from "@/lib/api";
 import { useState, useEffect } from "react";
 import { Footer } from "@/components/Footer";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
+import { GoogleMaps } from "@/components/google-maps";
+import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function SearchResults() {
   const [, setLocation] = useLocation();
@@ -18,6 +25,19 @@ export default function SearchResults() {
 
   const [searchInput, setSearchInput] = useState(initialQuery);
   const [locationInput, setLocationInput] = useState("");
+  const [showMap, setShowMap] = useState(false);
+
+  // Filter States
+  const [priceRange, setPriceRange] = useState([0, 1000]);
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [instantBooking, setInstantBooking] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+
+  // Map Config
+  const { data: mapsConfig } = useQuery({
+    queryKey: ["/api/maps/config"],
+    queryFn: () => apiRequest<{ apiKey: string }>("/api/maps/config"),
+  });
 
   // Update search input when URL query changes
   useEffect(() => {
@@ -27,7 +47,21 @@ export default function SearchResults() {
   const { data: services = [], isLoading } = useQuery<ServiceWithDetails[]>({
     queryKey: [`/api/services`, { search: initialQuery, status: 'active' }],
     queryFn: () => apiRequest(`/api/services?search=${encodeURIComponent(initialQuery)}&status=active`),
-    enabled: !!initialQuery,
+  });
+
+  // Client-side filtering
+  const filteredServices = services.filter(service => {
+    // Price Filter
+    const price = Number(service.price);
+    if (price < priceRange[0] || price > priceRange[1]) return false;
+
+    // Verified Filter
+    if (verifiedOnly && !service.owner?.isVerified) return false;
+
+    // Category Filter
+    if (selectedCategories.length > 0 && !selectedCategories.includes(service.category.name)) return false;
+
+    return true;
   });
 
   const handleSearch = (e: React.FormEvent) => {
@@ -96,10 +130,100 @@ export default function SearchResults() {
                 </SelectContent>
               </Select>
 
-              {/* Filter Button */}
-              <Button variant="outline" className="gap-2 bg-transparent h-10">
-                <SlidersHorizontal className="h-4 w-4" />
-                Filters
+              {/* Filter Sheet */}
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" className="gap-2 bg-background h-10 hover:border-primary/50 transition-colors">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Filters
+                  </Button>
+                </SheetTrigger>
+                <SheetContent className="w-[300px] sm:w-[400px]">
+                  <SheetHeader>
+                    <SheetTitle>Filter Services</SheetTitle>
+                    <SheetDescription>
+                      Refine your search results
+                    </SheetDescription>
+                  </SheetHeader>
+                  <div className="py-6 space-y-6">
+                    {/* Price Range */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-base">Price Range</Label>
+                        <span className="text-sm text-muted-foreground">CHF {priceRange[0]} - {priceRange[1]}+</span>
+                      </div>
+                      <Slider
+                        defaultValue={[0, 1000]}
+                        max={1000}
+                        step={10}
+                        value={priceRange}
+                        onValueChange={setPriceRange}
+                        className="py-4"
+                      />
+                    </div>
+
+                    <Separator />
+
+                    {/* Toggles */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="verified" className="flex flex-col">
+                          <span>Verified Vendors</span>
+                          <span className="font-normal text-xs text-muted-foreground">Only show verified pros</span>
+                        </Label>
+                        <Switch id="verified" checked={verifiedOnly} onCheckedChange={setVerifiedOnly} />
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="instant" className="flex flex-col">
+                          <span>Instant Booking</span>
+                          <span className="font-normal text-xs text-muted-foreground">Book without waiting</span>
+                        </Label>
+                        <Switch id="instant" checked={instantBooking} onCheckedChange={setInstantBooking} />
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Categories */}
+                    <div className="space-y-3">
+                      <Label className="text-base">Categories</Label>
+                      <div className="grid gap-2">
+                        {["Home Cleaning", "Plumbing", "Electrical", "Moving", "Painting", "Gardening"].map((cat) => (
+                          <div key={cat} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`cat-${cat}`}
+                              checked={selectedCategories.includes(cat)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setSelectedCategories([...selectedCategories, cat]);
+                                } else {
+                                  setSelectedCategories(selectedCategories.filter(c => c !== cat));
+                                }
+                              }}
+                            />
+                            <label htmlFor={`cat-${cat}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                              {cat}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <SheetFooter>
+                    <Button type="submit" className="w-full">See Results</Button>
+                  </SheetFooter>
+                </SheetContent>
+              </Sheet>
+
+              {/* Map Toggle */}
+              <Button
+                variant={showMap ? "default" : "outline"}
+                className={`gap-2 h-10 ${showMap ? 'bg-primary text-primary-foreground' : 'bg-background'}`}
+                onClick={() => setShowMap(!showMap)}
+              >
+                <MapPin className="h-4 w-4" />
+                {showMap ? "Show List" : "Show Map"}
               </Button>
 
               <Button onClick={() => handleSearch({ preventDefault: () => { } } as any)} className="h-10">
@@ -132,7 +256,7 @@ export default function SearchResults() {
                   <Loader2 className="w-3 h-3 animate-spin api-loading" /> Searching...
                 </span>
               ) : (
-                `Showing ${services.length} services`
+                `Showing ${filteredServices.length} result${filteredServices.length !== 1 ? 's' : ''}`
               )}
             </p>
             <Button variant="ghost" size="sm" className="gap-2">
@@ -141,59 +265,92 @@ export default function SearchResults() {
             </Button>
           </div>
 
-          {!initialQuery && !isLoading && (
+          {!initialQuery && !isLoading && filteredServices.length === 0 && (
             <div className="text-center py-20" data-testid="empty-search-state">
               <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-muted flex items-center justify-center">
                 <Search className="w-8 h-8 text-muted-foreground" />
               </div>
               <h2 className="text-xl font-semibold text-foreground mb-2">
-                Start Searching
+                No services match your filters
               </h2>
-              <p className="text-muted-foreground mb-6 max-w-md mx-auto text-sm">
-                Enter keywords above to find services near you.
-              </p>
+              <Button onClick={() => {
+                setPriceRange([0, 1000]);
+                setVerifiedOnly(false);
+                setSelectedCategories([]);
+              }} variant="outline" className="mt-4">
+                Clear Filters
+              </Button>
+            </div>
+          )}
+
+          {/* Map View Overlay / Split */}
+          {showMap && (
+            <div className="mb-8 rounded-xl overflow-hidden border border-border h-[500px] shadow-lg relative">
+              <GoogleMaps
+                services={filteredServices}
+                userLocation={null} // Default center 
+                apiKey={mapsConfig?.apiKey || ""}
+              />
+              <Button
+                variant="secondary"
+                size="sm"
+                className="absolute top-4 right-4 shadow-md z-10"
+                onClick={() => setShowMap(false)}
+              >
+                Close Map
+              </Button>
             </div>
           )}
 
           {/* Services Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" data-testid="services-grid">
-            {isLoading ? (
-              // Skeleton Loading State
-              Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="bg-card rounded-xl border border-border h-[350px] animate-pulse relative overflow-hidden">
-                  <div className="h-48 bg-muted w-full" />
-                  <div className="p-4 space-y-3">
-                    <div className="h-5 bg-muted rounded w-3/4" />
-                    <div className="h-4 bg-muted rounded w-1/2" />
-                    <div className="h-10 bg-muted rounded w-full mt-4" />
+          {!showMap ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" data-testid="services-grid">
+              {isLoading ? (
+                // Skeleton Loading State
+                Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="bg-card rounded-xl border border-border h-[350px] animate-pulse relative overflow-hidden">
+                    <div className="h-48 bg-muted w-full" />
+                    <div className="p-4 space-y-3">
+                      <div className="h-5 bg-muted rounded w-3/4" />
+                      <div className="h-4 bg-muted rounded w-1/2" />
+                      <div className="h-10 bg-muted rounded w-full mt-4" />
+                    </div>
                   </div>
+                ))
+              ) : filteredServices.length > 0 ? (
+                filteredServices.map((service) => (
+                  <ServiceCard key={service.id} service={service} />
+                ))
+              ) : initialQuery ? (
+                // No Results State
+                <div className="col-span-full text-center py-20" data-testid="no-results-state">
+                  <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-muted flex items-center justify-center">
+                    <Search className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <h2 className="text-xl font-semibold text-foreground mb-2">
+                    No services found
+                  </h2>
+                  <p className="text-muted-foreground mb-6 max-w-md mx-auto text-sm">
+                    We couldn't find any services matching <strong>"{initialQuery}"</strong>.
+                  </p>
+                  <Button onClick={() => { setSearchInput(""); setLocation("/search"); }} variant="outline">
+                    Clear Search
+                  </Button>
                 </div>
-              ))
-            ) : services.length > 0 ? (
-              services.map((service) => (
-                <ServiceCard key={service.id} service={service} />
-              ))
-            ) : initialQuery ? (
-              // No Results State
-              <div className="col-span-full text-center py-20" data-testid="no-results-state">
-                <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-muted flex items-center justify-center">
-                  <Search className="w-8 h-8 text-muted-foreground" />
+              ) : (
+                <div className="col-span-full text-center py-20">
+                  <p className="text-muted-foreground">No services available at the moment.</p>
                 </div>
-                <h2 className="text-xl font-semibold text-foreground mb-2">
-                  No services found
-                </h2>
-                <p className="text-muted-foreground mb-6 max-w-md mx-auto text-sm">
-                  We couldn't find any services matching <strong>"{initialQuery}"</strong>.
-                </p>
-                <Button onClick={() => { setSearchInput(""); setLocation("/search"); }} variant="outline">
-                  Clear Search
-                </Button>
-              </div>
-            ) : null}
-          </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-4 text-muted-foreground text-sm">
+              Use the map above to browse services by location.
+            </div>
+          )}
 
           {/* Load More (Visual only for now if pagination implemented later) */}
-          {services.length > 0 && (
+          {!showMap && filteredServices.length > 0 && (
             <div className="mt-12 text-center">
               <Button size="lg" variant="outline" className="min-w-[200px]">
                 Load More Services

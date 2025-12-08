@@ -24,10 +24,10 @@ interface ServiceCardProps {
 // Helper component to render image with crop
 function ImageWithCrop({ imageUrl, metadata, alt }: { imageUrl: string; metadata: any; alt: string }) {
   const croppedImage = useCroppedImage(imageUrl, metadata);
-  
+
   return croppedImage ? (
-    <img 
-      src={croppedImage} 
+    <img
+      src={croppedImage}
       alt={alt}
       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
     />
@@ -98,13 +98,13 @@ export function ServiceCard({ service, compact = false, isSaved: initialIsSaved 
   // Update local state when saved status is fetched or prop changes
   useEffect(() => {
     let newValue: boolean | undefined;
-    
+
     if (initialIsSaved !== undefined) {
       newValue = initialIsSaved;
     } else if (favoriteStatus?.isFavorite !== undefined) {
       newValue = favoriteStatus.isFavorite;
     }
-    
+
     // Only update if value actually changed
     if (newValue !== undefined && newValue !== isSaved) {
       setIsSaved(newValue);
@@ -123,14 +123,14 @@ export function ServiceCard({ service, compact = false, isSaved: initialIsSaved 
     onMutate: async ({ action }) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ["/api/favorites", service.id, "status"] });
-      
+
       // Snapshot the previous value
       const previousState = isSaved;
-      
+
       // Optimistically update the UI immediately
       const newState = action === 'add';
       setIsSaved(newState);
-      
+
       // Return context with previous state for rollback
       return { previousState };
     },
@@ -138,18 +138,18 @@ export function ServiceCard({ service, compact = false, isSaved: initialIsSaved 
       // Invalidate queries for fresh data (don't wait for refetch)
       queryClient.invalidateQueries({ queryKey: ["/api/favorites"] });
       queryClient.invalidateQueries({ queryKey: ["/api/favorites", service.id, "status"] });
-      
+
       // Trigger event for ConversationList to refetch saved tab
       window.dispatchEvent(new Event('favorites-changed'));
-      
+
       setShowUnfavoriteDialog(false);
-      
+
       // Show feedback toast
       const wasAdded = variables.action === 'add';
       toast({
         title: wasAdded ? "Service saved" : "Removed from saved",
-        description: wasAdded 
-          ? "Service added to your saved services" 
+        description: wasAdded
+          ? "Service added to your saved services"
           : "Service removed from your saved services",
       });
     },
@@ -159,7 +159,7 @@ export function ServiceCard({ service, compact = false, isSaved: initialIsSaved 
         setIsSaved(context.previousState);
       }
       setShowUnfavoriteDialog(false);
-      
+
       toast({
         title: "Error",
         description: error.message || "Failed to update saved services",
@@ -201,7 +201,7 @@ export function ServiceCard({ service, compact = false, isSaved: initialIsSaved 
             ) : (
               <div className="w-full h-full bg-muted animate-pulse" />
             )}
-            
+
             {/* Carousel Navigation - Only show if multiple images */}
             {allImages.length > 1 && (
               <>
@@ -227,7 +227,7 @@ export function ServiceCard({ service, compact = false, isSaved: initialIsSaved 
                 >
                   <ChevronRight className="w-4 h-4 text-foreground" />
                 </button>
-                
+
                 {/* Image indicators */}
                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 flex gap-1">
                   {allImages.map((_, index) => (
@@ -242,7 +242,7 @@ export function ServiceCard({ service, compact = false, isSaved: initialIsSaved 
                 </div>
               </>
             )}
-            
+
             {/* Favorite button */}
             <TooltipProvider>
               <Tooltip>
@@ -262,7 +262,7 @@ export function ServiceCard({ service, compact = false, isSaved: initialIsSaved 
                     disabled={isAuthenticated && toggleSaved.isPending}
                     data-testid={`button-favorite-${service.id}`}
                   >
-                    <Heart 
+                    <Heart
                       className={cn(
                         "w-3.5 h-3.5 transition-all duration-100",
                         isSaved ? "fill-destructive text-destructive" : "text-muted-foreground"
@@ -283,7 +283,7 @@ export function ServiceCard({ service, compact = false, isSaved: initialIsSaved 
             <h3 className="font-semibold text-sm leading-tight text-foreground line-clamp-2 group-hover:text-primary transition-colors min-h-[2.5rem]">
               {service.title}
             </h3>
-            
+
             <div className="flex items-center gap-1.5 text-xs">
               <div className={`flex items-center ${service.reviewCount > 0 ? 'text-warning' : 'text-muted-foreground'}`}>
                 <Star className="w-3 h-3 fill-current" />
@@ -338,11 +338,11 @@ export function ServiceCard({ service, compact = false, isSaved: initialIsSaved 
   // Full card version - Vercel-style clean design
   return (
     <Card className={cn(
-      "h-full flex flex-col group overflow-hidden transition-all duration-300 hover:shadow-xl hover:border-primary border-border/50",
+      "h-full flex flex-col group overflow-hidden transition-all duration-300 border border-border bg-card hover:shadow-lg hover:border-primary/50",
       isExpired && "opacity-60 grayscale-[0.5]"
     )}
-    role="article"
-    aria-label={`Service: ${service.title}`}
+      role="article"
+      aria-label={`Service: ${service.title}`}
     >
       <Link href={`/service/${service.id}`} className="flex-1 flex flex-col">
         <div className="relative h-48 overflow-hidden bg-muted flex-shrink-0">
@@ -360,7 +360,7 @@ export function ServiceCard({ service, compact = false, isSaved: initialIsSaved 
           ) : (
             <div className="w-full h-full bg-muted animate-pulse" />
           )}
-          
+
           {/* Carousel Navigation - Only show if multiple images */}
           {allImages.length > 1 && (
             <>
@@ -386,7 +386,7 @@ export function ServiceCard({ service, compact = false, isSaved: initialIsSaved 
               >
                 <ChevronRight className="w-4 h-4 text-foreground" />
               </button>
-              
+
               {/* Image indicators */}
               <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10 flex gap-1">
                 {allImages.map((_, index) => (
@@ -401,26 +401,26 @@ export function ServiceCard({ service, compact = false, isSaved: initialIsSaved 
               </div>
             </>
           )}
-          
-          {/* Featured badge */}
-          {service.featured && (
-            <Badge className="absolute top-3 left-3 shadow-md">
-              Featured
-            </Badge>
-          )}
-          
-          {/* Distance badge */}
-          {service.distance !== undefined && (
-            <Badge variant="secondary" className="absolute top-3 left-3 bg-primary text-primary-foreground shadow-md">
-              {service.distance.toFixed(1)} km away
-            </Badge>
-          )}
-          
-          {/* Expired badge */}
-          {isExpired && (
-            <Badge variant="destructive" className="absolute top-3 left-3 shadow-md">Expired</Badge>
-          )}
-          
+
+          {/* Badges Container */}
+          <div className="absolute top-3 left-3 flex flex-col gap-2 z-10 items-start">
+            {(service as any).featured && (
+              <Badge className="shadow-sm bg-primary text-primary-foreground hover:bg-primary/90">
+                Featured
+              </Badge>
+            )}
+
+            {service.distance !== undefined && (
+              <Badge variant="secondary" className="shadow-sm bg-background/80 backdrop-blur-sm hover:bg-background/90">
+                {service.distance.toFixed(1)} km
+              </Badge>
+            )}
+
+            {isExpired && (
+              <Badge variant="destructive" className="shadow-sm">Expired</Badge>
+            )}
+          </div>
+
           {/* Favorite button */}
           <TooltipProvider>
             <Tooltip>
@@ -439,7 +439,7 @@ export function ServiceCard({ service, compact = false, isSaved: initialIsSaved 
                   disabled={isAuthenticated && toggleSaved.isPending}
                   data-testid={`button-favorite-${service.id}`}
                 >
-                  <Heart 
+                  <Heart
                     className={cn(
                       "h-4 w-4 transition-all duration-100",
                       isSaved ? "fill-destructive text-destructive" : "text-muted-foreground"
