@@ -225,57 +225,62 @@ export default function Home() {
       <section className="relative border-b overflow-hidden min-h-[600px]">
         <HeroVideoBackground />
         <div className="container mx-auto px-4 py-20 md:py-32 relative z-10 text-center">
-          {/* Glassmorphism backdrop for text visibility on light theme */}
-          <div className="max-w-4xl mx-auto p-8 md:p-12 rounded-3xl backdrop-blur-md bg-white/10 dark:bg-black/20 border border-white/20 dark:border-white/10 shadow-2xl">
-            <Badge className="mb-6 bg-gradient-to-r from-primary to-accent text-white px-6 py-2.5">
+          <div className="max-w-4xl mx-auto">
+            <Badge className="mb-6 bg-gradient-to-r from-primary to-accent text-white px-6 py-2.5 shadow-lg">
               <Sparkles className="h-4 w-4 mr-2" />
               Trusted by 50,000+ Swiss Customers
             </Badge>
-            <h1 className="text-4xl md:text-7xl font-bold mb-6 text-gray-900 dark:text-white drop-shadow-lg">
+            <h1 className="text-4xl md:text-7xl font-bold mb-6 text-white [text-shadow:_0_4px_24px_rgb(0_0_0_/_50%),_0_2px_8px_rgb(0_0_0_/_40%)]">
               The complete platform to discover{" "}
-              <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">local services</span>
+              <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent drop-shadow-xl">local services</span>
             </h1>
-            <div className="flex flex-col sm:flex-row gap-3 max-w-2xl mx-auto mb-8">
-              <div className="relative flex-1 text-left">
-                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground z-10" />
-                <Input
-                  value={locationSearchQuery}
-                  onChange={(e) => setLocationSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && locationSearchQuery.trim() && handleLocationSearch()}
-                  placeholder="Enter postcode, city, or address..."
-                  className="pl-12 h-14 text-base bg-background shadow-md"
-                />
-                {addressSuggestions.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg z-50">
-                    {addressSuggestions.map((s, i) => (
-                      <button key={i} onClick={() => handleLocationSearch(s)} className="w-full text-left px-4 py-3 hover:bg-muted">
-                        <p className="font-medium">{s.city || s.postcode}</p>
-                        <p className="text-xs text-muted-foreground">{s.display_name}</p>
-                      </button>
-                    ))}
-                  </div>
-                )}
+
+            {/* Search Box with solid background */}
+            <div className="bg-card/95 backdrop-blur-sm rounded-2xl p-4 md:p-6 shadow-2xl border border-border/50 max-w-2xl mx-auto mb-6">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1 text-left">
+                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground z-10" />
+                  <Input
+                    value={locationSearchQuery}
+                    onChange={(e) => setLocationSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && locationSearchQuery.trim() && handleLocationSearch()}
+                    placeholder="Enter postcode, city, or address..."
+                    className="pl-12 h-14 text-base bg-background"
+                  />
+                  {addressSuggestions.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg z-50">
+                      {addressSuggestions.map((s, i) => (
+                        <button key={i} onClick={() => handleLocationSearch(s)} className="w-full text-left px-4 py-3 hover:bg-muted">
+                          <p className="font-medium">{s.city || s.postcode}</p>
+                          <p className="text-xs text-muted-foreground">{s.display_name}</p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <Button onClick={() => handleLocationSearch()} disabled={isGeocoding} size="lg" className="h-14 px-8">
+                  {isGeocoding ? <Loader2 className="animate-spin" /> : "Search"}
+                </Button>
               </div>
-              <Button onClick={() => handleLocationSearch()} disabled={isGeocoding} size="lg" className="h-14 px-8">
-                {isGeocoding ? <Loader2 className="animate-spin" /> : "Search"}
-              </Button>
-            </div>
-            <div className="flex justify-center gap-3 flex-wrap">
-              {searchLocation && (
-                <Badge variant="secondary" className="px-3 py-1.5">
-                  <MapPin className="w-3 h-3 mr-1" />
-                  Near {searchLocation.name}
-                </Badge>
-              )}
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={useLocationPermissions}
-                  onCheckedChange={(c) => {
-                    setUseLocationPermissions(c);
-                    if (c) handleBrowserLocation();
-                  }}
-                />
-                <Label>Use My Location</Label>
+
+              {/* Location toggle with better visibility */}
+              <div className="flex justify-center items-center gap-3 mt-4 pt-4 border-t border-border/50">
+                {searchLocation && (
+                  <Badge variant="secondary" className="px-3 py-1.5">
+                    <MapPin className="w-3 h-3 mr-1" />
+                    Near {searchLocation.name}
+                  </Badge>
+                )}
+                <div className="flex items-center gap-2 bg-primary/10 dark:bg-primary/20 px-4 py-2 rounded-full border border-primary/30">
+                  <Switch
+                    checked={useLocationPermissions}
+                    onCheckedChange={(c) => {
+                      setUseLocationPermissions(c);
+                      if (c) handleBrowserLocation();
+                    }}
+                  />
+                  <Label className="font-medium text-foreground cursor-pointer">Use My Location</Label>
+                </div>
               </div>
             </div>
           </div>
