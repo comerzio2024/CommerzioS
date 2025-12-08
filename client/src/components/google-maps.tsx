@@ -147,6 +147,9 @@ export function GoogleMaps({
       const marker = new google.maps.Marker(markerOptions);
 
       marker.addListener("click", () => {
+        const currentZoom = map.getZoom() || 12;
+        const isMaxZoom = currentZoom >= 16;
+
         if (isSingle) {
           const s = items[0].service;
           const imgHtml = s.images?.[0]
@@ -160,12 +163,48 @@ export function GoogleMaps({
                 : `<div style="color:#666;">Contact for pricing</div>`;
 
           const content = `
-            <div style="width:220px;padding:4px;">
+            <div style="width:280px;padding:8px;">
               ${imgHtml}
-              <strong style="display:block;margin-bottom:4px;font-size:14px;">${s.title}</strong>
+              <strong style="display:block;margin-bottom:4px;font-size:15px;">${s.title}</strong>
               ${priceHtml}
               <div style="color:#888;font-size:11px;margin:6px 0;">Approximate Location</div>
-              <a href="/service/${s.id}" style="display:block;background:#0f172a;color:#fff;text-align:center;padding:8px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:500;">View Details</a>
+              <a href="/service/${s.id}" style="display:block;background:#0f172a;color:#fff;text-align:center;padding:10px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:500;">View Details</a>
+            </div>
+          `;
+
+          if (infoWindowRef.current) infoWindowRef.current.close();
+          const infoWindow = new google.maps.InfoWindow({ content });
+          infoWindow.open(map, marker);
+          infoWindowRef.current = infoWindow;
+        } else if (isMaxZoom) {
+          const listItems = items
+            .map((i) => {
+              const s = i.service;
+              const imgSrc = s.images?.[0] || "";
+              const price =
+                s.priceType === "fixed"
+                  ? `CHF ${s.price}`
+                  : s.priceType === "list"
+                    ? `From CHF ${(s.priceList as any)?.[0]?.price || "N/A"}`
+                    : "Contact";
+
+              return `
+                <div style="display:flex;gap:12px;padding:12px 0;border-bottom:1px solid #e5e7eb;">
+                  ${imgSrc ? `<img src="${imgSrc}" style="width:70px;height:70px;object-fit:cover;border-radius:8px;flex-shrink:0;"/>` : `<div style="width:70px;height:70px;background:#f3f4f6;border-radius:8px;flex-shrink:0;"></div>`}
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-weight:600;font-size:14px;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.title}</div>
+                    <div style="color:#3b82f6;font-weight:500;font-size:13px;margin-bottom:8px;">${price}</div>
+                    <a href="/service/${s.id}" style="display:inline-block;background:#0f172a;color:#fff;padding:6px 16px;border-radius:4px;text-decoration:none;font-size:12px;font-weight:500;">View Details</a>
+                  </div>
+                </div>
+              `;
+            })
+            .join("");
+
+          const content = `
+            <div style="width:380px;max-width:90vw;padding:8px;">
+              <div style="font-weight:bold;font-size:16px;padding-bottom:8px;margin-bottom:8px;border-bottom:2px solid #e5e7eb;">${count} Services in this area</div>
+              <div style="max-height:350px;overflow-y:auto;">${listItems}</div>
             </div>
           `;
 
