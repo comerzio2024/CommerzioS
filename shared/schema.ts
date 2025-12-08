@@ -36,13 +36,13 @@ export const platformSettings = pgTable("platform_settings", {
   enableAiCategoryValidation: boolean("enable_ai_category_validation").default(true).notNull(),
   enableServiceContacts: boolean("enable_service_contacts").default(true).notNull(), // Show contact section in service form
   requireServiceContacts: boolean("require_service_contacts").default(false).notNull(), // Make contacts required
-  
+
   // Commission settings
   platformCommissionPercent: decimal("platform_commission_percent", { precision: 5, scale: 2 }).default("8.00").notNull(), // Base platform fee (%) - 8% Standard tier
   cardProcessingFeePercent: decimal("card_processing_fee_percent", { precision: 5, scale: 2 }).default("2.90").notNull(), // Stripe card fee (%)
   cardProcessingFeeFixed: decimal("card_processing_fee_fixed", { precision: 10, scale: 2 }).default("0.30").notNull(), // Stripe fixed fee (CHF)
   twintProcessingFeePercent: decimal("twint_processing_fee_percent", { precision: 5, scale: 2 }).default("1.30").notNull(), // TWINT fee (%)
-  
+
   googleMapsApiKey: text("google_maps_api_key"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -77,25 +77,25 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   phone: varchar("phone", { length: 50 }),
   phoneNumber: varchar("phone_number", { length: 50 }),
-  
+
   // Authentication fields
   passwordHash: varchar("password_hash", { length: 255 }),
   authProvider: varchar("auth_provider", { enum: ["local", "google", "twitter", "facebook"] }).default("local").notNull(),
   oauthProviderId: varchar("oauth_provider_id", { length: 255 }),
-  
+
   // Email verification
   emailVerificationToken: varchar("email_verification_token", { length: 255 }),
   emailVerificationExpires: timestamp("email_verification_expires"),
-  
+
   // Password reset
   passwordResetToken: varchar("password_reset_token", { length: 255 }),
   passwordResetExpires: timestamp("password_reset_expires"),
-  
+
   // Login security
   lastLoginAt: timestamp("last_login_at"),
   failedLoginAttempts: integer("failed_login_attempts").default(0).notNull(),
   lockedUntil: timestamp("locked_until"),
-  
+
   // Existing verification flags
   isVerified: boolean("is_verified").default(false).notNull(),
   emailVerified: boolean("email_verified").default(false).notNull(),
@@ -110,37 +110,46 @@ export const users = pgTable("users", {
   preferredLocationName: varchar("preferred_location_name", { length: 200 }),
   preferredSearchRadiusKm: integer("preferred_search_radius_km").default(10),
   lastHomeVisitAt: timestamp("last_home_visit_at"),
-  
+
   // Referral system fields
   referralCode: varchar("referral_code", { length: 20 }).unique(),
   referredBy: varchar("referred_by").references((): AnyPgColumn => users.id, { onDelete: "set null" }),
   points: integer("points").default(0).notNull(),
   totalEarnedPoints: integer("total_earned_points").default(0).notNull(),
   totalEarnedCommission: decimal("total_earned_commission", { precision: 12, scale: 2 }).default("0").notNull(),
-  
+
   // Stripe integration fields
   stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
   stripeConnectAccountId: varchar("stripe_connect_account_id", { length: 255 }),
   stripeConnectOnboarded: boolean("stripe_connect_onboarded").default(false).notNull(),
-  
+
   // Vendor billing - for commission charges on Cash/TWINT bookings
   defaultPaymentMethodId: varchar("default_payment_method_id", { length: 255 }),
   paymentMethodLast4: varchar("payment_method_last4", { length: 4 }),
   paymentMethodBrand: varchar("payment_method_brand", { length: 50 }),
-  
+
   // Account status - for payment failures and restrictions
-  accountStatus: varchar("account_status", { 
-    enum: ["active", "restricted_payment_failed", "restricted_debt", "suspended", "banned"] 
+  accountStatus: varchar("account_status", {
+    enum: ["active", "restricted_payment_failed", "restricted_debt", "suspended", "banned"]
   }).default("active").notNull(),
   accountStatusReason: text("account_status_reason"),
   accountStatusChangedAt: timestamp("account_status_changed_at"),
-  
+
   // Vendor payment settings (for users who offer services)
   acceptCardPayments: boolean("accept_card_payments").default(true).notNull(),
   acceptTwintPayments: boolean("accept_twint_payments").default(true).notNull(),
   acceptCashPayments: boolean("accept_cash_payments").default(true).notNull(),
   requireBookingApproval: boolean("require_booking_approval").default(false).notNull(), // If true, vendor must approve each booking
-  
+
+  // Vendor profile fields (for Vercel Design features)
+  topVendor: boolean("top_vendor").default(false).notNull(), // Top vendor badge (auto-computed: >4.5 rating + >50 bookings)
+  topVendorYear: integer("top_vendor_year"), // Year awarded top vendor status
+  vendorBio: text("vendor_bio"), // About section for vendor profile
+  certifications: jsonb("certifications").default(sql`'[]'::jsonb`), // Array of {name: string, year?: number}
+  totalCompletedBookings: integer("total_completed_bookings").default(0).notNull(), // Booking count for metrics
+  avgResponseTimeMinutes: integer("avg_response_time_minutes"), // Computed avg response time from messages
+  satisfactionRate: decimal("satisfaction_rate", { precision: 5, scale: 2 }), // Computed from reviews (percentage)
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
@@ -228,31 +237,31 @@ export const oauthTokensRelations = relations(oauthTokens, ({ one }) => ({
 export const referralConfig = pgTable("referral_config", {
   id: varchar("id").primaryKey().default("default"),
   maxLevels: integer("max_levels").default(3).notNull(),
-  
+
   // Commission rates per level (as decimal, e.g., 0.10 = 10%)
   level1CommissionRate: decimal("level1_commission_rate", { precision: 5, scale: 4 }).default("0.10").notNull(),
   level2CommissionRate: decimal("level2_commission_rate", { precision: 5, scale: 4 }).default("0.04").notNull(),
   level3CommissionRate: decimal("level3_commission_rate", { precision: 5, scale: 4 }).default("0.01").notNull(),
-  
+
   // Points configuration
   pointsPerReferral: integer("points_per_referral").default(100).notNull(),
   pointsPerFirstPurchase: integer("points_per_first_purchase").default(50).notNull(),
   pointsPerServiceCreation: integer("points_per_service_creation").default(25).notNull(),
   pointsPerReview: integer("points_per_review").default(10).notNull(),
-  
+
   // Point redemption rates
   pointsToDiscountRate: decimal("points_to_discount_rate", { precision: 10, scale: 4 }).default("0.01").notNull(), // 1 point = 0.01 CHF
   minPointsToRedeem: integer("min_points_to_redeem").default(100).notNull(),
-  
+
   // Referral system settings
   referralCodeLength: integer("referral_code_length").default(8).notNull(),
   referralLinkExpiryDays: integer("referral_link_expiry_days").default(30).notNull(),
   cookieExpiryDays: integer("cookie_expiry_days").default(30).notNull(),
-  
+
   // Anti-abuse settings
   maxReferralsPerDay: integer("max_referrals_per_day").default(50).notNull(),
   minTimeBetweenReferrals: integer("min_time_between_referrals").default(60).notNull(), // seconds
-  
+
   isActive: boolean("is_active").default(true).notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -264,25 +273,25 @@ export const referralConfig = pgTable("referral_config", {
 export const pointsLog = pgTable("points_log", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  
+
   points: integer("points").notNull(), // Positive for earned, negative for spent
   balanceAfter: integer("balance_after").notNull(),
-  
-  action: varchar("action", { 
-    enum: ["referral_signup", "referral_first_purchase", "referral_service_created", 
-           "service_created", "review_posted", "purchase_made", 
-           "redemption", "admin_adjustment", "expired", "bonus"] 
+
+  action: varchar("action", {
+    enum: ["referral_signup", "referral_first_purchase", "referral_service_created",
+      "service_created", "review_posted", "purchase_made",
+      "redemption", "admin_adjustment", "expired", "bonus"]
   }).notNull(),
-  
+
   description: text("description"),
-  
+
   // Reference to what triggered this point change
   referenceType: varchar("reference_type", { enum: ["user", "service", "review", "order", "admin"] }),
   referenceId: varchar("reference_id"),
-  
+
   // For referral-related points, track the referral transaction
   referralTransactionId: varchar("referral_transaction_id").references(() => referralTransactions.id, { onDelete: "set null" }),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => [
   index("idx_points_log_user").on(table.userId),
@@ -307,43 +316,43 @@ export const pointsLogRelations = relations(pointsLog, ({ one }) => ({
  */
 export const referralTransactions = pgTable("referral_transactions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
+
   // The user who earned the commission/points (the referrer)
   toUserId: varchar("to_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  
+
   // The user whose action triggered the reward (the referee, or downstream referral)
   fromUserId: varchar("from_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  
+
   // Referral level (1 = direct, 2 = second level, 3 = third level)
   level: integer("level").notNull(),
-  
+
   // Points earned by toUserId from this transaction
   pointsEarned: integer("points_earned").default(0).notNull(),
-  
+
   // Commission earned (monetary value in CHF)
   commissionEarned: decimal("commission_earned", { precision: 12, scale: 2 }).default("0").notNull(),
-  
+
   // Commission rate used for this transaction
   commissionRate: decimal("commission_rate", { precision: 5, scale: 4 }),
-  
+
   // What triggered this transaction
-  triggerType: varchar("trigger_type", { 
-    enum: ["signup", "first_purchase", "service_created", "order_completed", "subscription_renewed"] 
+  triggerType: varchar("trigger_type", {
+    enum: ["signup", "first_purchase", "service_created", "order_completed", "subscription_renewed"]
   }).notNull(),
-  
+
   // Reference to the triggering entity (e.g., service ID, order ID)
   triggerId: varchar("trigger_id"),
   triggerAmount: decimal("trigger_amount", { precision: 12, scale: 2 }), // The base amount for commission calculation
-  
+
   // Status of the transaction
-  status: varchar("status", { 
-    enum: ["pending", "confirmed", "paid", "cancelled", "expired"] 
+  status: varchar("status", {
+    enum: ["pending", "confirmed", "paid", "cancelled", "expired"]
   }).default("pending").notNull(),
-  
+
   // Payout tracking
   paidAt: timestamp("paid_at"),
   payoutId: varchar("payout_id"),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
@@ -376,25 +385,25 @@ export const referralTransactionsRelations = relations(referralTransactions, ({ 
 export const referralStats = pgTable("referral_stats", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
-  
+
   // Direct referral counts
   totalDirectReferrals: integer("total_direct_referrals").default(0).notNull(),
   activeDirectReferrals: integer("active_direct_referrals").default(0).notNull(),
-  
+
   // Network stats (all levels)
   totalNetworkSize: integer("total_network_size").default(0).notNull(),
-  
+
   // Earnings
   totalPointsEarned: integer("total_points_earned").default(0).notNull(),
   totalCommissionEarned: decimal("total_commission_earned", { precision: 12, scale: 2 }).default("0").notNull(),
   pendingCommission: decimal("pending_commission", { precision: 12, scale: 2 }).default("0").notNull(),
-  
+
   // Rankings
   referralRank: integer("referral_rank"),
-  
+
   // Last activity
   lastReferralAt: timestamp("last_referral_at"),
-  
+
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
   index("idx_referral_stats_user").on(table.userId),
@@ -608,17 +617,22 @@ export const services = pgTable("services", {
   contactPhone: varchar("contact_phone", { length: 50 }).notNull(),
   contactEmail: varchar("contact_email", { length: 200 }).notNull(),
   viewCount: integer("view_count").default(0).notNull(),
-  
+
   // Payment preferences for this service
   acceptedPaymentMethods: text("accepted_payment_methods").array().default(sql`ARRAY['card', 'twint', 'cash']::text[]`).notNull(),
-  
+
   // Cancellation Policy (for dispute resolution)
-  cancellationPolicy: varchar("cancellation_policy", { 
-    enum: ["flexible", "moderate", "strict", "custom"] 
+  cancellationPolicy: varchar("cancellation_policy", {
+    enum: ["flexible", "moderate", "strict", "custom"]
   }).default("flexible").notNull(),
   // For custom policy: what % vendor keeps on customer no-show (0-100)
   customNoShowFeePercent: integer("custom_no_show_fee_percent").default(0),
-  
+
+  // Vercel Design features
+  minBookingHours: integer("min_booking_hours").default(1), // Minimum hours per booking (e.g., "Minimum 2 hours")
+  whatsIncluded: text("whats_included").array().default(sql`ARRAY[]::text[]`), // What's included list
+  featured: boolean("featured").default(false).notNull(), // Featured listing badge
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   expiresAt: timestamp("expires_at").notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -704,16 +718,16 @@ export const reviews = pgTable("reviews", {
   serviceId: varchar("service_id").notNull().references(() => services.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   bookingId: varchar("booking_id").references(() => bookings.id, { onDelete: "set null" }),
-  
+
   // Overall rating (calculated average of criteria)
   rating: integer("rating").notNull(),
-  
+
   // Multi-criteria ratings (1-5 stars each) for service reviews
   qualityRating: integer("quality_rating"), // Quality of service delivered
   communicationRating: integer("communication_rating"), // Vendor communication
   punctualityRating: integer("punctuality_rating"), // Timeliness and scheduling
   valueRating: integer("value_rating"), // Value for the price paid
-  
+
   comment: text("comment").notNull(),
   editCount: integer("edit_count").default(0).notNull(),
   lastEditedAt: timestamp("last_edited_at"),
@@ -735,19 +749,19 @@ export const reviewRemovalRequests = pgTable("review_removal_requests", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   reviewId: varchar("review_id").notNull().references(() => reviews.id, { onDelete: "cascade" }),
   requesterId: varchar("requester_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  reason: varchar("reason", { 
-    enum: ["inappropriate", "fake", "spam", "off_topic", "harassment", "other"] 
+  reason: varchar("reason", {
+    enum: ["inappropriate", "fake", "spam", "off_topic", "harassment", "other"]
   }).notNull(),
   details: text("details").notNull(),
-  
+
   // Admin handling
-  status: varchar("status", { 
-    enum: ["pending", "under_review", "approved", "rejected"] 
+  status: varchar("status", {
+    enum: ["pending", "under_review", "approved", "rejected"]
   }).default("pending").notNull(),
   reviewedBy: varchar("reviewed_by").references(() => users.id, { onDelete: "set null" }),
   reviewedAt: timestamp("reviewed_at"),
   adminNotes: text("admin_notes"),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
@@ -788,15 +802,15 @@ export const customerReviews = pgTable("customer_reviews", {
   vendorId: varchar("vendor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   customerId: varchar("customer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   bookingId: varchar("booking_id").notNull().references(() => bookings.id, { onDelete: "cascade" }).unique(),
-  
+
   // Overall rating (calculated average of criteria)
   rating: integer("rating").notNull(),
-  
+
   // Multi-criteria ratings (1-5 stars each) for customer reviews
   communicationRating: integer("communication_rating"), // Customer communication
   punctualityRating: integer("punctuality_rating"), // Customer timeliness
   respectRating: integer("respect_rating"), // Customer respect and professionalism
-  
+
   comment: text("comment").notNull(),
   editCount: integer("edit_count").default(0).notNull(),
   lastEditedAt: timestamp("last_edited_at"),
@@ -1167,38 +1181,38 @@ export const updateReferralConfigSchema = z.object({
 export const servicePricingOptions = pgTable("service_pricing_options", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   serviceId: varchar("service_id").notNull().references(() => services.id, { onDelete: "cascade" }),
-  
+
   // Pricing option details
   label: varchar("label", { length: 100 }).notNull(), // e.g., "Basic Cleaning", "Deep Clean"
   description: text("description"),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   currency: varchar("currency", { length: 3 }).default("CHF").notNull(),
-  
+
   // Billing interval
-  billingInterval: varchar("billing_interval", { 
-    enum: ["one_time", "hourly", "daily", "weekly", "monthly", "yearly"] 
+  billingInterval: varchar("billing_interval", {
+    enum: ["one_time", "hourly", "daily", "weekly", "monthly", "yearly"]
   }).default("one_time").notNull(),
-  
+
   // Duration for the service (in minutes)
   durationMinutes: integer("duration_minutes"),
-  
+
   // Stripe Price ID (created when pricing option is added)
   stripePriceId: varchar("stripe_price_id", { length: 255 }),
-  
+
   // === NEW: Flexible Pricing Fields ===
   // Unit multipliers: e.g., { type: "pet", label: "dogs", quantity: 2, extraPrice: 1000, maxAllowed: 5 }
   includedUnits: jsonb("included_units").default(sql`'[]'::jsonb`),
-  
+
   // Size pricing tiers: e.g., { type: "pet_size", options: [{label: "Small", priceAdjustment: 0}, {label: "Large", priceAdjustment: 2000}] }
   tiers: jsonb("tiers").default(sql`'[]'::jsonb`),
-  
+
   // Surcharge modifiers: e.g., { weekendSurcharge: {type: "percentage", value: 20}, eveningSurcharge: {afterHour: 18, value: 1000} }
   modifiers: jsonb("modifiers").default(sql`'{}'::jsonb`),
-  
+
   // Ordering
   sortOrder: integer("sort_order").default(0).notNull(),
   isActive: boolean("is_active").default(true).notNull(),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
@@ -1220,19 +1234,19 @@ export const servicePricingOptionsRelations = relations(servicePricingOptions, (
 export const serviceAvailabilitySettings = pgTable("service_availability_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   serviceId: varchar("service_id").notNull().references(() => services.id, { onDelete: "cascade" }).unique(),
-  
+
   // Working hours override: { mon: { start: "09:00", end: "17:00", enabled: true }, ... }
   workingHours: jsonb("working_hours").default(sql`'{}'::jsonb`),
-  
+
   // Slot generation settings
   defaultSlotDurationMinutes: integer("default_slot_duration_minutes").default(60).notNull(),
   bufferBetweenBookingsMinutes: integer("buffer_between_bookings_minutes").default(15).notNull(),
-  
+
   // Booking preferences
   instantBooking: boolean("instant_booking").default(false).notNull(),
   minBookingNoticeHours: integer("min_booking_notice_hours").default(24),
   maxBookingAdvanceDays: integer("max_booking_advance_days").default(90),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
@@ -1252,25 +1266,25 @@ export const serviceAvailabilitySettingsRelations = relations(serviceAvailabilit
  */
 export const pricingAuditLog = pgTable("pricing_audit_log", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
+
   // Who made the change
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  
+
   // What was changed
   entityType: varchar("entity_type", { enum: ["service", "pricing_option"] }).notNull(),
   entityId: varchar("entity_id").notNull(),
-  
+
   // Action performed
   action: varchar("action", { enum: ["create", "update", "delete", "activate", "deactivate"] }).notNull(),
-  
+
   // Values
   previousValue: jsonb("previous_value"),
   newValue: jsonb("new_value"),
-  
+
   // Request metadata for security
   ipAddress: varchar("ip_address", { length: 45 }),
   userAgent: text("user_agent"),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => [
   index("idx_pricing_audit_user").on(table.userId),
@@ -1291,30 +1305,30 @@ export const pricingAuditLogRelations = relations(pricingAuditLog, ({ one }) => 
  */
 export const bookingSessions = pgTable("booking_sessions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
+
   // Session owner
   userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
-  
+
   // Session token for anonymous users
   sessionToken: varchar("session_token", { length: 255 }),
-  
+
   // Booking details
   serviceId: varchar("service_id").notNull().references(() => services.id, { onDelete: "cascade" }),
   pricingOptionId: varchar("pricing_option_id").references(() => servicePricingOptions.id, { onDelete: "set null" }),
-  
+
   // Locked pricing at session creation time (prevents price manipulation during checkout)
   lockedPricing: jsonb("locked_pricing").notNull(),
-  
+
   // Requested time slot
   requestedStartTime: timestamp("requested_start_time"),
   requestedEndTime: timestamp("requested_end_time"),
-  
+
   // Session status
   status: varchar("status", { enum: ["active", "completed", "expired", "abandoned"] }).default("active").notNull(),
-  
+
   // Session expiry (default 5 minutes)
   expiresAt: timestamp("expires_at").notNull(),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
@@ -1347,13 +1361,13 @@ export const bookingSessionsRelations = relations(bookingSessions, ({ one }) => 
 export const orders = pgTable("orders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   orderNumber: varchar("order_number", { length: 20 }).unique().notNull(),
-  
+
   // Parties involved
   customerId: varchar("customer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   vendorId: varchar("vendor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   serviceId: varchar("service_id").notNull().references(() => services.id, { onDelete: "cascade" }),
   pricingOptionId: varchar("pricing_option_id").references(() => servicePricingOptions.id, { onDelete: "set null" }),
-  
+
   // Pricing at time of order (snapshot)
   priceLabel: varchar("price_label", { length: 100 }),
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
@@ -1362,39 +1376,39 @@ export const orders = pgTable("orders", {
   platformFee: decimal("platform_fee", { precision: 10, scale: 2 }).default("0").notNull(),
   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
   currency: varchar("currency", { length: 3 }).default("CHF").notNull(),
-  
+
   // Order status
-  status: varchar("status", { 
-    enum: ["pending", "confirmed", "in_progress", "completed", "cancelled", "refunded", "disputed"] 
+  status: varchar("status", {
+    enum: ["pending", "confirmed", "in_progress", "completed", "cancelled", "refunded", "disputed"]
   }).default("pending").notNull(),
-  
+
   // Payment info (Stripe)
   stripePaymentIntentId: varchar("stripe_payment_intent_id", { length: 255 }),
   stripeCheckoutSessionId: varchar("stripe_checkout_session_id", { length: 255 }),
-  paymentStatus: varchar("payment_status", { 
-    enum: ["pending", "processing", "succeeded", "failed", "refunded", "cancelled"] 
+  paymentStatus: varchar("payment_status", {
+    enum: ["pending", "processing", "succeeded", "failed", "refunded", "cancelled"]
   }).default("pending").notNull(),
   paidAt: timestamp("paid_at"),
-  
+
   // Vendor payout
   vendorPayoutAmount: decimal("vendor_payout_amount", { precision: 10, scale: 2 }),
-  vendorPayoutStatus: varchar("vendor_payout_status", { 
-    enum: ["pending", "processing", "paid", "failed"] 
+  vendorPayoutStatus: varchar("vendor_payout_status", {
+    enum: ["pending", "processing", "paid", "failed"]
   }).default("pending").notNull(),
   vendorPaidAt: timestamp("vendor_paid_at"),
   stripeTransferId: varchar("stripe_transfer_id", { length: 255 }),
-  
+
   // Linked booking (if applicable)
   bookingId: varchar("booking_id"),
-  
+
   // Notes
   customerNotes: text("customer_notes"),
   vendorNotes: text("vendor_notes"),
   adminNotes: text("admin_notes"),
-  
+
   // Referral tracking (for commission calculation)
   referralProcessed: boolean("referral_processed").default(false).notNull(),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
@@ -1443,28 +1457,28 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
 export const vendorAvailabilitySettings = pgTable("vendor_availability_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
-  
+
   // Default working hours (JSON: { mon: { start: "09:00", end: "17:00" }, ... })
   defaultWorkingHours: jsonb("default_working_hours").default(sql`'{}'::jsonb`),
-  
+
   // Timezone
   timezone: varchar("timezone", { length: 50 }).default("Europe/Zurich").notNull(),
-  
+
   // Booking settings
   minBookingNoticeHours: integer("min_booking_notice_hours").default(24).notNull(),
   maxBookingAdvanceDays: integer("max_booking_advance_days").default(90).notNull(),
   defaultSlotDurationMinutes: integer("default_slot_duration_minutes").default(60).notNull(),
   bufferBetweenBookingsMinutes: integer("buffer_between_bookings_minutes").default(15).notNull(),
-  
+
   // Auto-accept settings
   autoAcceptBookings: boolean("auto_accept_bookings").default(false).notNull(),
   requireDeposit: boolean("require_deposit").default(false).notNull(),
   depositPercentage: integer("deposit_percentage").default(20),
-  
+
   // Notifications
   emailNotifications: boolean("email_notifications").default(true).notNull(),
   smsNotifications: boolean("sms_notifications").default(false).notNull(),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
@@ -1485,27 +1499,27 @@ export const vendorAvailabilitySettingsRelations = relations(vendorAvailabilityS
 export const vendorCalendarBlocks = pgTable("vendor_calendar_blocks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  
+
   // Block period
   startTime: timestamp("start_time").notNull(),
   endTime: timestamp("end_time").notNull(),
-  
+
   // Block type
-  blockType: varchar("block_type", { 
-    enum: ["manual", "holiday", "personal", "break", "maintenance"] 
+  blockType: varchar("block_type", {
+    enum: ["manual", "holiday", "personal", "break", "maintenance"]
   }).default("manual").notNull(),
-  
+
   // Recurrence (null = one-time, else: daily, weekly, monthly)
   recurrence: varchar("recurrence", { enum: ["daily", "weekly", "monthly"] }),
   recurrenceEndDate: timestamp("recurrence_end_date"),
-  
+
   // Details
   title: varchar("title", { length: 100 }),
   notes: text("notes"),
-  
+
   // For specific service blocking (null = all services blocked)
   serviceId: varchar("service_id").references(() => services.id, { onDelete: "cascade" }),
-  
+
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -1533,35 +1547,35 @@ export const vendorCalendarBlocksRelations = relations(vendorCalendarBlocks, ({ 
 export const bookings = pgTable("bookings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   bookingNumber: varchar("booking_number", { length: 20 }).unique().notNull(),
-  
+
   // Parties
   customerId: varchar("customer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   vendorId: varchar("vendor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   serviceId: varchar("service_id").notNull().references(() => services.id, { onDelete: "cascade" }),
   pricingOptionId: varchar("pricing_option_id").references(() => servicePricingOptions.id, { onDelete: "set null" }),
-  
+
   // Payment method: card (escrow), twint (instant), cash (no payment)
-  paymentMethod: varchar("payment_method", { 
-    enum: ["card", "twint", "cash"] 
+  paymentMethod: varchar("payment_method", {
+    enum: ["card", "twint", "cash"]
   }).notNull().default("card"),
-  
+
   // Stripe payment tracking
   stripePaymentIntentId: varchar("stripe_payment_intent_id", { length: 255 }),
-  
+
   // TWINT-specific fields
   twintTransactionId: varchar("twint_transaction_id", { length: 255 }),
   twintRefundId: varchar("twint_refund_id", { length: 255 }),
-  
+
   // Requested time slot
   requestedStartTime: timestamp("requested_start_time").notNull(),
   requestedEndTime: timestamp("requested_end_time").notNull(),
-  
+
   // Confirmed time slot (may differ from requested if alternative proposed)
   confirmedStartTime: timestamp("confirmed_start_time"),
   confirmedEndTime: timestamp("confirmed_end_time"),
-  
+
   // Status workflow: pending → accepted/rejected/alternative_proposed → confirmed/cancelled
-  status: varchar("status", { 
+  status: varchar("status", {
     enum: [
       "pending",           // Initial request from customer
       "accepted",          // Vendor accepted
@@ -1572,52 +1586,52 @@ export const bookings = pgTable("bookings", {
       "completed",         // Service completed
       "cancelled",         // Cancelled by either party
       "no_show"            // Customer didn't show up
-    ] 
+    ]
   }).default("pending").notNull(),
-  
+
   // Customer confirmation for escrow release
   confirmedByCustomer: boolean("confirmed_by_customer").default(false),
   customerConfirmedAt: timestamp("customer_confirmed_at"),
-  
+
   // Alternative proposal (if vendor proposes different time)
   alternativeStartTime: timestamp("alternative_start_time"),
   alternativeEndTime: timestamp("alternative_end_time"),
   alternativeMessage: text("alternative_message"),
   alternativeExpiresAt: timestamp("alternative_expires_at"),
-  
+
   // Queue position (for waitlist functionality)
   queuePosition: integer("queue_position"),
-  
+
   // Customer details at booking time
   customerMessage: text("customer_message"),
   customerPhone: varchar("customer_phone", { length: 50 }),
   customerAddress: text("customer_address"),
-  
+
   // Vendor response
   vendorMessage: text("vendor_message"),
   rejectionReason: text("rejection_reason"),
-  
+
   // Cancellation
   cancelledBy: varchar("cancelled_by", { enum: ["customer", "vendor", "system"] }),
   cancellationReason: text("cancellation_reason"),
   cancelledAt: timestamp("cancelled_at"),
-  
+
   // Reminders sent
   reminderSentAt: timestamp("reminder_sent_at"),
-  
+
   // Review request tracking (automatic system-sent request)
   reviewRequestSentAt: timestamp("review_request_sent_at"),
-  
+
   // Manual review request by vendor (max 2 requests, 3-day cooldown)
   vendorReviewRequestCount: integer("vendor_review_request_count").default(0),
   lastVendorReviewRequestAt: timestamp("last_vendor_review_request_at"),
-  
+
   // Timestamps for status changes
   acceptedAt: timestamp("accepted_at"),
   confirmedAt: timestamp("confirmed_at"),
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
@@ -1665,28 +1679,28 @@ export const bookingsRelations = relations(bookings, ({ one, many }) => ({
 export const escrowTransactions = pgTable("escrow_transactions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   bookingId: varchar("booking_id").notNull().references(() => bookings.id, { onDelete: "cascade" }).unique(),
-  
+
   // Payment details
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   currency: varchar("currency", { length: 3 }).default("CHF").notNull(),
   platformFee: decimal("platform_fee", { precision: 10, scale: 2 }).notNull(),
   vendorAmount: decimal("vendor_amount", { precision: 10, scale: 2 }).notNull(),
-  
+
   // Payment method (mirrors booking for easy querying)
-  paymentMethod: varchar("payment_method", { 
-    enum: ["card", "twint", "cash"] 
+  paymentMethod: varchar("payment_method", {
+    enum: ["card", "twint", "cash"]
   }).notNull(),
-  
+
   // Stripe tracking
   stripePaymentIntentId: varchar("stripe_payment_intent_id", { length: 255 }),
   stripeCheckoutSessionId: varchar("stripe_checkout_session_id", { length: 255 }),
   stripeChargeId: varchar("stripe_charge_id", { length: 255 }),
   stripeTransferId: varchar("stripe_transfer_id", { length: 255 }),
-  
+
   // TWINT-specific
   twintTransactionId: varchar("twint_transaction_id", { length: 255 }),
   twintRefundId: varchar("twint_refund_id", { length: 255 }),
-  
+
   // Escrow status:
   // - pending: payment initiated but not confirmed
   // - held: card payment authorized but not captured (escrow)
@@ -1696,25 +1710,25 @@ export const escrowTransactions = pgTable("escrow_transactions", {
   // - cancelled: payment cancelled before completion
   // - failed: payment failed
   // - disputed: dispute raised, auto-release paused
-  status: varchar("status", { 
-    enum: ["pending", "held", "released", "refund_requested", "refunded", "cancelled", "failed", "disputed"] 
+  status: varchar("status", {
+    enum: ["pending", "held", "released", "refund_requested", "refunded", "cancelled", "failed", "disputed"]
   }).default("pending").notNull(),
-  
+
   // Refund tracking
   refundRequestedAt: timestamp("refund_requested_at"),
   refundReason: text("refund_reason"),
   refundedAt: timestamp("refunded_at"),
   refundAmount: decimal("refund_amount", { precision: 10, scale: 2 }),
-  
+
   // Auto-release settings (for card escrow)
   autoReleaseAt: timestamp("auto_release_at"),
   autoReleaseWarningSentAt: timestamp("auto_release_warning_sent_at"),
-  
+
   // Timestamps
   paidAt: timestamp("paid_at"),
   heldAt: timestamp("held_at"),
   releasedAt: timestamp("released_at"),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
@@ -1744,29 +1758,29 @@ export const tips = pgTable("tips", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   bookingId: varchar("booking_id").notNull().references(() => bookings.id, { onDelete: "cascade" }),
   escrowTransactionId: varchar("escrow_transaction_id").references(() => escrowTransactions.id, { onDelete: "set null" }),
-  
+
   // Parties
   customerId: varchar("customer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   vendorId: varchar("vendor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  
+
   // Amount
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   currency: varchar("currency", { length: 3 }).default("CHF").notNull(),
-  
+
   // Optional message with the tip
   message: text("message"),
-  
+
   // Payment tracking
-  paymentMethod: varchar("payment_method", { 
-    enum: ["card", "twint", "cash"] 
+  paymentMethod: varchar("payment_method", {
+    enum: ["card", "twint", "cash"]
   }).notNull(),
   stripePaymentIntentId: varchar("stripe_payment_intent_id", { length: 255 }),
-  
+
   // Status
-  status: varchar("status", { 
-    enum: ["pending", "completed", "failed", "refunded"] 
+  status: varchar("status", {
+    enum: ["pending", "completed", "failed", "refunded"]
   }).default("pending").notNull(),
-  
+
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => [
@@ -1809,27 +1823,27 @@ export const escrowDisputes = pgTable("escrow_disputes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   escrowTransactionId: varchar("escrow_transaction_id").notNull().references(() => escrowTransactions.id, { onDelete: "cascade" }),
   bookingId: varchar("booking_id").notNull().references(() => bookings.id, { onDelete: "cascade" }),
-  
+
   // Who raised the dispute
   raisedBy: varchar("raised_by", { enum: ["customer", "vendor"] }).notNull(),
   raisedByUserId: varchar("raised_by_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  
+
   // Dispute details
-  reason: varchar("reason", { 
-    enum: ["service_not_provided", "poor_quality", "wrong_service", "overcharged", "no_show", "other"] 
+  reason: varchar("reason", {
+    enum: ["service_not_provided", "poor_quality", "wrong_service", "overcharged", "no_show", "other"]
   }).notNull(),
   description: text("description").notNull(),
   evidenceUrls: jsonb("evidence_urls").$type<string[]>(),
-  
+
   // Resolution
-  status: varchar("status", { 
-    enum: ["open", "under_review", "resolved_customer", "resolved_vendor", "resolved_split", "closed"] 
+  status: varchar("status", {
+    enum: ["open", "under_review", "resolved_customer", "resolved_vendor", "resolved_split", "closed"]
   }).default("open").notNull(),
-  
+
   resolvedBy: varchar("resolved_by").references(() => users.id), // Admin who resolved
   resolution: text("resolution"),
   refundAmount: decimal("refund_amount", { precision: 10, scale: 2 }),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   resolvedAt: timestamp("resolved_at"),
@@ -1869,33 +1883,33 @@ export const escrowDisputesRelations = relations(escrowDisputes, ({ one }) => ({
  */
 export const chatConversations = pgTable("chat_conversations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
+
   // Participants
   customerId: varchar("customer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   vendorId: varchar("vendor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  
+
   // Context (at least one should be set)
   bookingId: varchar("booking_id").references(() => bookings.id, { onDelete: "cascade" }),
   orderId: varchar("order_id").references(() => orders.id, { onDelete: "cascade" }),
   serviceId: varchar("service_id").references(() => services.id, { onDelete: "set null" }),
-  
+
   // Conversation status
-  status: varchar("status", { 
-    enum: ["active", "archived", "blocked", "closed"] 
+  status: varchar("status", {
+    enum: ["active", "archived", "blocked", "closed"]
   }).default("active").notNull(),
-  
+
   // Last activity tracking
   lastMessageAt: timestamp("last_message_at"),
   lastMessagePreview: varchar("last_message_preview", { length: 100 }),
-  
+
   // Unread counts (per participant)
   customerUnreadCount: integer("customer_unread_count").default(0).notNull(),
   vendorUnreadCount: integer("vendor_unread_count").default(0).notNull(),
-  
+
   // Moderation
   flaggedForReview: boolean("flagged_for_review").default(false).notNull(),
   flagReason: text("flag_reason"),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
@@ -1943,39 +1957,39 @@ export const chatConversationsRelations = relations(chatConversations, ({ one, m
 export const chatMessages = pgTable("chat_messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   conversationId: varchar("conversation_id").notNull().references(() => chatConversations.id, { onDelete: "cascade" }),
-  
+
   // Sender
   senderId: varchar("sender_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   senderRole: varchar("sender_role", { enum: ["customer", "vendor", "system"] }).notNull(),
-  
+
   // Message content
   content: text("content").notNull(),
   originalContent: text("original_content"), // Stored if message was modified by filter
-  
+
   // Message type
-  messageType: varchar("message_type", { 
-    enum: ["text", "image", "file", "system", "booking_update", "payment_update"] 
+  messageType: varchar("message_type", {
+    enum: ["text", "image", "file", "system", "booking_update", "payment_update"]
   }).default("text").notNull(),
-  
+
   // Attachments (for images/files)
   attachments: jsonb("attachments").default(sql`'[]'::jsonb`),
-  
+
   // Moderation
   wasFiltered: boolean("was_filtered").default(false).notNull(),
-  filterReason: varchar("filter_reason", { 
-    enum: ["profanity", "contact_info", "spam", "manual"] 
+  filterReason: varchar("filter_reason", {
+    enum: ["profanity", "contact_info", "spam", "manual"]
   }),
   blockedContent: text("blocked_content"), // What was blocked (for admin review)
-  
+
   // Read status
   readAt: timestamp("read_at"),
-  
+
   // Edit/delete
   isEdited: boolean("is_edited").default(false).notNull(),
   editedAt: timestamp("edited_at"),
   isDeleted: boolean("is_deleted").default(false).notNull(),
   deletedAt: timestamp("deleted_at"),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => [
   index("idx_chat_messages_conversation").on(table.conversationId),
@@ -2154,36 +2168,36 @@ export const notificationTypeEnum = pgEnum("notification_type", [
 export const notifications = pgTable("notifications", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  
+
   // Notification content
   type: notificationTypeEnum("type").notNull(),
   title: varchar("title", { length: 200 }).notNull(),
   message: text("message").notNull(),
   icon: varchar("icon", { length: 50 }), // Icon name for UI (e.g., "message", "bell", "dollar")
-  
+
   // Related entities (for navigation)
   relatedEntityType: varchar("related_entity_type", { length: 50 }), // 'booking', 'conversation', 'service', 'order'
   relatedEntityId: varchar("related_entity_id"),
   actionUrl: varchar("action_url", { length: 500 }), // Where to navigate on click
-  
+
   // AI Prioritization
   priority: integer("priority").default(5).notNull(), // 1 (highest) to 10 (lowest)
   aiRelevanceScore: decimal("ai_relevance_score", { precision: 4, scale: 3 }), // 0.000 to 1.000
   aiReasoning: text("ai_reasoning"), // Why AI assigned this priority
-  
+
   // Status tracking
   isRead: boolean("is_read").default(false).notNull(),
   readAt: timestamp("read_at"),
   isDismissed: boolean("is_dismissed").default(false).notNull(),
-  
+
   // Delivery tracking
   deliveredVia: jsonb("delivered_via").default([]).notNull(), // ['in_app', 'email', 'push']
   emailSentAt: timestamp("email_sent_at"),
   pushSentAt: timestamp("push_sent_at"),
-  
+
   // Metadata
   metadata: jsonb("metadata").default({}), // Additional data specific to notification type
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   expiresAt: timestamp("expires_at"), // Optional expiration
 }, (table) => [
@@ -2208,15 +2222,15 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
 export const notificationPreferences = pgTable("notification_preferences", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
-  
+
   // Global toggle
   notificationsEnabled: boolean("notifications_enabled").default(true).notNull(),
-  
+
   // Delivery method toggles
   inAppEnabled: boolean("in_app_enabled").default(true).notNull(),
   emailEnabled: boolean("email_enabled").default(true).notNull(),
   pushEnabled: boolean("push_enabled").default(false).notNull(),
-  
+
   // Per-type settings (stored as JSON for flexibility)
   // Each type has { in_app: boolean, email: boolean, push: boolean }
   typeSettings: jsonb("type_settings").default({
@@ -2229,17 +2243,17 @@ export const notificationPreferences = pgTable("notification_preferences", {
     review: { in_app: true, email: true, push: false },
     promotion: { in_app: true, email: false, push: false },
   }).notNull(),
-  
+
   // Quiet hours (do not disturb)
   quietHoursEnabled: boolean("quiet_hours_enabled").default(false).notNull(),
   quietHoursStart: varchar("quiet_hours_start", { length: 5 }), // "22:00" format
   quietHoursEnd: varchar("quiet_hours_end", { length: 5 }),     // "08:00" format
   quietHoursTimezone: varchar("quiet_hours_timezone", { length: 50 }).default("UTC"),
-  
+
   // Additional preferences
   soundEnabled: boolean("sound_enabled").default(true).notNull(),
   vibrationEnabled: boolean("vibration_enabled").default(true).notNull(),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -2258,22 +2272,22 @@ export const notificationPreferencesRelations = relations(notificationPreference
 export const pushSubscriptions = pgTable("push_subscriptions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  
+
   // Web Push subscription data (from PushSubscription object)
   endpoint: text("endpoint").notNull(),
   p256dhKey: text("p256dh_key").notNull(), // Public key for encryption
   authKey: text("auth_key").notNull(),     // Auth secret
-  
+
   // Device info
   userAgent: varchar("user_agent", { length: 500 }),
   deviceName: varchar("device_name", { length: 100 }),
   deviceType: varchar("device_type", { length: 20 }), // 'desktop', 'mobile', 'tablet'
-  
+
   // Status
   isActive: boolean("is_active").default(true).notNull(),
   failedAttempts: integer("failed_attempts").default(0).notNull(),
   lastFailureReason: text("last_failure_reason"),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   lastUsedAt: timestamp("last_used_at"),
 }, (table) => [
@@ -2460,50 +2474,50 @@ export type InsertPushSubscription = typeof pushSubscriptions.$inferInsert;
  */
 export const e2eBugReports = pgTable("e2e_bug_reports", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  
+
   // Test identification
   testFile: varchar("test_file", { length: 255 }).notNull(),
   testName: varchar("test_name", { length: 500 }).notNull(),
   testSuite: varchar("test_suite", { length: 255 }),
-  
+
   // Error details
   errorType: varchar("error_type", { length: 100 }).notNull(), // timeout, assertion, network, etc.
   errorMessage: text("error_message").notNull(),
   stackTrace: text("stack_trace"),
-  
+
   // Context for debugging
   screenshotUrl: varchar("screenshot_url", { length: 500 }),
   pageUrl: varchar("page_url", { length: 500 }),
   userAgent: varchar("user_agent", { length: 500 }),
-  
+
   // Test user context
   testUserId: varchar("test_user_id", { length: 100 }),
   testUserRole: varchar("test_user_role", { length: 50 }), // customer, vendor, admin
-  
+
   // LLM-friendly prompt
   llmPrompt: text("llm_prompt"), // Pre-formatted prompt to paste into LLM for fixing
-  
+
   // Steps to reproduce
   stepsToReproduce: jsonb("steps_to_reproduce").default([]),
-  
+
   // Related data
   apiEndpoint: varchar("api_endpoint", { length: 255 }),
   apiResponse: jsonb("api_response"),
   requestPayload: jsonb("request_payload"),
-  
+
   // Status tracking
   status: varchar("status", { enum: ["new", "investigating", "fixed", "wont_fix", "duplicate"] }).default("new").notNull(),
   priority: varchar("priority", { enum: ["critical", "high", "medium", "low"] }).default("medium").notNull(),
   assignedTo: varchar("assigned_to", { length: 100 }),
   resolvedAt: timestamp("resolved_at"),
   resolution: text("resolution"),
-  
+
   // Metadata
   browserName: varchar("browser_name", { length: 50 }),
   browserVersion: varchar("browser_version", { length: 50 }),
   runId: varchar("run_id", { length: 100 }), // Test run identifier
   retryCount: integer("retry_count").default(0),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
@@ -2561,7 +2575,7 @@ export type EscrowStatus = typeof ESCROW_STATUSES[number];
 // Notification type constants for use throughout the app
 export const NOTIFICATION_TYPES = [
   "message",
-  "booking", 
+  "booking",
   "referral",
   "service",
   "payment",
