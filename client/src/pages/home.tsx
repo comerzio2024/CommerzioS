@@ -362,12 +362,18 @@ export default function Home() {
                       />
                       <span className="text-xs text-muted-foreground whitespace-nowrap">100km</span>
                     </div>
-                    {/* Dropdown for quick selection */}
+                    {/* Dropdown shows current value + presets */}
                     <Select value={radiusKm.toString()} onValueChange={(v) => setRadiusKm(parseInt(v))}>
                       <SelectTrigger className="w-[100px] bg-background">
                         <SelectValue placeholder="Radius" />
                       </SelectTrigger>
                       <SelectContent>
+                        {/* Show current slider value at top if not a preset */}
+                        {!RADIUS_PRESETS.includes(radiusKm) && (
+                          <SelectItem key={radiusKm} value={radiusKm.toString()} className="font-semibold text-primary">
+                            {radiusKm} km
+                          </SelectItem>
+                        )}
                         {RADIUS_PRESETS.map((km) => (
                           <SelectItem key={km} value={km.toString()}>
                             {km} km
