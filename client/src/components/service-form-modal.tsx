@@ -1107,7 +1107,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden flex flex-col">
+      <DialogContent className="w-[95vw] max-w-[1400px] max-h-[95vh] overflow-hidden flex flex-col bg-background border-border">
         {/* Modern Header with Progress */}
         <div className="space-y-4 pb-4 border-b">
           <DialogHeader className="space-y-1">

@@ -265,11 +265,11 @@ export default function Home() {
                     className="pl-12 h-14 text-base bg-background shadow-lg"
                   />
                   {addressSuggestions.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg z-50">
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-border rounded-lg shadow-2xl z-[100] max-h-80 overflow-y-auto">
                       {addressSuggestions.map((s, i) => (
-                        <button key={i} onClick={() => handleLocationSearch(s)} className="w-full text-left px-4 py-3 hover:bg-muted">
-                          <p className="font-medium">{s.city || s.postcode}</p>
-                          <p className="text-xs text-muted-foreground">{s.display_name}</p>
+                        <button key={i} onClick={() => handleLocationSearch(s)} className="w-full text-left px-4 py-3 hover:bg-muted border-b border-border/50 last:border-0 text-foreground">
+                          <p className="font-medium text-sm">{s.city || s.postcode}</p>
+                          <p className="text-xs text-muted-foreground truncate">{s.display_name}</p>
                         </button>
                       ))}
                     </div>
