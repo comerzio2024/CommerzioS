@@ -166,12 +166,13 @@ export function GoogleMaps({
 
           const content = `
             <style>
-              .gm-style-iw-c,.gm-style-iw-d{background:${bg}!important;padding:0!important;overflow:hidden!important;max-width:320px!important;}
-              .gm-style-iw-tc::after{background:${bg}!important;}
-              .gm-ui-hover-effect{top:4px!important;right:4px!important;width:28px!important;height:28px!important;background:${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)"}!important;border-radius:50%!important;}
-              .gm-ui-hover-effect>span{filter:${closeIconFilter};}
+              .gm-style-iw-c{background:transparent!important;padding:0!important;box-shadow:none!important;}
+              .gm-style-iw-d{background:transparent!important;overflow:visible!important;}
+              .gm-style-iw-tc{display:none!important;}
+              .gm-ui-hover-effect{top:12px!important;right:12px!important;width:32px!important;height:32px!important;background:${isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)"}!important;border-radius:50%!important;opacity:1!important;}
+              .gm-ui-hover-effect>span{background-color:${isDark ? "#fff" : "#000"}!important;}
             </style>
-            <div style="width:280px;padding:16px;background:${bg};color:${text};font-family:system-ui,sans-serif;">
+            <div style="width:300px;padding:16px;background:${bg};color:${text};font-family:system-ui,sans-serif;border:1px solid ${border};border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.25);">
               ${img}
               <h3 style="margin:0 0 8px 0;font-size:16px;font-weight:600;line-height:1.3;">${s.title}</h3>
               <p style="margin:0 0 8px 0;font-size:15px;font-weight:600;color:${accent};">${price}</p>
@@ -207,12 +208,13 @@ export function GoogleMaps({
 
           const content = `
             <style>
-              .gm-style-iw-c,.gm-style-iw-d{background:${bg}!important;padding:0!important;overflow:hidden!important;max-width:360px!important;}
-              .gm-style-iw-tc::after{background:${bg}!important;}
-              .gm-ui-hover-effect{top:4px!important;right:4px!important;width:28px!important;height:28px!important;background:${isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)"}!important;border-radius:50%!important;}
-              .gm-ui-hover-effect>span{filter:${closeIconFilter};}
+              .gm-style-iw-c{background:transparent!important;padding:0!important;box-shadow:none!important;}
+              .gm-style-iw-d{background:transparent!important;overflow:visible!important;}
+              .gm-style-iw-tc{display:none!important;}
+              .gm-ui-hover-effect{top:12px!important;right:12px!important;width:32px!important;height:32px!important;background:${isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)"}!important;border-radius:50%!important;opacity:1!important;}
+              .gm-ui-hover-effect>span{background-color:${isDark ? "#fff" : "#000"}!important;}
             </style>
-            <div id="cluster-popup" style="width:320px;max-width:85vw;padding:16px;background:${bg};color:${text};font-family:system-ui,sans-serif;">
+            <div id="cluster-popup" style="width:340px;max-width:85vw;padding:16px;background:${bg};color:${text};font-family:system-ui,sans-serif;border:1px solid ${border};border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.25);">
               <h2 style="margin:0 0 12px 0;font-size:15px;font-weight:700;padding-bottom:10px;border-bottom:1px solid ${border};">${count} Services</h2>
               <div style="max-height:300px;overflow-y:auto;">${rows}${moreHtml}</div>
             </div>
@@ -287,23 +289,22 @@ export function GoogleMaps({
   useEffect(() => {
     if (!isExpanded || !apiKey || isInitializedRef.current) return;
 
+    // Simplified dark map styles to avoid rendering artifacts
     const darkMapStyles = [
-      { elementType: "geometry", stylers: [{ color: "#1a2332" }] },
-      { elementType: "labels.text.stroke", stylers: [{ color: "#1a2332" }] },
-      { elementType: "labels.text.fill", stylers: [{ color: "#8899a6" }] },
-      { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#283548" }] },
-      { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#6b7280" }] },
-      { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#1f3a2f" }] },
-      { featureType: "poi.park", elementType: "labels.text.fill", stylers: [{ color: "#4ade80" }] },
-      { featureType: "road", elementType: "geometry", stylers: [{ color: "#283548" }] },
-      { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#1e293b" }] },
-      { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#3b4a5f" }] },
-      { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#1e293b" }] },
-      { featureType: "road.highway", elementType: "labels.text.fill", stylers: [{ color: "#94a3b8" }] },
-      { featureType: "transit", elementType: "geometry", stylers: [{ color: "#283548" }] },
-      { featureType: "transit.station", elementType: "labels.text.fill", stylers: [{ color: "#6b7280" }] },
-      { featureType: "water", elementType: "geometry", stylers: [{ color: "#0f172a" }] },
-      { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#4f5b6e" }] },
+      { elementType: "geometry", stylers: [{ color: "#212121" }] },
+      { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+      { elementType: "labels.text.fill", stylers: [{ color: "#757575" }] },
+      { elementType: "labels.text.stroke", stylers: [{ color: "#212121" }] },
+      { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#757575" }] },
+      { featureType: "poi", elementType: "geometry", stylers: [{ color: "#181818" }] },
+      { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#1b3a26" }] },
+      { featureType: "road", elementType: "geometry.fill", stylers: [{ color: "#2c2c2c" }] },
+      { featureType: "road.arterial", elementType: "geometry", stylers: [{ color: "#373737" }] },
+      { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#3c3c3c" }] },
+      { featureType: "road.local", elementType: "labels.text.fill", stylers: [{ color: "#616161" }] },
+      { featureType: "transit", elementType: "geometry", stylers: [{ color: "#2f2f2f" }] },
+      { featureType: "water", elementType: "geometry", stylers: [{ color: "#0e1626" }] },
+      { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#3d3d3d" }] },
     ];
 
     const applyTheme = () => {
