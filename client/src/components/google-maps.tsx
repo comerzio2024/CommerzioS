@@ -216,7 +216,7 @@ export function GoogleMaps({
             <div id="cluster-popup" style="position:relative;width:440px;max-width:90vw;padding:20px;background:${bg};color:${text};font-family:system-ui,sans-serif;border:1px solid ${border};border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,0.3);">
               <button style="${closeBtnStyle}" onclick="this.closest('.gm-style-iw').style.display='none';">✕</button>
               <h2 style="margin:0 0 16px 0;font-size:18px;font-weight:700;padding-bottom:12px;border-bottom:2px solid ${border};padding-right:40px;">${count} Services in this area</h2>
-              <div style="max-height:400px;overflow-y:auto;">${rows}${moreHtml}</div>
+              <div style="max-height:60vh;overflow-y:auto;">${rows}${moreHtml}</div>
             </div>
           `;
 
