@@ -117,28 +117,28 @@ export default function ChatPage() {
         body: JSON.stringify(requestBody),
       })
         .then(async res => {
-        if (!res.ok) {
-          const error = await res.json().catch(() => ({ message: 'Failed to create conversation' }));
-          console.error('Failed to create conversation:', error);
-          throw new Error(error.message || 'Failed to create conversation');
-        }
-        return res.json();
-      })
+          if (!res.ok) {
+            const error = await res.json().catch(() => ({ message: 'Failed to create conversation' }));
+            console.error('Failed to create conversation:', error);
+            throw new Error(error.message || 'Failed to create conversation');
+          }
+          return res.json();
+        })
         .then(conversation => {
           console.log('[ChatPage] Conversation created/retrieved:', conversation);
           setSelectedConversation(conversation);
           setIsMobileViewingChat(true);
-          
+
           // Aggressively invalidate and refetch all conversation queries
           queryClient.invalidateQueries({ queryKey: ['conversations'] });
-          
+
           // Wait a bit then refetch to ensure backend has processed
           setTimeout(() => {
             queryClient.refetchQueries({ queryKey: ['conversations'] });
             // Also trigger custom event for ConversationList to refetch
             window.dispatchEvent(new Event('refetch-conversations'));
           }, 200);
-          
+
           // Clear the URL params after successfully opening conversation
           // to prevent re-creating on page refresh
           window.history.replaceState({}, '', '/chat');
@@ -181,22 +181,22 @@ export default function ChatPage() {
   }
 
   const currentUserRole = selectedConversation?.customerId === user.id ? 'customer' : 'vendor';
-  
+
   // Get the other party info
-  const otherParty = currentUserRole === 'customer' 
-    ? selectedConversation?.vendor 
+  const otherParty = currentUserRole === 'customer'
+    ? selectedConversation?.vendor
     : selectedConversation?.customer;
-  
-  const otherPartyName = otherParty 
-    ? `${otherParty.firstName} ${otherParty.lastName}` 
+
+  const otherPartyName = otherParty
+    ? `${otherParty.firstName} ${otherParty.lastName}`
     : undefined;
 
   return (
     <Layout>
-      <div className="min-h-[calc(100vh-80px)] bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900">
-        <div className="container max-w-7xl py-4 md:py-6 px-4">
+      <div className="min-h-[calc(100vh-64px)] bg-background">
+        <div className="h-full w-full px-4 md:px-6 py-4">
           {/* Header - Clean and minimal */}
-          <div className="mb-4 md:mb-6 flex items-center justify-between">
+          <div className="mb-4 flex items-center justify-between max-w-[1600px] mx-auto">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
                 Messages
@@ -211,10 +211,10 @@ export default function ChatPage() {
             </div>
           </div>
 
-          {/* Desktop Layout - Modern two-column */}
-          <div className="hidden md:grid md:grid-cols-[400px_1fr] gap-4 h-[calc(100vh-180px)] min-h-[500px]">
-            {/* Conversation List - Clean card */}
-            <Card className="border shadow-lg overflow-hidden h-full bg-white dark:bg-slate-900">
+          {/* Desktop Layout - Full width two-column */}
+          <div className="hidden md:grid md:grid-cols-[360px_1fr] gap-4 h-[calc(100vh-160px)] max-w-[1600px] mx-auto">
+            {/* Conversation List */}
+            <Card className="border shadow-sm overflow-hidden h-full bg-card">
               <ConversationList
                 currentUserId={user.id}
                 selectedConversationId={selectedConversation?.id}
@@ -223,10 +223,10 @@ export default function ChatPage() {
               />
             </Card>
 
-            {/* Chat Window - Main content area */}
+            {/* Chat Window - Takes remaining space */}
             <div className="flex flex-col h-full overflow-hidden">
               {selectedConversation ? (
-                <Card className="h-full flex flex-col overflow-hidden border shadow-lg bg-white dark:bg-slate-900">
+                <Card className="h-full flex flex-col overflow-hidden border shadow-sm bg-card">
                   <ChatWindow
                     conversationId={selectedConversation.id}
                     currentUserId={user.id}
@@ -240,7 +240,7 @@ export default function ChatPage() {
                   />
                 </Card>
               ) : (
-                <Card className="h-full flex items-center justify-center border shadow-lg bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800">
+                <Card className="h-full flex items-center justify-center border shadow-sm bg-card">
                   <CardContent className="text-center py-16">
                     <div className="w-24 h-24 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center rotate-3 shadow-lg">
                       <MessageSquare className="w-12 h-12 text-primary/60 -rotate-3" />
@@ -277,7 +277,7 @@ export default function ChatPage() {
                   <ArrowLeft className="w-4 h-4 mr-1.5" />
                   <span className="font-medium">All chats</span>
                 </Button>
-                
+
                 <Card className="flex-1 border shadow-lg overflow-hidden">
                   <ChatWindow
                     conversationId={selectedConversation.id}
