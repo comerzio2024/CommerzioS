@@ -287,19 +287,51 @@ export function GoogleMaps({
   useEffect(() => {
     if (!isExpanded || !apiKey || isInitializedRef.current) return;
 
+    const darkMapStyles = [
+      { elementType: "geometry", stylers: [{ color: "#1a2332" }] },
+      { elementType: "labels.text.stroke", stylers: [{ color: "#1a2332" }] },
+      { elementType: "labels.text.fill", stylers: [{ color: "#8899a6" }] },
+      { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#283548" }] },
+      { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#6b7280" }] },
+      { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#1f3a2f" }] },
+      { featureType: "poi.park", elementType: "labels.text.fill", stylers: [{ color: "#4ade80" }] },
+      { featureType: "road", elementType: "geometry", stylers: [{ color: "#283548" }] },
+      { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#1e293b" }] },
+      { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#3b4a5f" }] },
+      { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#1e293b" }] },
+      { featureType: "road.highway", elementType: "labels.text.fill", stylers: [{ color: "#94a3b8" }] },
+      { featureType: "transit", elementType: "geometry", stylers: [{ color: "#283548" }] },
+      { featureType: "transit.station", elementType: "labels.text.fill", stylers: [{ color: "#6b7280" }] },
+      { featureType: "water", elementType: "geometry", stylers: [{ color: "#0f172a" }] },
+      { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#4f5b6e" }] },
+    ];
+
+    const applyTheme = () => {
+      const map = mapRef.current;
+      if (!map) return;
+      const isDark = document.documentElement.classList.contains("dark");
+      map.setOptions({ styles: isDark ? darkMapStyles : [] });
+      // Close any open popup to force re-render with correct colors
+      if (infoWindowRef.current) {
+        infoWindowRef.current.close();
+        infoWindowRef.current = null;
+      }
+    };
+
     const initMap = async () => {
       const google = (window as GoogleMapsWindow).google;
       if (!google) return;
 
       const { Map } = (await google.maps.importLibrary("maps")) as any;
+      const isDark = document.documentElement.classList.contains("dark");
 
       mapRef.current = new Map(mapContainerRef.current, {
         center: { lat: userLocation?.lat || 46.8182, lng: userLocation?.lng || 8.2275 },
         zoom: 10,
-        mapId: "COMMERZIO_MAP",
         disableDefaultUI: true,
         zoomControl: true,
         gestureHandling: "greedy",
+        styles: isDark ? darkMapStyles : [],
       });
 
       mapRef.current.addListener("click", () => {
@@ -314,8 +346,21 @@ export function GoogleMaps({
         }, 150);
       });
 
+      // Watch for theme changes
+      const observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          if (mutation.attributeName === "class") {
+            applyTheme();
+          }
+        }
+      });
+      observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+
       isInitializedRef.current = true;
       await processServices();
+
+      // Cleanup on unmount
+      return () => observer.disconnect();
     };
 
     if (!(window as GoogleMapsWindow).google) {
