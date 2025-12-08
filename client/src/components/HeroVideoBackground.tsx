@@ -1,8 +1,8 @@
 /**
  * HeroVideoBackground Component
  * 
- * Displays rotating background videos with smooth crossfade transitions.
- * Features lazy loading, preloading of next video, and fallback gradient.
+ * True crossfade video background - next video plays underneath current,
+ * then we fade the current video out revealing the playing next video.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -15,99 +15,153 @@ import video4 from './heroVideos/Goal_generate_45_202512070511 (1).mp4';
 import video5 from './heroVideos/Goal_generate_45_202512070500.mp4';
 
 const HERO_VIDEOS = [video1, video2, video3, video4, video5];
-const FADE_DURATION = 1000;
+const CROSSFADE_DURATION = 1500; // 1.5 seconds for smooth crossfade
+const PRELOAD_BEFORE_END = 3000; // Start preloading 3 seconds before video ends
 
 export function HeroVideoBackground() {
-    const [currentIndex, setCurrentIndex] = useState(0);
-    const [isTransitioning, setIsTransitioning] = useState(false);
+    const [activeVideo, setActiveVideo] = useState(0);
+    const [isCrossfading, setIsCrossfading] = useState(false);
     const [isLoaded, setIsLoaded] = useState(false);
+    const [nextVideoReady, setNextVideoReady] = useState(false);
 
-    const activeVideoRef = useRef<HTMLVideoElement>(null);
-    const nextVideoRef = useRef<HTMLVideoElement>(null);
+    // Two video refs for true crossfade
+    const videoARef = useRef<HTMLVideoElement>(null);
+    const videoBRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const preloadNext = useCallback(() => {
-        if (nextVideoRef.current) {
-            const nextIndex = (currentIndex + 1) % HERO_VIDEOS.length;
-            nextVideoRef.current.src = HERO_VIDEOS[nextIndex];
-            nextVideoRef.current.load();
-        }
-    }, [currentIndex]);
+    // Track which video element is active (A or B)
+    const [activeElement, setActiveElement] = useState<'A' | 'B'>('A');
 
+    const getActiveRef = () => activeElement === 'A' ? videoARef : videoBRef;
+    const getNextRef = () => activeElement === 'A' ? videoBRef : videoARef;
+
+    // Preload next video when it's ready to be shown
+    const preloadNextVideo = useCallback(() => {
+        const nextRef = getNextRef();
+        const nextIndex = (activeVideo + 1) % HERO_VIDEOS.length;
+
+        if (nextRef.current) {
+            nextRef.current.src = HERO_VIDEOS[nextIndex];
+            nextRef.current.load();
+        }
+    }, [activeVideo, activeElement]);
+
+    // Handle time update to start preloading before video ends
+    const handleTimeUpdate = useCallback(() => {
+        const activeRef = getActiveRef();
+        if (!activeRef.current) return;
+
+        const timeRemaining = (activeRef.current.duration - activeRef.current.currentTime) * 1000;
+
+        // Start preloading next video 3 seconds before current ends
+        if (timeRemaining <= PRELOAD_BEFORE_END && !nextVideoReady) {
+            preloadNextVideo();
+        }
+    }, [preloadNextVideo, nextVideoReady, activeElement]);
+
+    // Handle when next video is ready to play
+    const handleNextVideoReady = useCallback(() => {
+        setNextVideoReady(true);
+    }, []);
+
+    // Handle video ended - perform crossfade
     const handleVideoEnded = useCallback(() => {
-        if (isTransitioning) return;
-        setIsTransitioning(true);
+        if (isCrossfading) return;
+
+        const nextRef = getNextRef();
+        if (!nextRef.current) return;
+
+        // Start playing next video (it's underneath, hidden)
+        nextRef.current.currentTime = 0;
+        nextRef.current.play().catch(() => { });
+
+        // Start crossfade
+        setIsCrossfading(true);
+
+        // After crossfade duration, switch active element
         setTimeout(() => {
-            setCurrentIndex((prev) => (prev + 1) % HERO_VIDEOS.length);
-            setIsTransitioning(false);
-        }, FADE_DURATION);
-    }, [isTransitioning]);
+            setActiveVideo((prev) => (prev + 1) % HERO_VIDEOS.length);
+            setActiveElement((prev) => prev === 'A' ? 'B' : 'A');
+            setIsCrossfading(false);
+            setNextVideoReady(false);
+        }, CROSSFADE_DURATION);
+    }, [isCrossfading, activeElement]);
 
+    // Initial video setup
     useEffect(() => {
-        if (activeVideoRef.current) {
-            activeVideoRef.current.src = HERO_VIDEOS[currentIndex];
-            activeVideoRef.current.load();
-            activeVideoRef.current.play().catch(() => { });
-        }
-        preloadNext();
-    }, [currentIndex, preloadNext]);
-
-    useEffect(() => {
-        if (activeVideoRef.current) {
-            activeVideoRef.current.play().then(() => setIsLoaded(true)).catch(() => { });
+        const videoA = videoARef.current;
+        if (videoA) {
+            videoA.src = HERO_VIDEOS[0];
+            videoA.load();
+            videoA.play().then(() => setIsLoaded(true)).catch(() => { });
         }
     }, []);
 
+    // Intersection Observer - pause when not visible
     useEffect(() => {
         const container = containerRef.current;
         if (!container) return;
+
         const observer = new IntersectionObserver(
             (entries) => {
                 entries.forEach((entry) => {
+                    const activeRef = getActiveRef();
                     if (entry.isIntersecting) {
-                        activeVideoRef.current?.play().catch(() => { });
+                        activeRef.current?.play().catch(() => { });
                     } else {
-                        activeVideoRef.current?.pause();
+                        activeRef.current?.pause();
                     }
                 });
             },
             { threshold: 0.1 }
         );
+
         observer.observe(container);
         return () => observer.disconnect();
-    }, []);
+    }, [activeElement]);
 
     return (
         <div ref={containerRef} className="absolute inset-0 overflow-hidden">
             {/* Fallback gradient */}
-            <div className={`absolute inset-0 bg-gradient-to-br from-primary/20 via-background to-accent/20 transition-opacity duration-1000 ${isLoaded ? 'opacity-0' : 'opacity-100'}`} />
+            <div
+                className={`absolute inset-0 bg-gradient-to-br from-primary/20 via-background to-accent/20 transition-opacity duration-1000 ${isLoaded ? 'opacity-0' : 'opacity-100'}`}
+            />
 
-            {/* Active video */}
+            {/* Video B - underneath (z-index 1) */}
             <video
-                ref={activeVideoRef}
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}
-                src={HERO_VIDEOS[0]}
+                ref={videoBRef}
+                className="absolute inset-0 w-full h-full object-cover"
+                style={{ zIndex: 1 }}
                 muted
                 playsInline
                 preload="auto"
-                onEnded={handleVideoEnded}
-                onCanPlay={() => setIsLoaded(true)}
+                onCanPlayThrough={activeElement === 'A' ? handleNextVideoReady : undefined}
+                onEnded={activeElement === 'B' ? handleVideoEnded : undefined}
+                onTimeUpdate={activeElement === 'B' ? handleTimeUpdate : undefined}
             />
 
-            {/* Next video for crossfade */}
+            {/* Video A - on top (z-index 2), fades out during crossfade */}
             <video
-                ref={nextVideoRef}
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${isTransitioning ? 'opacity-100' : 'opacity-0'}`}
+                ref={videoARef}
+                className="absolute inset-0 w-full h-full object-cover"
+                style={{
+                    zIndex: 2,
+                    opacity: activeElement === 'A' ? (isCrossfading ? 0 : 1) : 0,
+                    transition: `opacity ${CROSSFADE_DURATION}ms ease-in-out`
+                }}
                 muted
                 playsInline
-                preload="none"
+                preload="auto"
+                onCanPlayThrough={activeElement === 'B' ? handleNextVideoReady : undefined}
+                onEnded={activeElement === 'A' ? handleVideoEnded : undefined}
+                onTimeUpdate={activeElement === 'A' ? handleTimeUpdate : undefined}
             />
 
             {/* Dark overlay for text readability */}
-            <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/50 to-background/80" />
+            <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/50 to-background/80" style={{ zIndex: 3 }} />
 
             {/* Grid pattern overlay */}
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f08_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f08_1px,transparent_1px)] bg-[size:24px_24px]" />
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f08_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f08_1px,transparent_1px)] bg-[size:24px_24px]" style={{ zIndex: 4 }} />
         </div>
     );
 }
