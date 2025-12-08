@@ -214,18 +214,18 @@ export default function ChatPage() {
           {/* Desktop Layout */}
           <div className="hidden md:grid md:grid-cols-[360px_1fr] gap-4 flex-1 max-w-[1600px] w-full mx-auto overflow-hidden">
             {/* Conversation List */}
-            <Card className="border shadow-sm overflow-hidden bg-card">
+            <div className="overflow-hidden rounded-xl bg-card">
               <ConversationList
                 currentUserId={user.id}
                 selectedConversationId={selectedConversation?.id}
                 onSelectConversation={handleSelectConversation}
                 className="h-full"
               />
-            </Card>
+            </div>
 
             {/* Chat Window */}
             {selectedConversation ? (
-              <Card className="flex flex-col overflow-hidden border shadow-sm bg-card">
+              <div className="flex flex-col overflow-hidden rounded-xl bg-card">
                 <ChatWindow
                   conversationId={selectedConversation.id}
                   currentUserId={user.id}
@@ -235,11 +235,11 @@ export default function ChatPage() {
                   otherPartyId={otherParty?.id}
                   service={selectedConversation.service}
                   onDelete={handleDeleteConversation}
-                  className="flex-1 border-0"
+                  className="flex-1"
                 />
-              </Card>
+              </div>
             ) : (
-              <Card className="flex items-center justify-center border shadow-sm bg-card">
+              <div className="flex items-center justify-center rounded-xl bg-card">
                 <CardContent className="text-center py-16">
                   <div className="w-24 h-24 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center rotate-3 shadow-lg">
                     <MessageSquare className="w-12 h-12 text-primary/60 -rotate-3" />
@@ -249,7 +249,7 @@ export default function ChatPage() {
                     Choose a chat from the list to start messaging
                   </p>
                 </CardContent>
-              </Card>
+              </div>
             )}
           </div>
 

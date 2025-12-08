@@ -304,6 +304,16 @@ export function MessageInput({
           </Button>
         </div>
       </div>
+
+      {/* Helper Text */}
+      <div className="flex items-center justify-between px-1">
+        <p className="text-[11px] text-muted-foreground">
+          Press <kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[10px] font-mono">Enter</kbd> to send, <kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[10px] font-mono">Shift+Enter</kbd> for new line
+        </p>
+        <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+          😊 Emojis supported
+        </p>
+      </div>
     </div>
   );
 }
