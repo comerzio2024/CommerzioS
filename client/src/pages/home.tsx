@@ -1,3 +1,4 @@
+import { Link } from "wouter";
 import { Layout } from "@/components/layout";
 import { ServiceCard } from "@/components/service-card";
 import { GoogleMaps } from "@/components/google-maps";
