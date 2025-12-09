@@ -124,6 +124,12 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
   const aiSuggestionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [activeTab, setActiveTab] = useState("main");
 
+  // Upgrade flow state
+  const [upgradeUnlocked, setUpgradeUnlocked] = useState(false);
+  const [showDowngradeWarning, setShowDowngradeWarning] = useState(false);
+  const [pendingPackageChange, setPendingPackageChange] = useState<string | null>(null);
+  const [showDraftWarning, setShowDraftWarning] = useState(false);
+
   // Refs for scrolling to error fields
   const titleRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
@@ -132,7 +138,15 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
   const contactRef = useRef<HTMLDivElement>(null);
   const priceRef = useRef<HTMLInputElement>(null);
 
-  const maxImages = user?.plan?.maxImages || 4;
+  // Base maxImages from user plan, but allow upgrade override
+  const basePlanMaxImages = user?.plan?.maxImages || 4;
+  const FREE_PLAN_LIMIT = 4;
+  const UPGRADED_LIMIT = 10;
+
+  // Dynamic maxImages: if user has unlocked upgrade (selected featured package), allow more
+  const maxImages = (upgradeUnlocked || formData?.selectedPromotionalPackage === "featured")
+    ? UPGRADED_LIMIT
+    : basePlanMaxImages;
 
   const { data: categories = [] } = useQuery<CategoryWithTemporary[]>({
     queryKey: ["/api/categories"],
@@ -750,6 +764,73 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
     addHashtag(tag);
   };
 
+  // Helper: Trim extra images beyond free plan limit
+  const trimExtraImages = () => {
+    if (!formData) return;
+    if (formData.images.length > FREE_PLAN_LIMIT) {
+      setFormData((prev: FormData | null) => ({
+        ...prev!,
+        images: prev!.images.slice(0, FREE_PLAN_LIMIT),
+        imageMetadata: (prev!.imageMetadata || []).slice(0, FREE_PLAN_LIMIT),
+        mainImageIndex: Math.min(prev!.mainImageIndex, FREE_PLAN_LIMIT - 1),
+      }));
+      toast({
+        title: "Extra Images Removed",
+        description: `Images reduced to ${FREE_PLAN_LIMIT}. Upgrade to Featured to keep more photos.`,
+      });
+    }
+  };
+
+  // Handle package selection changes - warn if downgrading with extra images
+  const handlePackageChange = (newPackage: string | null) => {
+    if (!formData) return;
+
+    // If selecting no package (free) but has extra images, show warning
+    if (!newPackage && formData.images.length > FREE_PLAN_LIMIT) {
+      setPendingPackageChange(newPackage);
+      setShowDowngradeWarning(true);
+      return;
+    }
+
+    // Otherwise, apply the change directly
+    setFormData((prev: FormData | null) => ({
+      ...prev!,
+      selectedPromotionalPackage: newPackage,
+    }));
+
+    // If deselecting package, also reset upgrade unlock
+    if (!newPackage) {
+      setUpgradeUnlocked(false);
+    }
+  };
+
+  // Confirm downgrade - trim images and apply package change
+  const confirmDowngrade = () => {
+    trimExtraImages();
+    setFormData((prev: FormData | null) => ({
+      ...prev!,
+      selectedPromotionalPackage: pendingPackageChange,
+    }));
+    setUpgradeUnlocked(false);
+    setShowDowngradeWarning(false);
+    setPendingPackageChange(null);
+  };
+
+  // Cancel downgrade - keep current package
+  const cancelDowngrade = () => {
+    setShowDowngradeWarning(false);
+    setPendingPackageChange(null);
+  };
+
+  // Check if saving draft/closing would lose extra images  
+  const hasExtraImagesAtRisk = () => {
+    if (!formData) return false;
+    const hasNoPackage = !formData.selectedPromotionalPackage;
+    const hasExtraImages = formData.images.length > FREE_PLAN_LIMIT;
+    return hasNoPackage && hasExtraImages;
+  };
+
+
   // AI Suggest All - unified call for title, description, category, subcategory, and hashtags
   const handleAISuggestAll = async () => {
     if (!formData) return;
@@ -1254,15 +1335,15 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                       onMetadataChange={(metadata: ImageMetadata[]) => setFormData((prev: FormData | null) => ({ ...prev!, imageMetadata: metadata }))}
                       onMainImageChange={(index: number) => setFormData((prev: FormData | null) => ({ ...prev!, mainImageIndex: index }))}
                       onUpgradeClick={() => {
-                        // Navigate to pricing tab and preselect Featured package for more images
-                        setActiveTab("pricing");
+                        // Unlock more image slots immediately - DON'T navigate to pricing
+                        setUpgradeUnlocked(true);
                         setFormData((prev: FormData | null) => ({
                           ...prev!,
                           selectedPromotionalPackage: "featured",
                         }));
                         toast({
-                          title: "Upgrade Selected",
-                          description: "Featured Service package has been selected for you. Complete the form to get up to 10 photos!",
+                          title: "Upload Slots Unlocked! 🎉",
+                          description: "You can now upload up to 10 photos. Featured package will be added at checkout.",
                         });
                       }}
                     />
@@ -2254,6 +2335,32 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
             <AlertDialogAction onClick={handleSaveAndClose} className="gap-2">
               <Save className="w-4 h-4" />
               Save as Draft
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Downgrade Warning Dialog - shown when user tries to deselect package with extra images */}
+      <AlertDialog open={showDowngradeWarning} onOpenChange={setShowDowngradeWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-destructive" />
+              Extra Photos Will Be Deleted
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              You currently have <strong>{formData?.images.length || 0} photos</strong> uploaded.
+              The free plan only allows <strong>{FREE_PLAN_LIMIT} photos</strong>.
+              <br /><br />
+              If you continue without the Featured package, photos {FREE_PLAN_LIMIT + 1}-{formData?.images.length || 0} will be <strong>permanently deleted</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-0">
+            <AlertDialogCancel onClick={cancelDowngrade}>
+              Keep Featured Package
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDowngrade} className="bg-destructive hover:bg-destructive/90">
+              Delete Extra Photos
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
