@@ -611,7 +611,7 @@ export const services = pgTable("services", {
   images: text("images").array().default(sql`ARRAY[]::text[]`).notNull(),
   imageMetadata: jsonb("image_metadata").default(sql`'[]'::jsonb`),
   mainImageIndex: integer("main_image_index").default(0).notNull(),
-  status: varchar("status", { enum: ["draft", "active", "paused", "expired"] }).default("draft").notNull(),
+  status: varchar("status", { enum: ["draft", "active", "paused", "expired", "archived"] }).default("draft").notNull(),
   tags: text("tags").array().default(sql`ARRAY[]::text[]`).notNull(),
   hashtags: text("hashtags").array().default(sql`ARRAY[]::text[]`).notNull(),
   contactPhone: varchar("contact_phone", { length: 50 }).notNull(),
