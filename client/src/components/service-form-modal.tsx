@@ -178,8 +178,61 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
   const isFirstTab = currentTabIndex === 0;
   const isLastTab = currentTabIndex === tabs.length - 1;
 
+  // Validate current step - returns errors for the current tab
+  // Note: Empty fields are OK, only invalid data is blocked
+  const validateCurrentStep = (): { isValid: boolean; errors: string[] } => {
+    const errors: string[] = [];
+
+    if (activeTab === "main") {
+      // Check hashtag limit
+      if (formData && formData.hashtags.length > 5) {
+        errors.push("Maximum 5 hashtags allowed");
+      }
+      // Title length if filled
+      if (formData && formData.title.trim() && formData.title.length > 200) {
+        errors.push("Title must be 200 characters or less");
+      }
+      // Description length if filled
+      if (formData && formData.description.trim() && formData.description.length < 20 && formData.description.length > 0) {
+        errors.push("Description must be at least 20 characters");
+      }
+    }
+
+    if (activeTab === "pricing") {
+      // Validate price format if filled
+      if (formData && formData.priceType === "fixed" && formData.price) {
+        const priceNum = parseFloat(formData.price);
+        if (isNaN(priceNum) || priceNum < 0) {
+          errors.push("Price must be a valid positive number");
+        }
+      }
+      // Price list validation
+      if (formData && formData.priceType === "list" && formData.priceList.length > 0) {
+        const invalidItems = formData.priceList.filter(item => {
+          if (!item.price) return false; // Empty is OK
+          const num = parseFloat(item.price);
+          return isNaN(num) || num < 0;
+        });
+        if (invalidItems.length > 0) {
+          errors.push("All prices must be valid positive numbers");
+        }
+      }
+    }
+
+    return { isValid: errors.length === 0, errors };
+  };
+
   const goToNextTab = () => {
     if (!isLastTab) {
+      const validation = validateCurrentStep();
+      if (!validation.isValid) {
+        toast({
+          title: "Please fix errors before continuing",
+          description: validation.errors.join(". "),
+          variant: "destructive",
+        });
+        return;
+      }
       setActiveTab(tabs[currentTabIndex + 1]);
     }
   };
