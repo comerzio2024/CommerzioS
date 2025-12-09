@@ -1158,7 +1158,30 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
         return;
       }
 
-      createServiceMutation.mutate({ data: { ...formData, locations: validLocations }, status: "active" });
+      // CRITICAL: Enforce image limit for free plan before publishing
+      // If user doesn't have a paid package selected, they can only have FREE_PLAN_LIMIT images
+      let finalFormData = { ...formData, locations: validLocations };
+
+      if (!formData.selectedPromotionalPackage && formData.images.length > FREE_PLAN_LIMIT) {
+        // Trim images to free plan limit
+        const trimmedImages = formData.images.slice(0, FREE_PLAN_LIMIT);
+        const trimmedMetadata = (formData.imageMetadata || []).slice(0, FREE_PLAN_LIMIT);
+        const trimmedMainIndex = Math.min(formData.mainImageIndex, FREE_PLAN_LIMIT - 1);
+
+        finalFormData = {
+          ...finalFormData,
+          images: trimmedImages,
+          imageMetadata: trimmedMetadata,
+          mainImageIndex: trimmedMainIndex,
+        };
+
+        toast({
+          title: "Images Limited",
+          description: `Only ${FREE_PLAN_LIMIT} photos saved (free plan limit). Upgrade to Featured for more.`,
+        });
+      }
+
+      createServiceMutation.mutate({ data: finalFormData, status: "active" });
     }
   };
 
@@ -1196,7 +1219,30 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
       return;
     }
 
-    createServiceMutation.mutate({ data: { ...formData, locations: validLocations }, status: "draft" });
+    // CRITICAL: Enforce image limit for free plan before saving draft
+    // If user doesn't have a paid package selected, they can only keep FREE_PLAN_LIMIT images  
+    let draftData = { ...formData, locations: validLocations };
+
+    if (!formData.selectedPromotionalPackage && formData.images.length > FREE_PLAN_LIMIT) {
+      // Trim images to free plan limit
+      const trimmedImages = formData.images.slice(0, FREE_PLAN_LIMIT);
+      const trimmedMetadata = (formData.imageMetadata || []).slice(0, FREE_PLAN_LIMIT);
+      const trimmedMainIndex = Math.min(formData.mainImageIndex, FREE_PLAN_LIMIT - 1);
+
+      draftData = {
+        ...draftData,
+        images: trimmedImages,
+        imageMetadata: trimmedMetadata,
+        mainImageIndex: trimmedMainIndex,
+      };
+
+      toast({
+        title: "Draft Saved with Limited Images",
+        description: `Only ${FREE_PLAN_LIMIT} photos saved. Select Featured package to keep all ${formData.images.length} photos.`,
+      });
+    }
+
+    createServiceMutation.mutate({ data: draftData, status: "draft" });
   };
 
   const verificationEnabled = settings?.requireEmailVerification || settings?.requirePhoneVerification;
