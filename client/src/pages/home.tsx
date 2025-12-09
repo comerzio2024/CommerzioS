@@ -481,8 +481,8 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Radius controls - only show when map is expanded */}
-            {isMapExpanded && (
+            {/* Radius controls - only show when map is visible AND expanded */}
+            {isMapVisible && isMapExpanded && (
               <div className="flex items-center gap-4 w-full md:w-auto">
                 {/* Slider */}
                 <div className="flex-1 md:w-[200px] flex items-center gap-3">
@@ -548,7 +548,7 @@ export default function Home() {
                   variant="outline"
                   size="sm"
                   className="h-8 text-xs border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
-                  onClick={() => setIsMapVisible(false)}
+                  onClick={() => { setIsMapVisible(false); setIsMapExpanded(false); }}
                 >
                   <X className="w-3 h-3 mr-1" />
                   Close Map
