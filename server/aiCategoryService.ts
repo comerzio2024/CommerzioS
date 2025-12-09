@@ -416,7 +416,7 @@ Respond in JSON format:
 
     return {
       categorySlug: result.categorySlug || "home-services",
-      subcategoryId: result.confidence > 0.85 ? result.subcategoryId : null,
+      subcategoryId: result.subcategoryId || null, // Always pass through - let routes.ts handle creation
       confidence: result.confidence || 0.5,
     };
   } catch (error) {

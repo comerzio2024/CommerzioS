@@ -7,11 +7,11 @@ import { users, reviews, services, notifications, pushSubscriptions, escrowTrans
 import { setupAuth, isAuthenticated, requireEmailVerified } from "./auth";
 import { isAdmin, adminLogin, adminLogout, getAdminSession } from "./adminAuth";
 import { setupOAuthRoutes } from "./oauthProviders";
-import { 
-  insertServiceSchema, 
-  insertReviewSchema, 
-  insertCategorySchema, 
-  insertSubmittedCategorySchema, 
+import {
+  insertServiceSchema,
+  insertReviewSchema,
+  insertCategorySchema,
+  insertSubmittedCategorySchema,
   insertPlanSchema,
   insertServiceContactSchema,
   insertTemporaryCategorySchema,
@@ -209,12 +209,12 @@ import { categorizeService } from "./aiService";
 import { getAdminAssistance } from "./aiAdminService";
 import { getUserSupport } from "./aiUserSupportService";
 import { validateCategoryName, suggestCategoryAlternative, findSimilarCategoryName, suggestCategoryAndSubcategory } from "./aiCategoryService";
-import { 
-  analyzeImagesForHashtags, 
-  generateServiceTitle, 
-  generateServiceDescription, 
+import {
+  analyzeImagesForHashtags,
+  generateServiceTitle,
+  generateServiceDescription,
   generatePricingSuggestion,
-  suggestAllFields 
+  suggestAllFields
 } from "./aiContentService";
 import { validateSwissAddress } from "./swissAddressService";
 import { sendVerificationCode } from "./contactVerificationService";
@@ -225,7 +225,7 @@ import { z } from "zod";
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint - useful for monitoring and load balancers
   app.get('/api/health', (_req, res) => {
-    res.json({ 
+    res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
       uptime: process.uptime()
@@ -234,7 +234,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Auth middleware and routes
   await setupAuth(app);
-  
+
   // OAuth routes (Google, Twitter, Facebook)
   setupOAuthRoutes(app);
 
@@ -254,33 +254,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/users/me', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user!.id;
-      const { 
-        firstName, lastName, phoneNumber, profileImageUrl, 
+      const {
+        firstName, lastName, phoneNumber, profileImageUrl,
         locationLat, locationLng, preferredLocationName,
         // Vendor payment settings
         acceptCardPayments, acceptTwintPayments, acceptCashPayments, requireBookingApproval
       } = req.body;
-      
+
       // Validate Swiss phone number if provided
       if (phoneNumber) {
         const swissPhoneRegex = /^\+41\s?(\d{2}\s?\d{3}\s?\d{2}\s?\d{2}|\d{9,11})$/;
         const normalizedPhone = phoneNumber.replace(/\s/g, '');
         if (!swissPhoneRegex.test(normalizedPhone)) {
-          return res.status(400).json({ 
-            message: "Invalid phone number. Swiss phone numbers must start with +41 (e.g., +41 44 123 4567)" 
+          return res.status(400).json({
+            message: "Invalid phone number. Swiss phone numbers must start with +41 (e.g., +41 44 123 4567)"
           });
         }
       }
-      
+
       // Validate location fields - both must be provided together or neither
       if ((locationLat !== undefined || locationLng !== undefined) && (locationLat === undefined || locationLng === undefined)) {
-        return res.status(400).json({ 
-          message: "Both latitude and longitude must be provided together" 
+        return res.status(400).json({
+          message: "Both latitude and longitude must be provided together"
         });
       }
-      
-      const updateData: { 
-        firstName?: string; lastName?: string; phoneNumber?: string; profileImageUrl?: string; 
+
+      const updateData: {
+        firstName?: string; lastName?: string; phoneNumber?: string; profileImageUrl?: string;
         locationLat?: number | null; locationLng?: number | null; preferredLocationName?: string;
         acceptCardPayments?: boolean; acceptTwintPayments?: boolean; acceptCashPayments?: boolean; requireBookingApproval?: boolean;
       } = {};
@@ -296,7 +296,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (acceptTwintPayments !== undefined) updateData.acceptTwintPayments = acceptTwintPayments;
       if (acceptCashPayments !== undefined) updateData.acceptCashPayments = acceptCashPayments;
       if (requireBookingApproval !== undefined) updateData.requireBookingApproval = requireBookingApproval;
-      
+
       const user = await storage.updateUserProfile(userId, updateData);
       res.json(user);
     } catch (error) {
@@ -321,17 +321,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
       const validated = insertAddressSchema.parse(req.body);
-      
+
       // Validate Swiss address
       const fullAddress = `${validated.street}, ${validated.postalCode} ${validated.city}, ${validated.country}`;
       const isValid = await validateSwissAddress(fullAddress);
-      
+
       if (!isValid) {
-        return res.status(400).json({ 
-          message: "Invalid Swiss address. Please select a validated address from the search suggestions." 
+        return res.status(400).json({
+          message: "Invalid Swiss address. Please select a validated address from the search suggestions."
         });
       }
-      
+
       const address = await storage.createAddress(userId, validated);
       res.status(201).json(address);
     } catch (error: any) {
@@ -348,27 +348,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
       const addressId = req.params.id;
       const validated = insertAddressSchema.partial().parse(req.body);
-      
+
       // Validate Swiss address if address fields are being updated
       if (validated.street || validated.city || validated.postalCode || validated.country) {
         // Get existing address to merge with updates
         const existingAddresses = await storage.getAddresses(userId);
         const existingAddress = existingAddresses.find(a => a.id === addressId);
-        
+
         if (!existingAddress) {
           return res.status(404).json({ message: "Address not found or unauthorized" });
         }
-        
+
         const fullAddress = `${validated.street || existingAddress.street}, ${validated.postalCode || existingAddress.postalCode} ${validated.city || existingAddress.city}, ${validated.country || existingAddress.country}`;
         const isValid = await validateSwissAddress(fullAddress);
-        
+
         if (!isValid) {
-          return res.status(400).json({ 
-            message: "Invalid Swiss address. Please select a validated address from the search suggestions." 
+          return res.status(400).json({
+            message: "Invalid Swiss address. Please select a validated address from the search suggestions."
           });
         }
       }
-      
+
       const address = await storage.updateAddress(addressId, userId, validated);
       res.json(address);
     } catch (error: any) {
@@ -449,12 +449,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/categories', async (req: any, res) => {
     try {
       const categories = await storage.getCategories();
-      
+
       // Include temporary categories for authenticated users
       if (req.isAuthenticated && req.isAuthenticated()) {
         const userId = req.user!.id;
         const tempCategories = await storage.getTemporaryCategories(userId);
-        
+
         // Format temporary categories to match category structure
         const formattedTempCategories = tempCategories.map(tc => ({
           id: tc.id,
@@ -465,7 +465,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           isTemporary: true,
           expiresAt: tc.expiresAt,
         }));
-        
+
         // Combine permanent and temporary categories
         const allCategories = [...categories, ...formattedTempCategories];
         res.json(allCategories);
@@ -535,19 +535,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
       const user = await storage.getUser(userId);
-      
+
       // Capture timestamp BEFORE querying to avoid race conditions
       const currentVisitTime = new Date();
-      
+
       // Get counts using the OLD timestamp (user.lastHomeVisitAt)
       const counts = await storage.getNewServiceCountsSince(
-        userId, 
+        userId,
         user?.lastHomeVisitAt || null
       );
-      
+
       // Update to the CAPTURED timestamp (not new Date()!)
       await storage.updateUserLastHomeVisit(userId, currentVisitTime);
-      
+
       res.json(counts);
     } catch (error) {
       console.error("Error fetching new service counts:", error);
@@ -595,8 +595,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user already has this plan
       const user = await storage.getUser(userId);
       if (user?.planId === planId) {
-        return res.json({ 
-          success: true, 
+        return res.json({
+          success: true,
           message: "You are already on this plan",
           redirectUrl: '/profile?tab=services'
         });
@@ -605,8 +605,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Free plan - just assign it
       if (plan.slug === 'free' || parseFloat(plan.priceMonthly) === 0) {
         await storage.updateUserPlan(userId, planId);
-        return res.json({ 
-          success: true, 
+        return res.json({
+          success: true,
           message: "Successfully subscribed to free plan",
           redirectUrl: '/profile?tab=services'
         });
@@ -615,13 +615,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Paid plan - for now, assign directly (Stripe subscription integration coming soon)
       // In production, this would create a Stripe subscription
       const price = billingCycle === 'yearly' ? plan.priceYearly : plan.priceMonthly;
-      
+
       // Log the subscription attempt
       console.log(`[Plan Subscription] User ${userId} subscribing to plan ${plan.name} (${plan.id}) at CHF ${price}/${billingCycle}`);
-      
+
       // For development/testing or when Stripe is not configured, allow direct plan assignment
       await storage.updateUserPlan(userId, planId);
-      
+
       // Create a notification for the user
       await createNotification({
         userId,
@@ -631,8 +631,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         actionUrl: '/profile?tab=services',
       });
 
-      return res.json({ 
-        success: true, 
+      return res.json({
+        success: true,
         message: `Successfully upgraded to ${plan.name} plan!`,
         redirectUrl: '/profile?tab=services'
       });
@@ -707,7 +707,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const vendorId = req.user!.id;
       const customerId = req.params.customerId;
-      
+
       // Find all completed/confirmed bookings between this vendor and customer
       const completedBookings = await db
         .select({
@@ -724,14 +724,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           )
         )
         .orderBy(desc(bookingsTable.updatedAt));
-      
+
       if (completedBookings.length === 0) {
         return res.json([]);
       }
-      
+
       // Get unique service IDs
       const serviceIds = [...new Set(completedBookings.map(b => b.serviceId))];
-      
+
       // Fetch the services (including inactive ones)
       const bookedServices = await db
         .select({
@@ -742,7 +742,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .from(services)
         .where(inArray(services.id, serviceIds));
-      
+
       res.json(bookedServices);
     } catch (error) {
       console.error("Error fetching booked services:", error);
@@ -768,7 +768,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/services', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user!.id;
-      
+
       // Check if email is verified before allowing service creation
       const user = await storage.getUser(userId);
       if (!user?.emailVerified) {
@@ -777,10 +777,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           requiresEmailVerification: true,
         });
       }
-      
+
       // Check if this is a draft save (use relaxed validation)
       const isDraft = req.body.status === "draft";
-      
+
       // Use appropriate schema based on whether it's a draft
       let validated;
       if (isDraft) {
@@ -800,7 +800,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           categoryId = category.id;
         }
       }
-      
+
       // If still no categoryId, get a default category (first one in the system)
       if (!categoryId) {
         const defaultCategory = await storage.getCategoryBySlug("home-services");
@@ -808,12 +808,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           categoryId = defaultCategory.id;
         }
       }
-      
+
       // For active services, category is absolutely required
       if (!isDraft && !categoryId) {
         return res.status(400).json({ message: "Category is required for active services" });
       }
-      
+
       // Final safety check - shouldn't happen but ensures type safety
       if (!categoryId) {
         return res.status(400).json({ message: "Unable to determine category. Please select a category manually." });
@@ -835,7 +835,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const geocodeResponse = await fetch(geocodeUrl, {
             headers: { 'User-Agent': 'ServiceMarketplace/1.0' }
           });
-          
+
           if (geocodeResponse.ok) {
             const results = await geocodeResponse.json();
             if (results && results.length > 0) {
@@ -879,7 +879,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/services/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user!.id;
-      
+
       // Check ownership
       const existing = await storage.getService(req.params.id);
       if (!existing) {
@@ -891,7 +891,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Geocode first location if locations are being updated
       const updateData = { ...req.body };
-      
+
       if (req.body.locations && req.body.locations.length > 0) {
         const firstLocation = req.body.locations[0];
         try {
@@ -899,7 +899,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const geocodeResponse = await fetch(geocodeUrl, {
             headers: { 'User-Agent': 'ServiceMarketplace/1.0' }
           });
-          
+
           if (geocodeResponse.ok) {
             const results = await geocodeResponse.json();
             if (results && results.length > 0) {
@@ -914,7 +914,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       await storage.updateService(req.params.id, updateData);
-      
+
       // Return enriched service data with all relations including subcategory
       const enrichedService = await storage.getService(req.params.id);
       res.json(enrichedService);
@@ -927,7 +927,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/services/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user!.id;
-      
+
       // Check ownership
       const existing = await storage.getService(req.params.id);
       if (!existing) {
@@ -948,7 +948,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/services/:id/renew', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user!.id;
-      
+
       // Check ownership
       const existing = await storage.getService(req.params.id);
       if (!existing) {
@@ -1101,27 +1101,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/admin/users/:id', isAdmin, async (req, res) => {
     try {
       const { isAdmin: adminFlag, planId, isVerified, emailVerified } = req.body;
-      
+
       if (adminFlag !== undefined) {
         await storage.updateUserAdmin(req.params.id, adminFlag);
       }
-      
+
       if (planId !== undefined) {
         await storage.updateUserPlan(req.params.id, planId);
       }
-      
+
       // Allow admin to toggle verification status
       if (isVerified !== undefined) {
         await storage.updateUserVerification(req.params.id, isVerified);
       }
-      
+
       // Allow admin to toggle email verification status
       if (emailVerified !== undefined) {
         await db.update(users)
           .set({ emailVerified, updatedAt: new Date() })
           .where(eq(users.id, req.params.id));
       }
-      
+
       const user = await storage.getUser(req.params.id);
       res.json(user);
     } catch (error) {
@@ -1135,7 +1135,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { action, reason, ipAddress } = req.body;
       const adminId = req.user?.id || 'admin';
-      
+
       if (!['warn', 'suspend', 'ban', 'kick', 'reactivate'].includes(action)) {
         return res.status(400).json({ message: "Invalid moderation action" });
       }
@@ -1147,7 +1147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         reason,
         ipAddress
       );
-      
+
       res.json(user);
     } catch (error: any) {
       console.error("Error moderating user:", error);
@@ -1180,7 +1180,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { identifierType, identifierValue, userId, reason } = req.body;
       const adminId = req.user?.id || 'admin';
-      
+
       const banned = await storage.addBannedIdentifier({
         identifierType,
         identifierValue,
@@ -1188,7 +1188,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bannedBy: adminId,
         reason,
       });
-      
+
       res.status(201).json(banned);
     } catch (error) {
       console.error("Error adding banned identifier:", error);
@@ -1242,35 +1242,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allServices = await storage.getAllServices();
       let geocoded = 0;
       let failed = 0;
-      
+
       for (const service of allServices) {
         if (service.locationLat && service.locationLng) {
           continue;
         }
-        
+
         if (!service.locations || service.locations.length === 0) {
           continue;
         }
-        
+
         const firstLocation = service.locations[0];
         try {
           const geocodeUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(firstLocation)}&format=json&countrycodes=ch&limit=1`;
           const geocodeResponse = await fetch(geocodeUrl, {
             headers: { 'User-Agent': 'ServiceMarketplace/1.0' }
           });
-          
+
           if (geocodeResponse.ok) {
             const results = await geocodeResponse.json();
             if (results && results.length > 0) {
               const locationLat = parseFloat(results[0].lat);
               const locationLng = parseFloat(results[0].lon);
-              
+
               await storage.updateService(service.id, {
                 locationLat: locationLat.toString(),
                 locationLng: locationLng.toString(),
                 preferredLocationName: firstLocation,
               });
-              
+
               geocoded++;
             } else {
               failed++;
@@ -1278,15 +1278,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           } else {
             failed++;
           }
-          
+
           await new Promise(resolve => setTimeout(resolve, 1000));
         } catch (error) {
           console.error(`Failed to geocode service ${service.id}:`, error);
           failed++;
         }
       }
-      
-      res.json({ 
+
+      res.json({
         message: "Geocoding complete",
         geocoded,
         failed,
@@ -1313,7 +1313,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { status } = req.body;
       const suggestion = await storage.updateCategorySuggestionStatus(req.params.id, status);
-      
+
       // If approved, create the category
       if (status === 'approved' && suggestion) {
         await storage.createCategory({
@@ -1321,7 +1321,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           slug: suggestion.name.toLowerCase().replace(/\s+/g, '-'),
         });
       }
-      
+
       res.json(suggestion);
     } catch (error) {
       console.error("Error updating category suggestion:", error);
@@ -1447,13 +1447,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const validated = schema.parse(req.body);
-      
+
       // Enhance user context if authenticated
       if (req.isAuthenticated && req.isAuthenticated()) {
         const userId = req.user!.id;
         const user = await storage.getUser(userId);
         const userServices = await storage.getServices({ ownerId: userId });
-        
+
         validated.userContext = {
           isAuthenticated: true,
           hasServices: userServices.length > 0,
@@ -1533,9 +1533,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const category = allCategories.find(c => c.slug === suggestion.categorySlug);
 
       if (!category) {
-        return res.status(404).json({ 
+        return res.status(404).json({
           message: "Suggested category not found",
-          suggestion 
+          suggestion
         });
       }
 
@@ -1543,7 +1543,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (suggestion.subcategoryId) {
         const allSubcategories = await storage.getSubcategories();
         // Look for subcategory by slug AND matching the category
-        subcategory = allSubcategories.find(s => 
+        subcategory = allSubcategories.find(s =>
           s.slug === suggestion.subcategoryId && s.categoryId === category.id
         );
         // If not found with category filter, try just by slug
@@ -1670,7 +1670,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/services/:serviceId/contacts', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user!.id;
-      
+
       // Check ownership
       const service = await storage.getService(req.params.serviceId);
       if (!service) {
@@ -1699,11 +1699,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/contacts/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user!.id;
-      
+
       // Get contact and check ownership through service
       const contacts = await storage.getServiceContacts('');
       const contact = contacts.find(c => c.id === req.params.id);
-      
+
       if (!contact) {
         return res.status(404).json({ message: "Contact not found" });
       }
@@ -1734,11 +1734,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/contacts/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user!.id;
-      
+
       // Get contact and check ownership through service
       const contacts = await storage.getServiceContacts('');
       const contact = contacts.find(c => c.id === req.params.id);
-      
+
       if (!contact) {
         return res.status(404).json({ message: "Contact not found" });
       }
@@ -1759,15 +1759,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/contacts/:id/send-verification', isAuthenticated, verificationLimiter, async (req: any, res) => {
     try {
       const userId = req.user!.id;
-      
+
       // Get contact details - verify it belongs to user's service
       const contacts = await storage.getServiceContacts('');
       const contact = contacts.find(c => c.id === req.params.id);
-      
+
       if (!contact) {
         return res.status(404).json({ message: "Contact not found" });
       }
-      
+
       // Verify the contact belongs to a service owned by the current user
       const userServices = await storage.getUserServices(userId, false);
       const ownsContact = userServices.some((s: any) => s.id === contact.serviceId);
@@ -1777,7 +1777,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Send verification code
       const { code, expiresAt } = await sendVerificationCode(contact.contactType, contact.value);
-      
+
       // Store code in database
       await storage.updateServiceContact(req.params.id, {
         verificationCode: code,
@@ -1794,30 +1794,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/contacts/:id/verify', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user!.id;
-      
+
       const schema = z.object({
         code: z.string().min(6, "Verification code is required"),
       });
 
       const validated = schema.parse(req.body);
-      
+
       // Verify ownership before allowing verification
       const contacts = await storage.getServiceContacts('');
       const contact = contacts.find(c => c.id === req.params.id);
-      
+
       if (!contact) {
         return res.status(404).json({ message: "Contact not found" });
       }
-      
+
       // Verify the contact belongs to a service owned by the current user
       const userServices = await storage.getUserServices(userId, false);
       const ownsContact = userServices.some((s: any) => s.id === contact.serviceId);
       if (!ownsContact) {
         return res.status(403).json({ message: "You do not have permission to verify this contact" });
       }
-      
+
       const success = await storage.verifyServiceContact(req.params.id, validated.code);
-      
+
       if (success) {
         res.json({ success: true, message: "Contact verified successfully" });
       } else {
@@ -1848,17 +1848,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
       const categoryName = req.body.name?.trim();
-      
+
       if (!categoryName) {
         return res.status(400).json({ message: "Category name is required" });
       }
-      
+
       // First check if a similar category already exists
       const allCategories = await storage.getCategories();
-      const similarMatch = findSimilarCategoryName(categoryName, 
+      const similarMatch = findSimilarCategoryName(categoryName,
         allCategories.map(c => ({ name: c.name, id: c.id }))
       );
-      
+
       if (similarMatch.similarity > 0.8) {
         // A very similar category exists, suggest using it
         return res.status(200).json({
@@ -1869,18 +1869,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           similarity: similarMatch.similarity
         });
       }
-      
+
       if (similarMatch.similarity > 0.75) {
         // A similar category exists, warn but allow creation
         console.log(`Creating category "${categoryName}" despite similarity to "${similarMatch.category?.name}" (${similarMatch.similarity.toFixed(2)})`);
       }
-      
+
       // Validate category name for appropriateness
       const validation = await validateCategoryName(categoryName);
       if (!validation.isValid && validation.confidence > 0.6) {
         return res.status(400).json({ message: validation.reasoning });
       }
-      
+
       // Set expiry to 24 hours from now
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24);
@@ -1905,11 +1905,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/temporary-categories/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user!.id;
-      
+
       // Check ownership
       const tempCategories = await storage.getTemporaryCategories(userId);
       const tempCategory = tempCategories.find(c => c.id === req.params.id);
-      
+
       if (!tempCategory) {
         return res.status(404).json({ message: "Temporary category not found" });
       }
@@ -1919,6 +1919,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting temporary category:", error);
       res.status(500).json({ message: "Failed to delete temporary category" });
+    }
+  });
+
+  // Create temporary subcategory (user-suggested subcategory)
+  app.post('/api/temporary-subcategories', isAuthenticated, async (req: any, res) => {
+    try {
+      const subcategoryName = req.body.name?.trim();
+      const categoryId = req.body.categoryId;
+
+      if (!subcategoryName) {
+        return res.status(400).json({ message: "Subcategory name is required" });
+      }
+
+      if (!categoryId) {
+        return res.status(400).json({ message: "Category ID is required" });
+      }
+
+      // Verify the category exists
+      const category = await storage.getCategoryById(categoryId);
+      if (!category) {
+        return res.status(404).json({ message: "Category not found" });
+      }
+
+      // Check if a similar subcategory already exists in this category
+      const allSubcategories = await storage.getSubcategories();
+      const categorySubcategories = allSubcategories.filter(s => s.categoryId === categoryId);
+
+      const similarMatch = findSimilarSubcategoryName(
+        subcategoryName,
+        categorySubcategories.map(s => ({ name: s.name, id: s.id, categoryId: s.categoryId })),
+        [{ name: category.name, id: category.id }]
+      );
+
+      if (similarMatch.similarity > 0.8 && similarMatch.subcategory) {
+        // A very similar subcategory exists, suggest using it
+        return res.status(200).json({
+          id: similarMatch.subcategory.id,
+          name: similarMatch.subcategory.name,
+          categoryId: categoryId,
+          isExistingSubcategory: true,
+          message: `We found an existing subcategory "${similarMatch.subcategory.name}" that matches your suggestion. Using it instead.`,
+          similarity: similarMatch.similarity
+        });
+      }
+
+      // Generate slug from name
+      const slug = subcategoryName.toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^\w-]/g, '')
+        + '-' + Date.now().toString().slice(-6);
+
+      // Create the new subcategory
+      const newSubcategory = await storage.createSubcategory({
+        name: subcategoryName,
+        slug: slug,
+        categoryId: categoryId,
+      });
+
+      console.log(`Created new subcategory: ${subcategoryName} in category ${category.name}`);
+
+      res.status(201).json({
+        ...newSubcategory,
+        isNewSubcategory: true,
+        isExistingSubcategory: false,
+        categoryName: category.name
+      });
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      console.error("Error creating temporary subcategory:", error);
+      res.status(500).json({ message: "Failed to create subcategory" });
     }
   });
 
@@ -1939,7 +2011,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
       const conversation = await storage.getAiConversation(req.params.id);
-      
+
       if (!conversation) {
         return res.status(404).json({ message: "Conversation not found" });
       }
@@ -1988,11 +2060,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const validated = schema.parse(req.body);
-      
+
       // Convert object paths to signed URLs for OpenAI
       const objectStorageService = new ObjectStorageService();
       const signedUrls: string[] = [];
-      
+
       for (const url of validated.imageUrls) {
         try {
           if (url.startsWith('/objects/')) {
@@ -2011,8 +2083,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (signedUrls.length === 0) {
-        return res.status(400).json({ 
-          message: "Images must be fully uploaded before AI can analyze them. Please wait for uploads to complete." 
+        return res.status(400).json({
+          message: "Images must be fully uploaded before AI can analyze them. Please wait for uploads to complete."
         });
       }
 
@@ -2020,13 +2092,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ hashtags });
     } catch (error: any) {
       if (error.name === 'ZodError') {
-        return res.status(400).json({ 
-          message: "Unable to analyze images. Please make sure images are uploaded correctly." 
+        return res.status(400).json({
+          message: "Unable to analyze images. Please make sure images are uploaded correctly."
         });
       }
       console.error("Error analyzing images for hashtags:", error);
-      res.status(500).json({ 
-        message: "We couldn't generate hashtag suggestions at this time. You can add hashtags manually." 
+      res.status(500).json({
+        message: "We couldn't generate hashtag suggestions at this time. You can add hashtags manually."
       });
     }
   });
@@ -2039,11 +2111,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const validated = schema.parse(req.body);
-      
+
       // Convert object paths to signed URLs for OpenAI
       const objectStorageService = new ObjectStorageService();
       const signedUrls: string[] = [];
-      
+
       for (const url of validated.imageUrls) {
         try {
           if (url.startsWith('/objects/')) {
@@ -2154,11 +2226,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const validated = schema.parse(req.body);
-      
+
       // Convert object paths to signed URLs for OpenAI
       const objectStorageService = new ObjectStorageService();
       const signedUrls: string[] = [];
-      
+
       for (const url of validated.imageUrls) {
         try {
           if (url.startsWith('/objects/')) {
@@ -2173,31 +2245,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (signedUrls.length === 0) {
-        return res.status(400).json({ 
-          message: "Images must be fully uploaded before AI can analyze them. Please wait for uploads to complete." 
+        return res.status(400).json({
+          message: "Images must be fully uploaded before AI can analyze them. Please wait for uploads to complete."
         });
       }
 
       // Get AI suggestions for all fields
       const suggestions = await suggestAllFields(signedUrls, validated.currentTitle);
-      
+
       // Map category/subcategory slugs to IDs
       const allCategories = await storage.getCategories();
       let allSubcategories = await storage.getSubcategories();
-      
+
       const category = allCategories.find(c => c.slug === suggestions.categorySlug);
-      
+
       if (!category) {
-        return res.status(400).json({ 
-          message: "Could not determine a valid category for this service." 
+        return res.status(400).json({
+          message: "Could not determine a valid category for this service."
         });
       }
 
       // Try to find existing subcategory
-      let subcategory = suggestions.subcategorySlug 
+      let subcategory = suggestions.subcategorySlug
         ? allSubcategories.find(s => s.slug === suggestions.subcategorySlug && s.categoryId === category.id)
         : null;
-      
+
       // If subcategory doesn't exist but AI suggested one, create it
       if (!subcategory && suggestions.subcategorySlug) {
         // Convert slug to a proper name (e.g., "accordion-lessons" -> "Accordion Lessons")
@@ -2205,7 +2277,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .split('-')
           .map(word => word.charAt(0).toUpperCase() + word.slice(1))
           .join(' ');
-        
+
         try {
           // Create the subcategory
           subcategory = await storage.createSubcategory({
@@ -2220,7 +2292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           subcategory = allSubcategories.find(s => s.categoryId === category.id) || null;
         }
       }
-      
+
       // If still no subcategory, pick the first one from the category
       if (!subcategory) {
         subcategory = allSubcategories.find(s => s.categoryId === category.id) || null;
@@ -2240,13 +2312,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       if (error.name === 'ZodError') {
-        return res.status(400).json({ 
-          message: "Unable to analyze images. Please make sure images are uploaded correctly." 
+        return res.status(400).json({
+          message: "Unable to analyze images. Please make sure images are uploaded correctly."
         });
       }
       console.error("Error in AI suggest all:", error);
-      res.status(500).json({ 
-        message: "We couldn't generate suggestions at this time. Please try again or fill in the fields manually." 
+      res.status(500).json({
+        message: "We couldn't generate suggestions at this time. Please try again or fill in the fields manually."
       });
     }
   });
@@ -2255,7 +2327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/services/hashtag/:hashtag', async (req, res) => {
     try {
       const { hashtag } = req.params;
-      
+
       if (!hashtag || hashtag.trim().length === 0) {
         return res.status(400).json({ message: "Hashtag is required" });
       }
@@ -2272,7 +2344,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/users/:userId', async (req, res) => {
     try {
       const user = await storage.getUserById(req.params.userId);
-      
+
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -2313,7 +2385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/location/search', async (req, res) => {
     try {
       const { q, limit = '10' } = req.query;
-      
+
       if (!q || typeof q !== 'string' || q.trim().length < 2) {
         return res.json([]);
       }
@@ -2347,11 +2419,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const city = address.city || address.town || address.village || address.municipality || result.name;
         const postcode = address.postcode || '';
         const canton = address.state || '';
-        
+
         // Create a display name in format: "City, Postcode, Canton"
         const parts = [city, postcode, canton].filter(p => p);
         const displayName = parts.join(', ');
-        
+
         return {
           id: result.place_id,
           displayName,
@@ -2413,12 +2485,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const houseNumber = address.house_number || '';
           const city = address.city || address.town || address.village || address.municipality || result.name;
           const postcode = address.postcode || '';
-          
+
           const streetWithNumber = houseNumber ? `${street} ${houseNumber}` : street;
-          
+
           const displayParts = [streetWithNumber, postcode, city].filter(p => p.trim());
           const displayName = displayParts.join(', ');
-          
+
           return {
             display_name: displayName || result.display_name,
             lat: parseFloat(result.lat),
@@ -2479,11 +2551,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const houseNumber = address.house_number || '';
           const city = address.city || address.town || address.village || address.municipality || result.name;
           const postcode = address.postcode || '';
-          
+
           const streetWithNumber = houseNumber ? `${street} ${houseNumber}` : street;
           const displayParts = [streetWithNumber, postcode, city].filter(p => p.trim());
           const displayName = displayParts.join(', ');
-          
+
           return {
             lat: parseFloat(result.lat),
             lng: parseFloat(result.lon),
@@ -2580,7 +2652,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/users/location', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user!.id;
-      
+
       const schema = z.object({
         locationLat: z.string().optional(),
         locationLng: z.string().optional(),
@@ -2589,11 +2661,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const validated = schema.parse(req.body);
-      
-      if ((validated.locationLat && !validated.locationLng) || 
-          (!validated.locationLat && validated.locationLng)) {
-        return res.status(400).json({ 
-          message: "Both locationLat and locationLng must be provided together" 
+
+      if ((validated.locationLat && !validated.locationLng) ||
+        (!validated.locationLat && validated.locationLng)) {
+        return res.status(400).json({
+          message: "Both locationLat and locationLng must be provided together"
         });
       }
 
@@ -2612,7 +2684,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/users/me/reviews-received', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user!.id;
-      
+
       // Get all reviews for services owned by this user
       const receivedReviews = await db
         .select({
@@ -2650,7 +2722,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/users/me/reviews-given', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user!.id;
-      
+
       const givenReviews = await db
         .select({
           id: reviews.id,
@@ -2702,7 +2774,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/users/me/bookings-to-review-service', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user!.id;
-      
+
       // Get completed bookings where user is customer
       const completedBookings = await db
         .select({
@@ -2730,7 +2802,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select({ bookingId: reviews.bookingId })
         .from(reviews)
         .where(eq(reviews.userId, userId));
-      
+
       const reviewedBookingIds = new Set(existingReviews.map(r => r.bookingId).filter(Boolean));
       const unreviewedBookings = completedBookings.filter(b => !reviewedBookingIds.has(b.id));
 
@@ -2814,12 +2886,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===========================================
   // CUSTOMER REVIEWS (vendors review customers)
   // ===========================================
-  
+
   // Get customer reviews the user has given (as a vendor)
   app.get('/api/users/me/customer-reviews-given', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user!.id;
-      
+
       const givenReviews = await db
         .select({
           id: customerReviews.id,
@@ -2873,7 +2945,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/users/me/customer-reviews-received', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user!.id;
-      
+
       const receivedReviews = await db
         .select({
           id: customerReviews.id,
@@ -2925,7 +2997,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/users/me/bookings-to-review', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user!.id;
-      
+
       // Get completed bookings where user is vendor and no customer review exists
       const bookingsToReview = await db
         .select({
@@ -2953,7 +3025,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select({ bookingId: customerReviews.bookingId })
         .from(customerReviews)
         .where(eq(customerReviews.vendorId, userId));
-      
+
       const reviewedBookingIds = new Set(existingReviews.map(r => r.bookingId));
       const unreviewedBookings = bookingsToReview.filter(b => !reviewedBookingIds.has(b.id));
 
@@ -2983,7 +3055,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/users/me/bookings-pending-review', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user!.id;
-      
+
       // Get completed bookings on vendor's services where customer hasn't left a review
       const completedBookings = await db
         .select({
@@ -3010,7 +3082,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingServiceReviews = await db
         .select({ bookingId: reviews.bookingId })
         .from(reviews);
-      
+
       const reviewedBookingIds = new Set(existingServiceReviews.map(r => r.bookingId).filter(Boolean));
       const pendingReviewBookings = completedBookings.filter(b => !reviewedBookingIds.has(b.id));
 
@@ -3040,10 +3112,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // VENDOR REVIEW REQUEST ROUTES
   // ===========================================
 
-  const { 
-    canVendorRequestReview, 
-    sendVendorReviewRequest, 
-    getVendorPendingReviewBookings 
+  const {
+    canVendorRequestReview,
+    sendVendorReviewRequest,
+    getVendorPendingReviewBookings
   } = await import('./reviewRequestService');
 
   // Check if vendor can request review for a booking
@@ -3196,7 +3268,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===========================================
   // VENDOR REVIEW RESPONSES
   // ===========================================
-  
+
   // Vendor respond to a review on their service
   app.post('/api/reviews/:reviewId/respond', isAuthenticated, async (req: any, res) => {
     try {
@@ -3222,7 +3294,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(reviews)
         .where(eq(reviews.id, reviewId))
         .limit(1);
-      
+
       if (!review) {
         return res.status(404).json({ message: "Review not found" });
       }
@@ -3531,9 +3603,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
       const { cancelProposals, ...data } = req.body;
       const request = await updateServiceRequestWithNotification(
-        req.params.id, 
-        userId, 
-        data, 
+        req.params.id,
+        userId,
+        data,
         cancelProposals === true
       );
       res.json(request);
@@ -3793,7 +3865,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===========================================
   // ADMIN REVIEWS ROUTES
   // ===========================================
-  
+
   // Admin: Get all reviews
   app.get('/api/admin/reviews', isAdmin, async (req, res) => {
     try {
@@ -3812,7 +3884,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         reviewId: reviewRemovalRequests.reviewId,
         status: reviewRemovalRequests.status,
       }).from(reviewRemovalRequests).where(eq(reviewRemovalRequests.status, 'pending'));
-      
+
       const flaggedReviewIds = new Set(removalRequests.map(r => r.reviewId));
 
       // Fetch user and service details
@@ -3823,15 +3895,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lastName: users.lastName,
           email: users.email,
         }).from(users).where(eq(users.id, review.userId)).limit(1);
-        
+
         const [service] = await db.select({
           id: services.id,
           title: services.title,
         }).from(services).where(eq(services.id, review.serviceId)).limit(1);
-        
-        return { 
-          ...review, 
-          user, 
+
+        return {
+          ...review,
+          user,
           service,
           hasRemovalRequest: flaggedReviewIds.has(review.id),
         };
@@ -3860,7 +3932,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===========================================
   // REFERRAL SYSTEM ROUTES
   // ===========================================
-  
+
   // Initialize referral config on startup
   initializeReferralConfig().catch(console.error);
 
@@ -3883,7 +3955,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const stats = await getReferralStatsForUser(userId);
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       const referralLink = generateReferralLink(baseUrl, stats.referralCode);
-      
+
       res.json({
         ...stats,
         referralLink,
@@ -3900,7 +3972,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
       const limit = parseInt(req.query.limit as string) || 50;
       const referrals = await getDirectReferrals(userId, limit);
-      
+
       // Hide email addresses for privacy
       const sanitizedReferrals = referrals.map(r => ({
         id: r.id,
@@ -3909,7 +3981,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdAt: r.createdAt,
         status: r.status,
       }));
-      
+
       res.json(sanitizedReferrals);
     } catch (error) {
       console.error("Error fetching referrals:", error);
@@ -3921,7 +3993,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/referral/my-referrer', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user!.id;
-      
+
       // Get current user's referredBy
       const [user] = await db
         .select({
@@ -3930,11 +4002,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(users)
         .where(eq(users.id, userId))
         .limit(1);
-      
+
       if (!user?.referredBy) {
         return res.json({ hasReferrer: false, referrer: null });
       }
-      
+
       // Get referrer info
       const [referrer] = await db
         .select({
@@ -3947,7 +4019,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(users)
         .where(eq(users.id, user.referredBy))
         .limit(1);
-      
+
       res.json({
         hasReferrer: true,
         referrer: referrer ? {
@@ -3970,14 +4042,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
       const config = await getReferralConfig();
       const maxLevels = config.maxLevels || 3;
-      
+
       // Get L1 referrals (direct)
       const l1Referrals = await getDirectReferrals(userId, 100);
-      
+
       // Get L2 referrals (referrals of L1)
       const l2Referrals: any[] = [];
       const l3Referrals: any[] = [];
-      
+
       if (maxLevels >= 2) {
         for (const l1 of l1Referrals.slice(0, 50)) {
           const l2 = await getDirectReferrals(l1.id, 20);
@@ -3988,7 +4060,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })));
         }
       }
-      
+
       // Get L3 referrals (optional, only first few)
       if (maxLevels >= 3 && l2Referrals.length < 100) {
         for (const l2 of l2Referrals.slice(0, 20)) {
@@ -4000,7 +4072,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })));
         }
       }
-      
+
       res.json({
         maxLevels,
         level1: {
@@ -4033,7 +4105,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
       const limit = parseInt(req.query.limit as string) || 50;
-      
+
       const commissions = await db
         .select({
           id: referralTransactions.id,
@@ -4051,11 +4123,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(referralTransactions.toUserId, userId))
         .orderBy(referralTransactions.createdAt)
         .limit(limit);
-      
+
       // Get names for the fromUsers
       const fromUserIds = [...new Set(commissions.map(c => c.fromUserId))];
       const fromUsersMap: Record<string, { firstName: string | null; lastName: string | null }> = {};
-      
+
       if (fromUserIds.length > 0) {
         const fromUsers = await db
           .select({
@@ -4065,15 +4137,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
           .from(users)
           .where(sql`${users.id} IN ${fromUserIds}`);
-        
+
         for (const u of fromUsers) {
           fromUsersMap[u.id] = { firstName: u.firstName, lastName: u.lastName };
         }
       }
-      
+
       res.json(commissions.map(c => ({
         ...c,
-        fromUserName: fromUsersMap[c.fromUserId] 
+        fromUserName: fromUsersMap[c.fromUserId]
           ? `${fromUsersMap[c.fromUserId].firstName || ''} ${(fromUsersMap[c.fromUserId].lastName || '').charAt(0)}.`.trim()
           : 'Unknown',
       })));
@@ -4114,20 +4186,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user!.id;
       const validation = redeemPointsSchema.safeParse(req.body);
-      
+
       if (!validation.success) {
         return res.status(400).json({ message: fromZodError(validation.error).message });
       }
-      
+
       const result = await redeemPoints({
         userId,
         ...validation.data,
       });
-      
+
       if (!result.success) {
         return res.status(400).json({ message: result.message });
       }
-      
+
       res.json(result);
     } catch (error) {
       console.error("Error redeeming points:", error);
@@ -4152,7 +4224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
       const leaderboard = await getPointsLeaderboard(limit);
-      
+
       // Anonymize for privacy
       const anonymized = leaderboard.map(u => ({
         rank: u.rank,
@@ -4160,7 +4232,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName: u.lastName ? u.lastName.charAt(0) + '.' : null,
         points: u.points,
       }));
-      
+
       res.json(anonymized);
     } catch (error) {
       console.error("Error fetching leaderboard:", error);
@@ -4172,7 +4244,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/referral/config', async (req, res) => {
     try {
       const config = await getReferralConfig();
-      
+
       // Return only public config values
       res.json({
         maxLevels: config.maxLevels,
@@ -4232,11 +4304,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/admin/referral/config', isAdmin, async (req, res) => {
     try {
       const validation = updateReferralConfigSchema.safeParse(req.body);
-      
+
       if (!validation.success) {
         return res.status(400).json({ message: fromZodError(validation.error).message });
       }
-      
+
       await updateReferralConfig(validation.data);
       const updatedConfig = await getReferralConfig();
       res.json(updatedConfig);
@@ -4251,16 +4323,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const adminId = req.adminSession?.userId || 'admin';
       const validation = adminReferralAdjustmentSchema.safeParse(req.body);
-      
+
       if (!validation.success) {
         return res.status(400).json({ message: fromZodError(validation.error).message });
       }
-      
+
       const result = await adminAdjustPoints({
         ...validation.data,
         adminId,
       });
-      
+
       res.json(result);
     } catch (error) {
       console.error("Error adjusting points:", error);
@@ -4297,7 +4369,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
-      
+
       const transactions = await db
         .select({
           id: referralTransactions.id,
@@ -4314,7 +4386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .orderBy(referralTransactions.createdAt)
         .limit(limit)
         .offset(offset);
-      
+
       res.json(transactions);
     } catch (error) {
       console.error("Error fetching referral transactions:", error);
@@ -4375,7 +4447,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/payments/create-intent', isAuthenticated, async (req: any, res) => {
     try {
       const { orderId, amount, description } = req.body;
-      
+
       if (!orderId || !amount) {
         return res.status(400).json({ message: "orderId and amount are required" });
       }
@@ -4487,7 +4559,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/payments/refund', isAuthenticated, async (req: any, res) => {
     try {
       const { orderId, amount, reason } = req.body;
-      
+
       if (!orderId) {
         return res.status(400).json({ message: "orderId is required" });
       }
@@ -4519,7 +4591,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/payments/twint-eligibility', isAuthenticated, async (req: any, res) => {
     try {
       const { vendorId, amount } = req.query;
-      
+
       if (!vendorId) {
         return res.status(400).json({ message: "vendorId is required" });
       }
@@ -4530,7 +4602,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         vendorId as string,
         amountInCents
       );
-      
+
       res.json(eligibility);
     } catch (error) {
       console.error("Error checking TWINT eligibility:", error);
@@ -4554,7 +4626,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const bookingId = req.params.id;
       const { reason } = req.body;
-      
+
       if (!reason) {
         return res.status(400).json({ message: "Refund reason is required" });
       }
@@ -4616,7 +4688,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const bookingId = req.params.id;
       const userId = req.user!.id;
-      
+
       // Get booking - first verify it exists and user has access as vendor
       const booking = await getBookingById(bookingId, userId);
       if (!booking) {
@@ -4634,7 +4706,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Process the refund
       const result = await refundTwintPayment(bookingId);
-      
+
       if (!result) {
         return res.status(503).json({ message: "Payment system not configured" });
       }
@@ -4663,7 +4735,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const bookingId = req.params.id;
       const userId = req.user!.id;
       const { reason } = req.body;
-      
+
       // Get booking - first verify it exists and user has access as vendor
       const booking = await getBookingById(bookingId, userId);
       if (!booking) {
@@ -4705,7 +4777,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/bookings/:id/escrow-status', isAuthenticated, async (req: any, res) => {
     try {
       const bookingId = req.params.id;
-      
+
       // Get booking and verify access
       const booking = await getBookingById(bookingId, req.user!.id);
       if (!booking) {
@@ -4754,7 +4826,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/bookings/:id/confirm-complete', isAuthenticated, async (req: any, res) => {
     try {
       const bookingId = req.params.id;
-      
+
       // Get booking and verify ownership
       const booking = await getBookingById(bookingId, req.user!.id);
       if (!booking) {
@@ -4846,7 +4918,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const bookingId = req.params.id;
       const { reason, description, evidenceUrls } = req.body;
-      
+
       if (!reason || !description) {
         return res.status(400).json({ message: "Reason and description are required" });
       }
@@ -4860,7 +4932,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Determine user role
       const isCustomer = booking.customerId === req.user!.id;
       const isVendor = booking.vendorId === req.user!.id;
-      
+
       if (!isCustomer && !isVendor) {
         return res.status(403).json({ message: "Not authorized to dispute this booking" });
       }
@@ -4889,7 +4961,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/bookings/:id/dispute', isAuthenticated, async (req: any, res) => {
     try {
       const bookingId = req.params.id;
-      
+
       // Get booking and verify access
       const booking = await getBookingById(bookingId, req.user!.id);
       if (!booking) {
@@ -4897,7 +4969,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const dispute = await getDisputeByBookingId(bookingId);
-      
+
       if (!dispute) {
         return res.json({ hasDispute: false });
       }
@@ -4919,7 +4991,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const bookingId = req.params.id;
       const { amount, reason } = req.body;
-      
+
       if (!amount || amount <= 0) {
         return res.status(400).json({ message: "Valid refund amount is required" });
       }
@@ -4936,7 +5008,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create partial refund (amount in cents)
       const result = await createPartialRefund(bookingId, Math.round(amount * 100), reason);
-      
+
       if (!result) {
         return res.status(500).json({ message: "Failed to create refund" });
       }
@@ -4983,10 +5055,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/disputes/:id', isAuthenticated, async (req: any, res) => {
     try {
       const disputeId = req.params.id;
-      
+
       // Use getDisputeDetails for comprehensive data
       const details = await getDisputeDetails(disputeId);
-      
+
       if (!details.dispute) {
         return res.status(404).json({ message: "Dispute not found" });
       }
@@ -5005,7 +5077,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ]);
 
       const isCustomer = booking.customerId === req.user!.id;
-      
+
       // Get escrow amount
       const [escrowTx] = await db
         .select()
@@ -5043,10 +5115,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const timeline = details.responses.map(r => ({
         id: r.id,
         type: r.responseType,
-        title: r.responseType === 'counter_propose' 
-          ? 'Counter Offer' 
-          : r.responseType === 'accept_option' 
-            ? 'Offer Accepted' 
+        title: r.responseType === 'counter_propose'
+          ? 'Counter Offer'
+          : r.responseType === 'accept_option'
+            ? 'Offer Accepted'
             : r.responseType === 'escalate'
               ? 'Escalated to AI'
               : r.responseType,
@@ -5124,7 +5196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/disputes/open', isAuthenticated, async (req: any, res) => {
     try {
       const { bookingId, reason, description } = req.body;
-      
+
       if (!bookingId || !reason || !description) {
         return res.status(400).json({ message: "bookingId, reason, and description are required" });
       }
@@ -5150,7 +5222,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const disputeId = req.params.id;
       const { refundPercentage, message } = req.body;
-      
+
       if (typeof refundPercentage !== 'number' || refundPercentage < 0 || refundPercentage > 100) {
         return res.status(400).json({ message: "refundPercentage must be 0-100" });
       }
@@ -5184,7 +5256,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const disputeId = req.params.id;
       const { responseId } = req.body;
-      
+
       if (!responseId) {
         return res.status(400).json({ message: "responseId is required" });
       }
@@ -5241,7 +5313,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const disputeId = req.params.id;
       const { optionId } = req.body;
-      
+
       if (!optionId) {
         return res.status(400).json({ message: "optionId is required" });
       }
@@ -5332,7 +5404,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const disputeId = req.params.id;
       const { files } = req.body; // Array of { url, fileName, fileType }
-      
+
       if (!Array.isArray(files) || files.length === 0) {
         return res.status(400).json({ message: "files array is required" });
       }
@@ -5353,7 +5425,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Store evidence in dispute history
       const evidenceUrls = files.map((f: any) => f.url);
-      
+
       // Update dispute with evidence
       await db.update(escrowDisputes)
         .set({
@@ -5434,7 +5506,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/disputes', isAdmin, async (req: any, res) => {
     try {
       const { status, page = 1, limit = 20 } = req.query;
-      
+
       const disputes = await getAllDisputes({
         status: status as string,
         page: parseInt(page as string),
@@ -5454,7 +5526,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/disputes/:id', isAdmin, async (req: any, res) => {
     try {
       const dispute = await getDisputeById(req.params.id);
-      
+
       if (!dispute) {
         return res.status(404).json({ message: "Dispute not found" });
       }
@@ -5472,7 +5544,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/disputes/:id/resolve', isAdmin, async (req: any, res) => {
     try {
       const { resolution, refundPercentage, notes } = req.body;
-      
+
       if (!resolution || !['customer', 'vendor', 'split'].includes(resolution)) {
         return res.status(400).json({ message: "Valid resolution required (customer, vendor, or split)" });
       }
@@ -5529,7 +5601,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/escrow/:id/release', isAdmin, async (req: any, res) => {
     try {
       const escrowId = req.params.id;
-      
+
       // Get escrow transaction
       const [escrowTx] = await db.select()
         .from(escrowTransactions)
@@ -5567,7 +5639,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const escrowId = req.params.id;
       const { amount, reason } = req.body;
-      
+
       // Get escrow transaction
       const [escrowTx] = await db.select()
         .from(escrowTransactions)
@@ -5584,8 +5656,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (escrowTx.status === 'released') {
         // Create refund for released payment
         // If no amount specified, refund the full escrow amount
-        const amountCents = amount 
-          ? Math.round(amount * 100) 
+        const amountCents = amount
+          ? Math.round(amount * 100)
           : Math.round(parseFloat(escrowTx.amount) * 100);
         await createPartialRefund(escrowTx.bookingId, amountCents, reason || "Admin refund");
       } else {
@@ -5802,7 +5874,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { status, vendorNotes } = req.body;
       const order = await storage.getOrderById(req.params.id);
-      
+
       if (!order) {
         return res.status(404).json({ message: "Order not found" });
       }
@@ -5854,10 +5926,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         currency: ALLOWED_CURRENCY, // Force CHF
       });
-      
+
       // Audit log the creation
       await logPricingOptionCreate(req.user!.id, option.id, option, req);
-      
+
       res.status(201).json(option);
     } catch (error) {
       console.error("Error creating pricing option:", error);
@@ -5872,7 +5944,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!option) {
         return res.status(404).json({ message: "Pricing option not found" });
       }
-      
+
       const service = await storage.getService(option.serviceId);
       if (!service || service.ownerId !== req.user!.id) {
         return res.status(403).json({ message: "Not authorized" });
@@ -5885,12 +5957,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Store previous value for audit
       const previousValue = { ...option };
-      
+
       const updated = await storage.updateServicePricingOption(req.params.id, req.body);
-      
+
       // Audit log the update
       await logPricingOptionUpdate(req.user!.id, req.params.id, previousValue, updated, req);
-      
+
       res.json(updated);
     } catch (error) {
       console.error("Error updating pricing option:", error);
@@ -5905,7 +5977,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!option) {
         return res.status(404).json({ message: "Pricing option not found" });
       }
-      
+
       const service = await storage.getService(option.serviceId);
       if (!service || service.ownerId !== req.user!.id) {
         return res.status(403).json({ message: "Not authorized" });
@@ -5915,10 +5987,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const deletedValue = { ...option };
 
       await storage.deleteServicePricingOption(req.params.id);
-      
+
       // Audit log the deletion
       await logPricingOptionDelete(req.user!.id, req.params.id, deletedValue, req);
-      
+
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting pricing option:", error);
@@ -5931,17 +6003,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/reauth', isAuthenticated, authLimiter, async (req: any, res) => {
     try {
       const { password } = req.body;
-      
+
       if (!password) {
         return res.status(400).json({ message: "Password is required" });
       }
-      
+
       const isValid = await verifyReauthPassword(req.user!.id, password);
-      
+
       if (!isValid) {
         return res.status(401).json({ message: "Invalid password" });
       }
-      
+
       res.json({ success: true, message: "Re-authentication successful" });
     } catch (error) {
       console.error("Re-authentication error:", error);
@@ -5957,7 +6029,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/vendor/availability', isAuthenticated, async (req: any, res) => {
     try {
       const settings = await getVendorAvailabilitySettings(req.user!.id);
-      res.json(settings || { 
+      res.json(settings || {
         defaultWorkingHours: {},
         timezone: 'Europe/Zurich',
         minBookingNoticeHours: 24,
@@ -5984,7 +6056,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/vendor/calendar/blocks', isAuthenticated, async (req: any, res) => {
     try {
       const { startDate, endDate, serviceId } = req.query;
-      
+
       if (!startDate || !endDate) {
         return res.status(400).json({ message: "startDate and endDate are required" });
       }
@@ -6045,7 +6117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/services/:serviceId/available-slots', async (req, res) => {
     try {
       const { date, duration, pricingOptionId } = req.query;
-      
+
       if (!date) {
         return res.status(400).json({ message: "date is required" });
       }
@@ -6067,13 +6139,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/bookings/calculate-price', async (req, res) => {
     try {
       const { serviceId, pricingOptionId, startTime, endTime, context } = req.body;
-      
+
       if (!serviceId || !startTime || !endTime) {
         return res.status(400).json({ message: "serviceId, startTime, and endTime are required" });
       }
 
       const { calculateBookingPrice } = await import('./pricingCalculationService');
-      
+
       const breakdown = await calculateBookingPrice({
         serviceId,
         pricingOptionId,
@@ -6081,7 +6153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         endTime: new Date(endTime),
         context,
       });
-      
+
       res.json(breakdown);
     } catch (error: any) {
       console.error("Error calculating price:", error);
@@ -6093,7 +6165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/bookings', isAuthenticated, async (req: any, res) => {
     try {
       const { paymentMethod, pricingOptionId, ...bookingData } = req.body;
-      
+
       const booking = await createBookingRequest({
         customerId: req.user!.id,
         ...bookingData,
@@ -6128,7 +6200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         if (amount > 0) {
           const baseUrl = process.env.CLIENT_URL || req.headers.origin || 'http://localhost:5173';
-          
+
           const checkoutResult = await createBookingCheckoutSession({
             bookingId: booking.id,
             customerId: req.user!.id,
@@ -6212,13 +6284,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!booking) {
         return res.status(404).json({ message: "Booking not found" });
       }
-      
+
       // Add queue position if pending
       let queuePosition = null;
       if (booking.status === 'pending') {
         queuePosition = await getQueuePosition(booking.id);
       }
-      
+
       res.json({ ...booking, queuePosition });
     } catch (error) {
       console.error("Error fetching booking:", error);
@@ -6252,7 +6324,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/bookings/:id/propose-alternative', isAuthenticated, async (req: any, res) => {
     try {
       const { alternativeStartTime, alternativeEndTime, message, expiryHours } = req.body;
-      
+
       if (!alternativeStartTime || !alternativeEndTime) {
         return res.status(400).json({ message: "Alternative times are required" });
       }
@@ -6332,12 +6404,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { role, limit = 20, offset = 0, status, savedOnly } = req.query;
       const userId = req.user!.id;
       const roleParam = (role as 'customer' | 'vendor' | 'both') || 'both';
-      
+
       console.log(`[GET /api/chat/conversations] Fetching for user ${userId} with role ${roleParam}`, {
         status,
         savedOnly,
       });
-      
+
       const conversations = await getUserConversations(
         userId,
         roleParam,
@@ -6348,7 +6420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           savedOnly: savedOnly === 'true',
         }
       );
-      
+
       console.log(`[GET /api/chat/conversations] Returning ${conversations.length} conversations`);
       res.json(conversations);
     } catch (error) {
@@ -6372,7 +6444,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/chat/conversations', isAuthenticated, async (req: any, res) => {
     try {
       const { vendorId, customerId, bookingId, orderId, serviceId } = req.body;
-      
+
       if (!vendorId) {
         return res.status(400).json({ message: "vendorId is required" });
       }
@@ -6443,7 +6515,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/chat/conversations/:id/messages', isAuthenticated, async (req: any, res) => {
     try {
       const { content, messageType, attachments } = req.body;
-      
+
       // Check if email is verified before allowing message sending
       const user = await storage.getUser(req.user!.id);
       if (!user?.emailVerified) {
@@ -6452,7 +6524,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           requiresEmailVerification: true,
         });
       }
-      
+
       if (!content || content.trim().length === 0) {
         return res.status(400).json({ message: "Message content is required" });
       }
@@ -6487,16 +6559,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const conversationId = req.params.id;
       const userId = req.user!.id;
-      
+
       console.log(`[DELETE] Attempting to delete conversation ${conversationId} for user ${userId}`);
-      
+
       const success = await deleteConversation(conversationId, userId);
-      
+
       if (!success) {
         console.log(`[DELETE] Failed to delete conversation ${conversationId}`);
         return res.status(404).json({ message: "Conversation not found or not authorized" });
       }
-      
+
       console.log(`[DELETE] Successfully deleted conversation ${conversationId}`);
       res.json({ success: true });
     } catch (error: any) {
@@ -6600,7 +6672,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!content) {
         return res.status(400).json({ message: "Content is required" });
       }
-      
+
       const result = moderateMessage(content);
       res.json({
         wouldBeFiltered: !result.isClean,
@@ -6652,11 +6724,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
    */
   app.get('/api/notifications', isAuthenticated, async (req: any, res) => {
     try {
-      const { 
-        limit = '20', 
-        offset = '0', 
+      const {
+        limit = '20',
+        offset = '0',
         unreadOnly = 'false',
-        types 
+        types
       } = req.query;
 
       const result = await getNotifications(req.user!.id, {
@@ -6769,14 +6841,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate input
       const validationResult = updateNotificationPreferencesSchema.safeParse(req.body);
       if (!validationResult.success) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: "Invalid preferences data",
-          errors: validationResult.error.errors 
+          errors: validationResult.error.errors
         });
       }
 
       const preferences = await updateNotificationPreferences(
-        req.user!.id, 
+        req.user!.id,
         validationResult.data
       );
       res.json(preferences);
@@ -6814,14 +6886,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
    */
   app.get('/api/push/vapid-key', (req, res) => {
     if (!isPushEnabled()) {
-      return res.status(503).json({ 
+      return res.status(503).json({
         message: "Push notifications not configured",
-        enabled: false 
+        enabled: false
       });
     }
-    res.json({ 
+    res.json({
       publicKey: getVapidPublicKey(),
-      enabled: true 
+      enabled: true
     });
   });
 
@@ -6868,7 +6940,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const success = await unregisterPushSubscription(req.user!.id, endpoint);
-      
+
       // Check if user has any remaining subscriptions
       const remaining = await getUserSubscriptions(req.user!.id);
       if (remaining.length === 0) {
@@ -6936,11 +7008,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const successful = results.filter(r => r.status === "fulfilled").length;
       const failed = results.filter(r => r.status === "rejected").length;
 
-      res.json({ 
-        success: true, 
-        sent: successful, 
+      res.json({
+        success: true,
+        sent: successful,
         failed,
-        total: targetUserIds.length 
+        total: targetUserIds.length
       });
     } catch (error) {
       console.error("Error broadcasting notification:", error);
@@ -6956,11 +7028,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get notification stats from DB
       const totalNotifications = await db.select({ count: sql<number>`count(*)::int` })
         .from(notifications);
-      
+
       const unreadNotifications = await db.select({ count: sql<number>`count(*)::int` })
         .from(notifications)
         .where(eq(notifications.isRead, false));
-      
+
       const pushSubscriptionsCount = await db.select({ count: sql<number>`count(*)::int` })
         .from(pushSubscriptions)
         .where(eq(pushSubscriptions.isActive, true));
@@ -7000,24 +7072,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (process.env.NODE_ENV === 'production') {
       return res.status(403).json({ message: "Not available in production" });
     }
-    
+
     try {
       const result = await initializeTestUsers();
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         message: "Test users bootstrapped",
         users: {
-          admin: { 
+          admin: {
             id: result.admin.id,
             email: result.admin.email,
             created: result.admin.created,
           },
-          customer: { 
+          customer: {
             id: result.customer.id,
             email: result.customer.email,
             created: result.customer.created,
           },
-          vendor: { 
+          vendor: {
             id: result.vendor.id,
             email: result.vendor.email,
             created: result.vendor.created,
@@ -7036,21 +7108,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/test-users/initialize', isAdmin, async (req: any, res) => {
     try {
       const result = await initializeTestUsers();
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         message: "Test users initialized",
         users: {
-          admin: { 
+          admin: {
             id: result.admin.id,
             email: result.admin.email,
             created: result.admin.created,
           },
-          customer: { 
+          customer: {
             id: result.customer.id,
             email: result.customer.email,
             created: result.customer.created,
           },
-          vendor: { 
+          vendor: {
             id: result.vendor.id,
             email: result.vendor.email,
             created: result.vendor.created,
@@ -7138,12 +7210,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { runId, dryRun = false } = req.body;
       const result = await cleanupTestData({ runId, dryRun });
-      res.json({ 
+      res.json({
         success: result.errors.length === 0,
         dryRun,
         deleted: result.deleted,
         errors: result.errors,
-        message: dryRun 
+        message: dryRun
           ? "Dry run completed - no data was actually deleted"
           : "Test data cleaned up successfully",
       });
@@ -7204,29 +7276,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (process.env.NODE_ENV === 'production') {
       return res.status(403).json({ message: "Not available in production" });
     }
-    
+
     try {
       const { createBugReport, findDuplicateReport } = await import('./bugReportService');
-      
+
       // Check for duplicate first
       const duplicate = await findDuplicateReport(
         req.body.testFile,
         req.body.testName,
         req.body.errorMessage
       );
-      
+
       if (duplicate) {
-        return res.json({ 
-          success: true, 
+        return res.json({
+          success: true,
           bugReportId: duplicate,
           isDuplicate: true,
           message: "Duplicate bug report found",
         });
       }
-      
+
       const bugReportId = await createBugReport(req.body);
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         bugReportId,
         isDuplicate: false,
         message: "Bug report created",
@@ -7244,14 +7316,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { getBugReports } = await import('./bugReportService');
       const { status, priority, limit, offset } = req.query;
-      
+
       const result = await getBugReports({
         status: status as string,
         priority: priority as string,
         limit: limit ? parseInt(limit as string) : undefined,
         offset: offset ? parseInt(offset as string) : undefined,
       });
-      
+
       res.json(result);
     } catch (error) {
       console.error("Error fetching bug reports:", error);
@@ -7280,11 +7352,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { getBugReportById } = await import('./bugReportService');
       const report = await getBugReportById(req.params.id);
-      
+
       if (!report) {
         return res.status(404).json({ message: "Bug report not found" });
       }
-      
+
       res.json(report);
     } catch (error) {
       console.error("Error fetching bug report:", error);
@@ -7299,13 +7371,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { updateBugReportStatus } = await import('./bugReportService');
       const { status, resolution } = req.body;
-      
+
       const success = await updateBugReportStatus(req.params.id, status, resolution);
-      
+
       if (!success) {
         return res.status(404).json({ message: "Bug report not found" });
       }
-      
+
       res.json({ success: true, message: "Status updated" });
     } catch (error) {
       console.error("Error updating bug report status:", error);
@@ -7320,13 +7392,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { updateBugReportPriority } = await import('./bugReportService');
       const { priority } = req.body;
-      
+
       const success = await updateBugReportPriority(req.params.id, priority);
-      
+
       if (!success) {
         return res.status(404).json({ message: "Bug report not found" });
       }
-      
+
       res.json({ success: true, message: "Priority updated" });
     } catch (error) {
       console.error("Error updating bug report priority:", error);
@@ -7341,7 +7413,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { cleanupOldReports } = await import('./bugReportService');
       const { daysOld = 30 } = req.body;
-      
+
       const deleted = await cleanupOldReports(daysOld);
       res.json({ success: true, deleted, message: `Cleaned up ${deleted} old reports` });
     } catch (error) {
@@ -7397,14 +7469,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const { validateTestBypassRequest, createTestBooking } = await import('./testBypass');
-      
+
       const validation = validateTestBypassRequest(req, 'create-booking');
       if (!validation.valid) {
         return res.status(403).json({ message: validation.error });
       }
 
       const { serviceId, startTime, endTime, status, message } = req.body;
-      
+
       const booking = await createTestBooking({
         customerId: validation.userId!,
         serviceId,
@@ -7431,7 +7503,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const { validateTestBypassRequest, updateTestBookingStatus } = await import('./testBypass');
-      
+
       const validation = validateTestBypassRequest(req, 'update-booking');
       if (!validation.valid) {
         return res.status(403).json({ message: validation.error });
@@ -7461,7 +7533,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const { validateTestBypassRequest, fastForwardBooking } = await import('./testBypass');
-      
+
       const validation = validateTestBypassRequest(req, 'fast-forward');
       if (!validation.valid) {
         return res.status(403).json({ message: validation.error });
@@ -7491,14 +7563,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const { validateTestBypassRequest, createTestReview } = await import('./testBypass');
-      
+
       const validation = validateTestBypassRequest(req, 'create-review');
       if (!validation.valid) {
         return res.status(403).json({ message: validation.error });
       }
 
       const { vendorId, serviceId, bookingId, rating, title, comment } = req.body;
-      
+
       const review = await createTestReview({
         customerId: validation.userId!,
         vendorId,
@@ -7526,14 +7598,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const { validateTestBypassRequest, createTestTip } = await import('./testBypass');
-      
+
       const validation = validateTestBypassRequest(req, 'create-tip');
       if (!validation.valid) {
         return res.status(403).json({ message: validation.error });
       }
 
       const { vendorId, bookingId, amount, message } = req.body;
-      
+
       const tip = await createTestTip({
         customerId: validation.userId!,
         vendorId,
@@ -7559,14 +7631,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const { validateTestBypassRequest, createTestNotification } = await import('./testBypass');
-      
+
       const validation = validateTestBypassRequest(req, 'create-notification');
       if (!validation.valid) {
         return res.status(403).json({ message: validation.error });
       }
 
       const { userId, type, title, message, actionUrl, metadata } = req.body;
-      
+
       const notification = await createTestNotification({
         userId: userId || validation.userId!,
         type,
@@ -7593,14 +7665,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const { validateTestBypassRequest, createTestDispute } = await import('./testBypass');
-      
+
       const validation = validateTestBypassRequest(req, 'create-dispute');
       if (!validation.valid) {
         return res.status(403).json({ message: validation.error });
       }
 
       const { bookingId, reason, amount } = req.body;
-      
+
       const dispute = await createTestDispute({
         bookingId,
         raisedBy: validation.userId!,
@@ -7625,14 +7697,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const { validateTestBypassRequest, createCompleteTestScenario } = await import('./testBypass');
-      
+
       const validation = validateTestBypassRequest(req, 'create-scenario');
       if (!validation.valid) {
         return res.status(403).json({ message: validation.error });
       }
 
       const { vendorId, serviceId, rating } = req.body;
-      
+
       const scenario = await createCompleteTestScenario({
         customerId: validation.userId!,
         vendorId,

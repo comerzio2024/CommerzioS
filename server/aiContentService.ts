@@ -196,7 +196,7 @@ Consider Swiss market rates and service complexity.`
     });
 
     const result = JSON.parse(response.choices[0]?.message?.content || "{}");
-    
+
     return {
       type: result.type || "text",
       price: result.price,
@@ -252,7 +252,7 @@ Be strict but fair. Swiss marketplace context - multiple languages are normal.`
     });
 
     const result = JSON.parse(response.choices[0]?.message?.content || "{}");
-    
+
     return {
       isClean: result.isClean ?? true,
       filtered: result.filtered || text,
@@ -342,8 +342,10 @@ export async function suggestAllFields(
 1. **Title**: A professional, concise title (max 100 chars) describing the service
 2. **Description**: A detailed, professional description (100-300 words) highlighting features and benefits
 3. **Category**: The most appropriate category slug from the list below
-4. **Subcategory**: The most appropriate subcategory slug (or null if none fits well)
+4. **Subcategory**: ALWAYS provide a subcategory slug. If one from the list fits well, use it. If not, CREATE a new descriptive subcategory slug (lowercase-with-dashes format, e.g., "accordion-lessons", "pet-photography", "custom-tailoring")
 5. **Hashtags**: 5-8 relevant hashtags (without # symbol) for discoverability
+
+IMPORTANT: You MUST always provide a subcategorySlug - never return null. Create a descriptive new subcategory if needed.
 
 ${currentTitle ? `Current title hint: "${currentTitle}"` : ''}
 
@@ -354,7 +356,7 @@ Return a JSON object with this exact structure:
   "title": "Professional service title here",
   "description": "Detailed description here...",
   "categorySlug": "category-slug",
-  "subcategorySlug": "subcategory-slug or null",
+  "subcategorySlug": "subcategory-slug (REQUIRED - create one if needed)",
   "hashtags": ["tag1", "tag2", "tag3"],
   "confidence": 0.85
 }`
@@ -376,7 +378,7 @@ Return a JSON object with this exact structure:
       description: result.description || "Professional service available. Contact for more details.",
       categorySlug: result.categorySlug || "home-services",
       subcategorySlug: result.subcategorySlug || null,
-      hashtags: Array.isArray(result.hashtags) 
+      hashtags: Array.isArray(result.hashtags)
         ? result.hashtags.map((t: string) => t.toLowerCase().replace(/^#/, '').trim()).filter(Boolean).slice(0, 10)
         : [],
       confidence: result.confidence || 0.7,
