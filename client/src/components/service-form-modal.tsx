@@ -1817,9 +1817,9 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                 {/* Pricing & Plans Tab */}
                 <TabsContent value="pricing" className="space-y-6 mt-0">
                   {/* Pricing Type Section */}
-                  <div className="rounded-xl border bg-gradient-to-br from-amber-50/50 to-white p-6 space-y-4">
+                  <div className="rounded-xl border bg-gradient-to-br from-amber-500/10 to-card p-6 space-y-4">
                     <div className="flex items-center gap-2">
-                      <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
                         <DollarSign className="w-5 h-5 text-amber-600" />
                       </div>
                       <div>
@@ -1913,7 +1913,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                       ) : (
                         <div className="space-y-3">
                           {formData.priceList.map((item: PriceItem, idx: number) => (
-                            <div key={idx} className="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-lg">
+                            <div key={idx} className="grid grid-cols-3 gap-2 bg-muted p-3 rounded-lg">
                               <Input
                                 placeholder="Description (e.g., Basic)"
                                 value={item.description}
@@ -1969,9 +1969,9 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                   )}
 
                   {/* Accepted Payment Methods Section */}
-                  <div className="rounded-xl border bg-gradient-to-br from-green-50/50 to-white p-6 space-y-4">
+                  <div className="rounded-xl border bg-gradient-to-br from-green-500/10 to-card p-6 space-y-4">
                     <div className="flex items-center gap-2">
-                      <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center">
                         <CreditCard className="w-5 h-5 text-green-600" />
                       </div>
                       <div>

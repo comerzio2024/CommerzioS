@@ -5,6 +5,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import cron from "node-cron";
 import { runEscrowAutoReleaseTasks } from "./services/escrowAutoReleaseService";
 import { sendBookingReminders, sendVendorBookingReminders } from "./bookingReminderService";
+import { autoArchiveExpiredListings } from "./services/autoArchiveService";
 
 const app = express();
 
@@ -25,7 +26,7 @@ app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
-    
+
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -86,15 +87,15 @@ app.use((req, res, next) => {
   // Seed database with initial data
   const { seedDatabase } = await import("./seed");
   await seedDatabase();
-  
+
   // Seed admin user if needed
   const { seedAdminIfNeeded } = await import("./adminAuth");
   await seedAdminIfNeeded();
-  
+
   // Verify email service connection
   const { verifyEmailConnection } = await import("./emailService");
   await verifyEmailConnection();
-  
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -112,13 +113,13 @@ app.use((req, res, next) => {
   // API_ONLY mode: Set API_ONLY=true for split architecture (Railway API + Vercel frontend)
   // In API_ONLY mode, we don't serve any frontend files - just the API
   const isApiOnly = process.env.API_ONLY === 'true';
-  
+
   if (isApiOnly) {
     log('Running in API_ONLY mode - not serving frontend');
     // Add a simple health check / info endpoint at root
     app.get('/', (_req, res) => {
-      res.json({ 
-        status: 'ok', 
+      res.json({
+        status: 'ok',
         service: 'Commerzio API',
         mode: 'api-only',
         timestamp: new Date().toISOString()
@@ -139,14 +140,14 @@ app.use((req, res, next) => {
   // Bind using a simple host/port configuration for maximum compatibility.
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
-    
+
     // Register escrow auto-release cron job (runs every hour)
     cron.schedule('0 * * * *', async () => {
       log('[Cron] Running escrow auto-release tasks...');
       await runEscrowAutoReleaseTasks();
     });
     log('✓ Escrow auto-release cron job registered (hourly)');
-    
+
     // Register booking reminder cron job (runs every 5 minutes)
     cron.schedule('*/5 * * * *', async () => {
       try {
@@ -160,5 +161,19 @@ app.use((req, res, next) => {
       }
     });
     log('✓ Booking reminder cron job registered (every 5 minutes)');
+
+    // Register auto-archive cron job (runs daily at 2:00 AM)
+    cron.schedule('0 2 * * *', async () => {
+      try {
+        log('[Cron] Running auto-archive for expired listings...');
+        const archivedCount = await autoArchiveExpiredListings();
+        if (archivedCount > 0) {
+          log(`[Cron] Auto-archived ${archivedCount} expired listings`);
+        }
+      } catch (error) {
+        console.error('[Cron] Auto-archive error:', error);
+      }
+    });
+    log('✓ Auto-archive cron job registered (daily at 2:00 AM)');
   });
 })();
