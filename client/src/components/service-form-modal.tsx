@@ -130,6 +130,10 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
   const [pendingPackageChange, setPendingPackageChange] = useState<string | null>(null);
   const [showDraftWarning, setShowDraftWarning] = useState(false);
 
+  // Publish/Draft confirmation when extra images will be deleted
+  const [showPublishWarning, setShowPublishWarning] = useState(false);
+  const [pendingPublishAction, setPendingPublishAction] = useState<"publish" | "draft" | null>(null);
+
   // Refs for scrolling to error fields
   const titleRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
@@ -1158,30 +1162,16 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
         return;
       }
 
-      // CRITICAL: Enforce image limit for free plan before publishing
-      // If user doesn't have a paid package selected, they can only have FREE_PLAN_LIMIT images
-      let finalFormData = { ...formData, locations: validLocations };
-
+      // CRITICAL: Check if extra images need to be deleted (no package but >4 images)
+      // Show confirmation dialog instead of auto-trimming
       if (!formData.selectedPromotionalPackage && formData.images.length > FREE_PLAN_LIMIT) {
-        // Trim images to free plan limit
-        const trimmedImages = formData.images.slice(0, FREE_PLAN_LIMIT);
-        const trimmedMetadata = (formData.imageMetadata || []).slice(0, FREE_PLAN_LIMIT);
-        const trimmedMainIndex = Math.min(formData.mainImageIndex, FREE_PLAN_LIMIT - 1);
-
-        finalFormData = {
-          ...finalFormData,
-          images: trimmedImages,
-          imageMetadata: trimmedMetadata,
-          mainImageIndex: trimmedMainIndex,
-        };
-
-        toast({
-          title: "Images Limited",
-          description: `Only ${FREE_PLAN_LIMIT} photos saved (free plan limit). Upgrade to Featured for more.`,
-        });
+        setPendingPublishAction("publish");
+        setShowPublishWarning(true);
+        return; // Wait for user confirmation
       }
 
-      createServiceMutation.mutate({ data: finalFormData, status: "active" });
+      // No extra images or package selected - proceed normally
+      createServiceMutation.mutate({ data: { ...formData, locations: validLocations }, status: "active" });
     }
   };
 
@@ -1219,30 +1209,54 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
       return;
     }
 
-    // CRITICAL: Enforce image limit for free plan before saving draft
-    // If user doesn't have a paid package selected, they can only keep FREE_PLAN_LIMIT images  
-    let draftData = { ...formData, locations: validLocations };
-
+    // CRITICAL: Check if extra images need to be deleted (no package but >4 images)
+    // Show confirmation dialog instead of auto-trimming
     if (!formData.selectedPromotionalPackage && formData.images.length > FREE_PLAN_LIMIT) {
-      // Trim images to free plan limit
-      const trimmedImages = formData.images.slice(0, FREE_PLAN_LIMIT);
-      const trimmedMetadata = (formData.imageMetadata || []).slice(0, FREE_PLAN_LIMIT);
-      const trimmedMainIndex = Math.min(formData.mainImageIndex, FREE_PLAN_LIMIT - 1);
-
-      draftData = {
-        ...draftData,
-        images: trimmedImages,
-        imageMetadata: trimmedMetadata,
-        mainImageIndex: trimmedMainIndex,
-      };
-
-      toast({
-        title: "Draft Saved with Limited Images",
-        description: `Only ${FREE_PLAN_LIMIT} photos saved. Select Featured package to keep all ${formData.images.length} photos.`,
-      });
+      setPendingPublishAction("draft");
+      setShowPublishWarning(true);
+      return; // Wait for user confirmation
     }
 
-    createServiceMutation.mutate({ data: draftData, status: "draft" });
+    // No extra images or package selected - proceed normally
+    createServiceMutation.mutate({ data: { ...formData, locations: validLocations }, status: "draft" });
+  };
+
+  // Handler for confirming publish/draft when extra images will be deleted
+  const confirmPublishWithTrimmedImages = () => {
+    if (!formData || !pendingPublishAction) return;
+
+    const validLocations = formData.locations.filter((l: string | undefined) => l && typeof l === 'string' && l.trim());
+
+    // Trim images to free plan limit
+    const trimmedImages = formData.images.slice(0, FREE_PLAN_LIMIT);
+    const trimmedMetadata = (formData.imageMetadata || []).slice(0, FREE_PLAN_LIMIT);
+    const trimmedMainIndex = Math.min(formData.mainImageIndex, FREE_PLAN_LIMIT - 1);
+
+    const finalData = {
+      ...formData,
+      locations: validLocations,
+      images: trimmedImages,
+      imageMetadata: trimmedMetadata,
+      mainImageIndex: trimmedMainIndex,
+    };
+
+    const status = pendingPublishAction === "publish" ? "active" : "draft";
+    createServiceMutation.mutate({ data: finalData, status });
+
+    setShowPublishWarning(false);
+    setPendingPublishAction(null);
+  };
+
+  // Cancel publish warning - go back to form
+  const cancelPublishWarning = () => {
+    setShowPublishWarning(false);
+    setPendingPublishAction(null);
+    // Navigate to pricing tab so user can select a package
+    setActiveTab("pricing");
+    toast({
+      title: "Select a Package",
+      description: "Choose Featured to keep all your photos, or remove extra photos manually.",
+    });
   };
 
   const verificationEnabled = settings?.requireEmailVerification || settings?.requirePhoneVerification;
@@ -2407,6 +2421,34 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
             </AlertDialogCancel>
             <AlertDialogAction onClick={confirmDowngrade} className="bg-destructive hover:bg-destructive/90">
               Delete Extra Photos
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Publish/Draft Warning Dialog - shown when publishing with extra images on free plan */}
+      <AlertDialog open={showPublishWarning} onOpenChange={setShowPublishWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-500" />
+              {formData?.images.length - FREE_PLAN_LIMIT} Extra Photo(s) Will Be Deleted
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              You're {pendingPublishAction === "publish" ? "publishing" : "saving as draft"} without a Featured package.
+              <br /><br />
+              The free plan only allows <strong>{FREE_PLAN_LIMIT} photos</strong>.
+              Photos {FREE_PLAN_LIMIT + 1}-{formData?.images.length || 0} will be <strong>permanently deleted</strong>.
+              <br /><br />
+              <span className="text-primary font-medium">Upgrade to Featured to keep all {formData?.images.length} photos</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-0">
+            <AlertDialogCancel onClick={cancelPublishWarning}>
+              Choose Package
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmPublishWithTrimmedImages} className="bg-destructive hover:bg-destructive/90">
+              {pendingPublishAction === "publish" ? "Publish" : "Save"} with {FREE_PLAN_LIMIT} Photos
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
