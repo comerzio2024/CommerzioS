@@ -414,213 +414,212 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Sticky Category Bar - Show if we have search location OR map is visible */}
+      {/* Sticky Category Bar - Only show if we have search location OR map is visible */}
       {(searchLocation || isMapVisible) && (
-        <>
-          <StickyCategoryBar
-            categories={categories}
-            selectedCategory={selectedCategory}
-            onCategoryChange={setSelectedCategory}
-            serviceCount={services.length}
-            categoryCounts={categoryCounts}
-            newCounts={{}}
-          />
+        <StickyCategoryBar
+          categories={categories}
+          selectedCategory={selectedCategory}
+          onCategoryChange={setSelectedCategory}
+          serviceCount={services.length}
+          categoryCounts={categoryCounts}
+          newCounts={{}}
+        />
+      )}
 
-          <section ref={nearbyServicesSectionRef} className="py-8 md:py-12 bg-muted/30 border-y border-border">
-            <div className="container mx-auto px-4">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <div className="flex-1">
-                  <div className="flex justify-between items-center w-full mb-2">
-                    <h2 className="text-2xl font-bold flex items-center gap-2">
-                      <MapPin className="text-primary flex-shrink-0" />
-                      <span className="truncate">
-                        {searchLocation
-                          ? `Services Near ${searchLocation.name?.split(',')[2]?.trim() || searchLocation.name?.split(',')[1]?.trim() || searchLocation.name?.split(',')[0]}`
-                          : "Explore Services Map"
-                        }
-                      </span>
-                    </h2>
+      {/* Services Section - Always visible so user can access Open Map button */}
+      <section ref={nearbyServicesSectionRef} className="py-8 md:py-12 bg-muted/30 border-y border-border">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+            <div className="flex-1">
+              <div className="flex justify-between items-center w-full mb-2">
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <MapPin className="text-primary flex-shrink-0" />
+                  <span className="truncate">
+                    {searchLocation
+                      ? `Services Near ${searchLocation.name?.split(',')[2]?.trim() || searchLocation.name?.split(',')[1]?.trim() || searchLocation.name?.split(',')[0]}`
+                      : "Explore Services Map"
+                    }
+                  </span>
+                </h2>
 
-                    {/* Open Map Button - Only shown when map is hidden */}
-                    {!isMapVisible && (
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 text-xs border-primary/20 hover:bg-primary/5 hover:text-primary"
-                          onClick={() => setIsMapVisible(true)}
-                        >
-                          <MapPin className="w-3 h-3 mr-1" />
-                          Open Map
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between mt-2 gap-4">
-                    <p className="text-sm text-muted-foreground">
-                      {searchLocation
-                        ? `Found ${nearbyServices.length} services within ${radiusKm}km`
-                        : "Browse services across Switzerland"
-                      }
-                    </p>
-                    <div className="flex items-center gap-2">
-
-                      {/* Show expand button inline when map is NOT expanded */}
-                      {!isMapExpanded && nearbyServices.length > 0 && !nearbyLoading && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-primary hover:text-primary/80 -mr-2"
-                          onClick={() => setNearbyMode((m) => (m === "slider" ? "grid" : "slider"))}
-                        >
-                          {nearbyMode === "slider" ? "Expand to Grid" : "Minimize to Slider"}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Radius controls - only show when map is expanded */}
-                {isMapExpanded && (
-                  <div className="flex items-center gap-4 w-full md:w-auto">
-                    {/* Slider */}
-                    <div className="flex-1 md:w-[200px] flex items-center gap-3">
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">2km</span>
-                      <Slider
-                        value={[radiusKm]}
-                        min={2}
-                        max={100}
-                        step={1}
-                        onValueChange={(v) => setRadiusKm(v[0])}
-                        className="flex-1"
-                      />
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">100km</span>
-                    </div>
-                    {/* Dropdown shows current value + presets */}
-                    <Select value={radiusKm.toString()} onValueChange={(v) => setRadiusKm(parseInt(v))}>
-                      <SelectTrigger className="w-[100px] bg-background">
-                        <SelectValue placeholder="Radius" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {/* Show current slider value at top if not a preset */}
-                        {!RADIUS_PRESETS.includes(radiusKm) && (
-                          <SelectItem key={radiusKm} value={radiusKm.toString()} className="font-semibold text-primary">
-                            {radiusKm} km
-                          </SelectItem>
-                        )}
-                        {RADIUS_PRESETS.map((km) => (
-                          <SelectItem key={km} value={km.toString()}>
-                            {km} km
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
-
-              <AnimatePresence>
-                {radiusExpansionMessage && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="mb-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg flex justify-between items-center"
-                  >
-                    <div className="flex items-center gap-2 text-sm">
-                      <Sparkles className="w-4 h-4 text-amber-600" />
-                      {radiusExpansionMessage}
-                    </div>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setRadiusExpansionMessage(null)}>
-                      <X className="w-3 h-3" />
-                    </Button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Map Container with Close Button */}
-              {isMapVisible && (
-                <div className="relative">
-                  {/* Close Map Button - Positioned at top-right of map */}
-                  <div className="flex justify-end mb-2">
+                {/* Open Map Button - Only shown when map is hidden */}
+                {!isMapVisible && (
+                  <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 text-xs border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() => setIsMapVisible(false)}
+                      className="h-8 text-xs border-primary/20 hover:bg-primary/5 hover:text-primary"
+                      onClick={() => setIsMapVisible(true)}
                     >
-                      <X className="w-3 h-3 mr-1" />
-                      Close Map
+                      <MapPin className="w-3 h-3 mr-1" />
+                      Open Map
                     </Button>
                   </div>
-                  <GoogleMaps
-                    services={nearbyServices}
-                    userLocation={
-                      searchLocation || {
-                        lat: 46.8182, // Switzerland Center
-                        lng: 8.2275,
-                        name: "Switzerland"
-                      }
-                    }
-                    maxServices={100}
-                    apiKey={mapsConfig?.apiKey || ""}
-                    isExpanded={isMapExpanded}
-                    onExpandedChange={setIsMapExpanded}
-                  />
-                </div>
-              )}
-
-              <div className="mt-8">
-                {nearbyLoading ? (
-                  <div className="flex justify-center py-12">
-                    <Loader2 className="animate-spin" />
-                  </div>
-                ) : nearbyServices.length === 0 && searchLocation ? (
-                  <div className="text-center py-12 text-muted-foreground">No services found in this area.</div>
-                ) : (
-                  <>
-                    {/* Show expand button here only when map IS expanded */}
-                    {isMapExpanded && (
-                      <div className="flex justify-end mb-4">
-                        <Button variant="outline" size="sm" onClick={() => setNearbyMode((m) => (m === "slider" ? "grid" : "slider"))}>
-                          {nearbyMode === "slider" ? "Expand to Grid" : "Minimize to Slider"}
-                        </Button>
-                      </div>
-                    )}
-                    {nearbyMode === "slider" ? (
-                      <Carousel
-                        setApi={setCarouselApi}
-                        opts={{ align: "start", loop: true, duration: 30 }}
-                        className="w-full"
-                        onMouseEnter={() => setIsPaused(true)}
-                        onMouseLeave={() => setIsPaused(false)}
-                      >
-                        <CarouselContent>
-                          {nearbyServices.map((s) => (
-                            <CarouselItem key={s.id} className="md:basis-1/2 lg:basis-1/3 xl:basis-1/4 pl-4">
-                              <div className="h-full p-2">
-                                <ServiceCard service={s} />
-                              </div>
-                            </CarouselItem>
-                          ))}
-                        </CarouselContent>
-                        <CarouselPrevious className="hidden md:flex" />
-                        <CarouselNext className="hidden md:flex" />
-                      </Carousel>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {nearbyServices.map((s) => (
-                          <ServiceCard key={s.id} service={s} />
-                        ))}
-                      </div>
-                    )}
-                  </>
                 )}
               </div>
+              <div className="flex items-center justify-between mt-2 gap-4">
+                <p className="text-sm text-muted-foreground">
+                  {searchLocation
+                    ? `Found ${nearbyServices.length} services within ${radiusKm}km`
+                    : "Browse services across Switzerland"
+                  }
+                </p>
+                <div className="flex items-center gap-2">
+
+                  {/* Show expand button inline when map is NOT expanded */}
+                  {!isMapExpanded && nearbyServices.length > 0 && !nearbyLoading && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-primary hover:text-primary/80 -mr-2"
+                      onClick={() => setNearbyMode((m) => (m === "slider" ? "grid" : "slider"))}
+                    >
+                      {nearbyMode === "slider" ? "Expand to Grid" : "Minimize to Slider"}
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
-          </section>
-        </>
-      )}
+
+            {/* Radius controls - only show when map is expanded */}
+            {isMapExpanded && (
+              <div className="flex items-center gap-4 w-full md:w-auto">
+                {/* Slider */}
+                <div className="flex-1 md:w-[200px] flex items-center gap-3">
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">2km</span>
+                  <Slider
+                    value={[radiusKm]}
+                    min={2}
+                    max={100}
+                    step={1}
+                    onValueChange={(v) => setRadiusKm(v[0])}
+                    className="flex-1"
+                  />
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">100km</span>
+                </div>
+                {/* Dropdown shows current value + presets */}
+                <Select value={radiusKm.toString()} onValueChange={(v) => setRadiusKm(parseInt(v))}>
+                  <SelectTrigger className="w-[100px] bg-background">
+                    <SelectValue placeholder="Radius" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {/* Show current slider value at top if not a preset */}
+                    {!RADIUS_PRESETS.includes(radiusKm) && (
+                      <SelectItem key={radiusKm} value={radiusKm.toString()} className="font-semibold text-primary">
+                        {radiusKm} km
+                      </SelectItem>
+                    )}
+                    {RADIUS_PRESETS.map((km) => (
+                      <SelectItem key={km} value={km.toString()}>
+                        {km} km
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          <AnimatePresence>
+            {radiusExpansionMessage && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="mb-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg flex justify-between items-center"
+              >
+                <div className="flex items-center gap-2 text-sm">
+                  <Sparkles className="w-4 h-4 text-amber-600" />
+                  {radiusExpansionMessage}
+                </div>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setRadiusExpansionMessage(null)}>
+                  <X className="w-3 h-3" />
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Map Container with Close Button */}
+          {isMapVisible && (
+            <div className="relative">
+              {/* Close Map Button - Positioned at top-right of map */}
+              <div className="flex justify-end mb-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => setIsMapVisible(false)}
+                >
+                  <X className="w-3 h-3 mr-1" />
+                  Close Map
+                </Button>
+              </div>
+              <GoogleMaps
+                services={nearbyServices}
+                userLocation={
+                  searchLocation || {
+                    lat: 46.8182, // Switzerland Center
+                    lng: 8.2275,
+                    name: "Switzerland"
+                  }
+                }
+                maxServices={100}
+                apiKey={mapsConfig?.apiKey || ""}
+                isExpanded={isMapExpanded}
+                onExpandedChange={setIsMapExpanded}
+              />
+            </div>
+          )}
+
+          <div className="mt-8">
+            {nearbyLoading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="animate-spin" />
+              </div>
+            ) : nearbyServices.length === 0 && searchLocation ? (
+              <div className="text-center py-12 text-muted-foreground">No services found in this area.</div>
+            ) : (
+              <>
+                {/* Show expand button here only when map IS expanded */}
+                {isMapExpanded && (
+                  <div className="flex justify-end mb-4">
+                    <Button variant="outline" size="sm" onClick={() => setNearbyMode((m) => (m === "slider" ? "grid" : "slider"))}>
+                      {nearbyMode === "slider" ? "Expand to Grid" : "Minimize to Slider"}
+                    </Button>
+                  </div>
+                )}
+                {nearbyMode === "slider" ? (
+                  <Carousel
+                    setApi={setCarouselApi}
+                    opts={{ align: "start", loop: true, duration: 30 }}
+                    className="w-full"
+                    onMouseEnter={() => setIsPaused(true)}
+                    onMouseLeave={() => setIsPaused(false)}
+                  >
+                    <CarouselContent>
+                      {nearbyServices.map((s) => (
+                        <CarouselItem key={s.id} className="md:basis-1/2 lg:basis-1/3 xl:basis-1/4 pl-4">
+                          <div className="h-full p-2">
+                            <ServiceCard service={s} />
+                          </div>
+                        </CarouselItem>
+                      ))}
+                    </CarouselContent>
+                    <CarouselPrevious className="hidden md:flex" />
+                    <CarouselNext className="hidden md:flex" />
+                  </Carousel>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {nearbyServices.map((s) => (
+                      <ServiceCard key={s.id} service={s} />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </section>
 
       {/* How Commerzio Works Section */}
       <section className="py-16 md:py-24 bg-gradient-to-b from-background via-background to-muted/30">
@@ -819,6 +818,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-    </Layout>
+    </Layout >
   );
 }
