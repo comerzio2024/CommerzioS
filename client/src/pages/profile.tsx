@@ -659,6 +659,13 @@ export default function Profile() {
     return myServices.reduce((sum, service) => sum + service.viewCount, 0);
   }, [myServices]);
 
+  // Separate drafts from active/paused services
+  const { activeServices, draftServices } = useMemo(() => {
+    const drafts = myServices.filter(s => s.status === 'draft');
+    const active = myServices.filter(s => s.status !== 'draft');
+    return { activeServices: active, draftServices: drafts };
+  }, [myServices]);
+
   const validateSwissPhoneNumber = (phone: string): boolean => {
     if (!phone) return true; // Empty is valid (optional field)
     // Swiss phone number validation: must start with +41 and have 9-13 digits after
@@ -1694,9 +1701,9 @@ export default function Profile() {
                   <div className="text-center py-12">
                     <p className="text-muted-foreground">Loading your services...</p>
                   </div>
-                ) : myServices.length > 0 ? (
+                ) : activeServices.length > 0 ? (
                   <div className="grid grid-cols-1 gap-6">
-                    {myServices.map(service => {
+                    {activeServices.map(service => {
                       const expired = isExpired(service.expiresAt);
                       return (
                         <div key={service.id} className="flex flex-col md:flex-row gap-6 p-4 border rounded-lg hover:bg-accent transition-colors">
@@ -1788,6 +1795,71 @@ export default function Profile() {
                   </div>
                 )}
               </div>
+
+              {/* Drafts Section */}
+              {draftServices.length > 0 && (
+                <div className="bg-card rounded-xl border border-border shadow-sm p-6 mt-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-xl font-semibold">Drafts</h2>
+                      <Badge variant="secondary">{draftServices.length}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">Continue where you left off</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4">
+                    {draftServices.map(service => (
+                      <div key={service.id} className="flex flex-col md:flex-row gap-4 p-4 border border-dashed rounded-lg hover:bg-accent/50 transition-colors">
+                        <div className="w-full md:w-32 aspect-video bg-muted rounded-md overflow-hidden shrink-0">
+                          {service.images && service.images[0] ? (
+                            <img src={service.images[0]} alt="" className="w-full h-full object-cover opacity-70" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                              <Camera className="w-8 h-8" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 py-1">
+                          <div className="flex items-start justify-between mb-2">
+                            <h3 className="font-medium">
+                              {service.title || <span className="text-muted-foreground italic">Untitled Draft</span>}
+                            </h3>
+                            <Badge variant="outline" className="text-amber-600 border-amber-300">
+                              Draft
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground line-clamp-1 mb-2">
+                            {service.description || 'No description yet'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Last modified: {new Date(service.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex md:flex-col gap-2 justify-center shrink-0">
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => setEditingService(service)}
+                            data-testid={`button-edit-draft-${service.id}`}
+                          >
+                            <Edit2 className="w-3 h-3 mr-2" />
+                            Continue Editing
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDelete(service.id)}
+                            disabled={deleteServiceMutation.isPending}
+                          >
+                            <Trash2 className="w-3 h-3 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="reviews" data-testid="panel-reviews" className="space-y-6">
