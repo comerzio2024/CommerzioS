@@ -441,38 +441,6 @@ export default function Home() {
                     }
                   </span>
                 </h2>
-
-                {/* Map Toggle Button - Always in same position */}
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={`h-8 text-xs ${isMapVisible
-                      ? 'border-destructive/30 hover:bg-destructive/10 hover:text-destructive'
-                      : 'border-primary/20 hover:bg-primary/5 hover:text-primary'}`}
-                    onClick={() => {
-                      if (isMapVisible) {
-                        setIsMapVisible(false);
-                        setIsMapExpanded(false);
-                      } else {
-                        setIsMapVisible(true);
-                        setIsMapExpanded(true); // Must be true for GoogleMaps to render
-                      }
-                    }}
-                  >
-                    {isMapVisible ? (
-                      <>
-                        <X className="w-3 h-3 mr-1" />
-                        Close Map
-                      </>
-                    ) : (
-                      <>
-                        <MapPin className="w-3 h-3 mr-1" />
-                        Open Map
-                      </>
-                    )}
-                  </Button>
-                </div>
               </div>
               <div className="flex items-center justify-between mt-2 gap-4">
                 <p className="text-sm text-muted-foreground">
