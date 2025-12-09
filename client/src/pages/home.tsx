@@ -442,20 +442,36 @@ export default function Home() {
                   </span>
                 </h2>
 
-                {/* Open Map Button - Only shown when map is hidden */}
-                {!isMapVisible && (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 text-xs border-primary/20 hover:bg-primary/5 hover:text-primary"
-                      onClick={() => setIsMapVisible(true)}
-                    >
-                      <MapPin className="w-3 h-3 mr-1" />
-                      Open Map
-                    </Button>
-                  </div>
-                )}
+                {/* Map Toggle Button - Always in same position */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={`h-8 text-xs ${isMapVisible
+                      ? 'border-destructive/30 hover:bg-destructive/10 hover:text-destructive'
+                      : 'border-primary/20 hover:bg-primary/5 hover:text-primary'}`}
+                    onClick={() => {
+                      if (isMapVisible) {
+                        setIsMapVisible(false);
+                        setIsMapExpanded(false);
+                      } else {
+                        setIsMapVisible(true);
+                      }
+                    }}
+                  >
+                    {isMapVisible ? (
+                      <>
+                        <X className="w-3 h-3 mr-1" />
+                        Close Map
+                      </>
+                    ) : (
+                      <>
+                        <MapPin className="w-3 h-3 mr-1" />
+                        Open Map
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
               <div className="flex items-center justify-between mt-2 gap-4">
                 <p className="text-sm text-muted-foreground">
@@ -539,36 +555,22 @@ export default function Home() {
             )}
           </AnimatePresence>
 
-          {/* Map Container with Close Button */}
+          {/* Map Container */}
           {isMapVisible && (
-            <div className="relative">
-              {/* Close Map Button - Positioned at top-right of map */}
-              <div className="flex justify-end mb-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
-                  onClick={() => { setIsMapVisible(false); setIsMapExpanded(false); }}
-                >
-                  <X className="w-3 h-3 mr-1" />
-                  Close Map
-                </Button>
-              </div>
-              <GoogleMaps
-                services={nearbyServices}
-                userLocation={
-                  searchLocation || {
-                    lat: 46.8182, // Switzerland Center
-                    lng: 8.2275,
-                    name: "Switzerland"
-                  }
+            <GoogleMaps
+              services={nearbyServices}
+              userLocation={
+                searchLocation || {
+                  lat: 46.8182, // Switzerland Center
+                  lng: 8.2275,
+                  name: "Switzerland"
                 }
-                maxServices={100}
-                apiKey={mapsConfig?.apiKey || ""}
-                isExpanded={isMapExpanded}
-                onExpandedChange={setIsMapExpanded}
-              />
-            </div>
+              }
+              maxServices={100}
+              apiKey={mapsConfig?.apiKey || ""}
+              isExpanded={isMapExpanded}
+              onExpandedChange={setIsMapExpanded}
+            />
           )}
 
           <div className="mt-8">
