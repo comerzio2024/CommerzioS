@@ -422,14 +422,27 @@ export default function Home() {
           <section ref={nearbyServicesSectionRef} className="py-12 bg-muted/30 border-y border-border">
             <div className="container mx-auto px-4">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <div className="max-w-md">
+                <div className="flex-1">
                   <h2 className="text-2xl font-bold flex items-center gap-2">
                     <MapPin className="text-primary flex-shrink-0" />
                     <span className="truncate">Services Near {searchLocation.name?.split(',')[2]?.trim() || searchLocation.name?.split(',')[1]?.trim() || searchLocation.name?.split(',')[0]}</span>
                   </h2>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Found {nearbyServices.length} services within {radiusKm}km
-                  </p>
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-sm text-muted-foreground">
+                      Found {nearbyServices.length} services within {radiusKm}km
+                    </p>
+                    {/* Show expand button inline when map is NOT expanded */}
+                    {!isMapExpanded && nearbyServices.length > 0 && !nearbyLoading && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-primary hover:text-primary/80 -mr-2"
+                        onClick={() => setNearbyMode((m) => (m === "slider" ? "grid" : "slider"))}
+                      >
+                        {nearbyMode === "slider" ? "Expand to Grid" : "Minimize to Slider"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Radius controls - only show when map is expanded */}
@@ -508,11 +521,14 @@ export default function Home() {
                   <div className="text-center py-12 text-muted-foreground">No services found in this area.</div>
                 ) : (
                   <>
-                    <div className="flex justify-end mb-4">
-                      <Button variant="outline" size="sm" onClick={() => setNearbyMode((m) => (m === "slider" ? "grid" : "slider"))}>
-                        {nearbyMode === "slider" ? "Expand to Grid" : "Minimize to Slider"}
-                      </Button>
-                    </div>
+                    {/* Show expand button here only when map IS expanded */}
+                    {isMapExpanded && (
+                      <div className="flex justify-end mb-4">
+                        <Button variant="outline" size="sm" onClick={() => setNearbyMode((m) => (m === "slider" ? "grid" : "slider"))}>
+                          {nearbyMode === "slider" ? "Expand to Grid" : "Minimize to Slider"}
+                        </Button>
+                      </div>
+                    )}
                     {nearbyMode === "slider" ? (
                       <Carousel
                         setApi={setCarouselApi}
