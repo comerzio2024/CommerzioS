@@ -456,6 +456,7 @@ export default function Home() {
                         setIsMapExpanded(false);
                       } else {
                         setIsMapVisible(true);
+                        setIsMapExpanded(true); // Must be true for GoogleMaps to render
                       }
                     }}
                   >
