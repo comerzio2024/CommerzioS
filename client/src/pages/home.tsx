@@ -365,6 +365,28 @@ export default function Home() {
                 </React.Fragment>
               ))}
             </div>
+
+            {/* Use My Location toggle */}
+            <div className="flex justify-center items-center gap-3 mt-6 flex-wrap">
+              {searchLocation && (
+                <div className="h-11 px-4 flex items-center gap-2 bg-background/90 rounded-lg shadow-md border border-border/50 max-w-xs">
+                  <MapPin className="w-4 h-4 text-primary flex-shrink-0" />
+                  <span className="truncate text-sm font-medium">Near {searchLocation.name?.split(',')[2]?.trim() || searchLocation.name?.split(',')[1]?.trim() || searchLocation.name}</span>
+                </div>
+              )}
+              <Button
+                variant={useLocationPermissions ? "default" : "secondary"}
+                className={`h-11 gap-2 shadow-lg ${useLocationPermissions ? 'bg-primary text-primary-foreground' : 'bg-white dark:bg-slate-800 text-foreground hover:bg-white/90 dark:hover:bg-slate-700'}`}
+                onClick={() => {
+                  const newValue = !useLocationPermissions;
+                  setUseLocationPermissions(newValue);
+                  if (newValue) handleBrowserLocation();
+                }}
+              >
+                <MapPin className="w-4 h-4" />
+                {useLocationPermissions ? "Location Active" : "Use My Location"}
+              </Button>
+            </div>
           </div>
         </div>
       </section>
