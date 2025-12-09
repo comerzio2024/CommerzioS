@@ -2281,12 +2281,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Get AI suggestions for all fields
-      const suggestions = await suggestAllFields(signedUrls, validated.currentTitle);
-
-      // Map category/subcategory slugs to IDs
+      // Fetch categories and subcategories BEFORE AI call so we can pass them to AI
       const allCategories = await storage.getCategories();
       let allSubcategories = await storage.getSubcategories();
+
+      // Build list of existing subcategories with their category slugs for AI
+      const existingSubcategoriesForAI = allSubcategories.map(sub => {
+        const cat = allCategories.find(c => c.id === sub.categoryId);
+        return {
+          name: sub.name,
+          slug: sub.slug,
+          categorySlug: cat?.slug || 'home-services',
+        };
+      });
+
+      // Get AI suggestions for all fields - now with existing subcategories
+      const suggestions = await suggestAllFields(signedUrls, validated.currentTitle, existingSubcategoriesForAI);
 
       const category = allCategories.find(c => c.slug === suggestions.categorySlug);
 

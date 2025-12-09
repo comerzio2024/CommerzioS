@@ -279,7 +279,8 @@ export interface AISuggestAllResult {
 
 export async function suggestAllFields(
   imageUrls: string[],
-  currentTitle?: string
+  currentTitle?: string,
+  existingSubcategories?: Array<{ name: string; slug: string; categorySlug: string }>
 ): Promise<AISuggestAllResult> {
   if (!imageUrls || imageUrls.length === 0) {
     throw new Error("At least one image is required for AI suggestions");
@@ -291,8 +292,25 @@ export async function suggestAllFields(
       image_url: { url }
     }));
 
+    // Build dynamic subcategory list by category
+    let subcategoryList = "";
+    if (existingSubcategories && existingSubcategories.length > 0) {
+      const subcategoriesByCategory: Record<string, string[]> = {};
+      for (const sub of existingSubcategories) {
+        if (!subcategoriesByCategory[sub.categorySlug]) {
+          subcategoriesByCategory[sub.categorySlug] = [];
+        }
+        subcategoriesByCategory[sub.categorySlug].push(sub.slug);
+      }
+
+      subcategoryList = "\n**Existing Subcategories (PRIORITIZE THESE):**\n";
+      for (const [catSlug, subs] of Object.entries(subcategoriesByCategory)) {
+        subcategoryList += `- ${catSlug}: ${subs.join(', ')}\n`;
+      }
+    }
+
     const categoriesAndSubcategories = `
-**Available Categories and Subcategories:**
+**Available Categories and Default Subcategories:**
 
 1. home-services (Home Services)
    - cleaning-housekeeping, plumbing-electrical, painting-renovation, garden-landscaping, moving-delivery, handyman
@@ -323,7 +341,7 @@ export async function suggestAllFields(
 
 10. technology (Technology & IT)
     - computer-repair, software-development, network-security, website-maintenance, cloud-devops
-`;
+${subcategoryList}`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -342,10 +360,12 @@ export async function suggestAllFields(
 1. **Title**: A professional, concise title (max 100 chars) describing the service
 2. **Description**: A detailed, professional description (100-300 words) highlighting features and benefits
 3. **Category**: The most appropriate category slug from the list below
-4. **Subcategory**: ALWAYS provide a subcategory slug. If one from the list fits well, use it. If not, CREATE a new descriptive subcategory slug (lowercase-with-dashes format, e.g., "accordion-lessons", "pet-photography", "custom-tailoring")
+4. **Subcategory**: ALWAYS provide a subcategory slug. 
+   - IMPORTANT: First check if ANY existing subcategory (from "Existing Subcategories" section) matches the service well. Use the EXACT slug from the existing list if it fits.
+   - Only create a new descriptive subcategory slug (lowercase-with-dashes format) if NO existing subcategory matches.
 5. **Hashtags**: Up to 5 relevant hashtags (without # symbol) for discoverability
 
-IMPORTANT: You MUST always provide a subcategorySlug - never return null. Create a descriptive new subcategory if needed.
+CRITICAL: You MUST prioritize using existing subcategories. Only create new subcategory slugs when absolutely necessary.
 
 ${currentTitle ? `Current title hint: "${currentTitle}"` : ''}
 
@@ -356,7 +376,7 @@ Return a JSON object with this exact structure:
   "title": "Professional service title here",
   "description": "Detailed description here...",
   "categorySlug": "category-slug",
-  "subcategorySlug": "subcategory-slug (REQUIRED - create one if needed)",
+  "subcategorySlug": "subcategory-slug (use existing one if possible!)",
   "hashtags": ["tag1", "tag2", "tag3"],
   "confidence": 0.85
 }`
