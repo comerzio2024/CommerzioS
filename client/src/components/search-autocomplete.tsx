@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { Search, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 interface SearchResult {
   id: string;
@@ -11,13 +12,32 @@ interface SearchResult {
   priceUnit: string;
 }
 
-export function SearchAutocomplete() {
+interface SearchAutocompleteProps {
+  value?: string;
+  onChange?: (value: string) => void;
+  onSearch?: (term: string) => void;
+  placeholder?: string;
+  className?: string;
+  inputClassName?: string;
+}
+
+export function SearchAutocomplete({
+  value: controlledValue,
+  onChange: setControlledValue,
+  onSearch,
+  placeholder = "Search services...",
+  className,
+  inputClassName
+}: SearchAutocompleteProps) {
   const [, setLocation] = useLocation();
-  const [query, setQuery] = useState("");
+  const [internalQuery, setInternalQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+
+  const query = controlledValue ?? internalQuery;
+  const setQuery = setControlledValue ?? setInternalQuery;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -25,7 +45,7 @@ export function SearchAutocomplete() {
         setIsOpen(false);
       }
     };
-    
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -46,11 +66,11 @@ export function SearchAutocomplete() {
           `/api/services/search?q=${encodeURIComponent(query)}&limit=5`,
           { signal: abortController.signal }
         );
-        
+
         if (!response.ok) {
           throw new Error(`Search failed: ${response.status}`);
         }
-        
+
         const data = await response.json();
         setResults(data);
         setIsOpen(data.length > 0);
@@ -79,41 +99,51 @@ export function SearchAutocomplete() {
     setLocation(`/service/${serviceId}`);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      setIsOpen(false);
-      if (query.trim()) {
+  const handleSearchCommit = () => {
+    setIsOpen(false);
+    if (query.trim()) {
+      if (onSearch) {
+        onSearch(query.trim());
+      } else {
         setLocation(`/search?q=${encodeURIComponent(query.trim())}`);
-        setQuery("");
+        if (setControlledValue === undefined) {
+          setInternalQuery("");
+        }
         setResults([]);
       }
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSearchCommit();
+    }
+  };
+
   return (
-    <div ref={searchRef} className="relative w-full max-w-md" data-testid="search-autocomplete">
+    <div ref={searchRef} className={cn("relative w-full max-w-md", className)} data-testid="search-autocomplete">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground z-10" />
         <Input
           type="text"
-          placeholder="Search services..."
+          placeholder={placeholder}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={() => {
             if (results.length > 0) setIsOpen(true);
           }}
-          className="pl-10 pr-10"
+          className={cn("pl-10 pr-10", inputClassName)}
           data-testid="input-search"
         />
         {isLoading && (
-          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground z-10" />
         )}
       </div>
 
       {isOpen && results.length > 0 && (
-        <div className="absolute top-full mt-2 w-full bg-card rounded-lg shadow-lg border z-50 max-h-96 overflow-y-auto">
+        <div className="absolute top-full mt-2 w-full bg-card rounded-lg shadow-lg border z-[100] max-h-96 overflow-y-auto">
           {results.map((result) => (
             <button
               key={result.id}
@@ -129,8 +159,12 @@ export function SearchAutocomplete() {
               </div>
             </button>
           ))}
-          <div className="px-4 py-2 text-xs text-muted-foreground bg-slate-50 border-t flex items-center justify-between">
-            <span>Press <kbd className="px-1.5 py-0.5 rounded bg-slate-200 font-mono text-[10px]">Enter</kbd> to see all results</span>
+          <div
+            className="px-4 py-2 text-xs text-muted-foreground bg-slate-50 border-t flex items-center justify-between cursor-pointer hover:bg-slate-100 transition-colors"
+            onClick={handleSearchCommit}
+          >
+            <span className="hidden md:inline">Press <kbd className="px-1.5 py-0.5 rounded bg-slate-200 font-mono text-[10px]">Enter</kbd> to see all results</span>
+            <span className="md:hidden font-medium text-primary">Tap to see all results</span>
             <span>{results.length} suggestions</span>
           </div>
         </div>
