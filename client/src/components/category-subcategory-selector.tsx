@@ -38,10 +38,23 @@ export function CategorySubcategorySelector({
 
   const { data: allSubcategories = [], isLoading: subcategoriesLoading } = useSubcategories();
 
+  // Find the selected subcategory object (for ensuring it's always visible)
+  const selectedSubcategoryObj = subcategoryId
+    ? allSubcategories.find(sub => sub.id === subcategoryId)
+    : null;
+
   const filteredSubcategories = useMemo(() => {
     if (!categoryId) return [];
-    return allSubcategories.filter(sub => sub.categoryId === categoryId);
-  }, [categoryId, allSubcategories]);
+    const filtered = allSubcategories.filter(sub => sub.categoryId === categoryId);
+
+    // IMPORTANT: Always include the selected subcategory if it's not already in the list
+    // This ensures the Select component shows the value even if filtering would exclude it
+    if (selectedSubcategoryObj && !filtered.some(sub => sub.id === subcategoryId)) {
+      return [...filtered, selectedSubcategoryObj];
+    }
+
+    return filtered;
+  }, [categoryId, allSubcategories, subcategoryId, selectedSubcategoryObj]);
 
   const isCategoryAiSuggested = !isManualOverride && aiSuggestion?.categoryId === categoryId;
   const isSubcategoryAiSuggested = !isManualOverride && aiSuggestion?.subcategoryId === subcategoryId && subcategoryId !== null;
