@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel";
-import { Sparkles, MapPin, Loader2, X, Sliders } from "lucide-react";
+import { Sparkles, MapPin, Loader2, X, Sliders, Search } from "lucide-react";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -42,6 +42,8 @@ export default function Home() {
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const nearbyServicesSectionRef = useRef<HTMLElement>(null);
   const autoExpandTriggeredRef = useRef(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const [serviceSearchQuery, setServiceSearchQuery] = useState("");
 
   const {
     query: locationSearchQuery,
@@ -237,6 +239,44 @@ export default function Home() {
     }
   };
 
+  // Click outside to close suggestions
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        clearSuggestions();
+        setLocationSearchQuery("");
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [clearSuggestions, setLocationSearchQuery]);
+
+  // Popular search terms
+  const popularSearches = ["Plumber", "Electrician", "Cleaning", "Tutoring"];
+
+  // Handle popular tag click
+  const handlePopularClick = (term: string) => {
+    setServiceSearchQuery(term);
+    // Navigate to search page with term
+    window.location.href = `/search?q=${encodeURIComponent(term)}`;
+  };
+
+  // Handle combined search
+  const handleCombinedSearch = () => {
+    const params = new URLSearchParams();
+    if (serviceSearchQuery.trim()) params.set("q", serviceSearchQuery.trim());
+    if (locationSearchQuery.trim()) {
+      handleLocationSearch();
+    } else if (searchLocation) {
+      params.set("lat", searchLocation.lat.toString());
+      params.set("lng", searchLocation.lng.toString());
+      params.set("location", searchLocation.name);
+    }
+    if (serviceSearchQuery.trim() || searchLocation) {
+      window.location.href = `/search?${params.toString()}`;
+    }
+  };
+
   return (
     <Layout>
       <section className="relative border-b overflow-hidden min-h-[600px]">
@@ -247,25 +287,47 @@ export default function Home() {
               <Sparkles className="h-4 w-4 mr-2" />
               Trusted by 50,000+ Swiss Customers
             </Badge>
-            <h1 className="text-4xl md:text-7xl font-bold mb-6 text-white [text-shadow:_0_4px_24px_rgb(0_0_0_/_50%),_0_2px_8px_rgb(0_0_0_/_40%)]">
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 text-white [text-shadow:_0_4px_24px_rgb(0_0_0_/_50%),_0_2px_8px_rgb(0_0_0_/_40%)]">
               The complete platform to discover{" "}
               <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent [text-shadow:none]">local services</span>
             </h1>
 
-            {/* Search Box - subtle dark transparency, no glass effect */}
-            <div className="bg-black/20 rounded-2xl p-4 md:p-6 max-w-2xl mx-auto mb-6">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1 text-left">
-                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground z-10" />
+            {/* Subtitle */}
+            <p className="text-lg md:text-xl text-white/80 mb-10 max-w-2xl mx-auto [text-shadow:_0_2px_8px_rgb(0_0_0_/_40%)]">
+              Connect with verified service providers across Switzerland.
+              Book with confidence using our secure escrow payment system.
+            </p>
+
+            {/* Search Box - Two fields */}
+            <div ref={searchContainerRef} className="bg-background rounded-2xl p-2 md:p-3 max-w-3xl mx-auto mb-6 shadow-2xl">
+              <div className="flex flex-col md:flex-row gap-2">
+                {/* Service Search */}
+                <div className="relative flex-1">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                  <Input
+                    value={serviceSearchQuery}
+                    onChange={(e) => setServiceSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleCombinedSearch()}
+                    placeholder="What service are you looking for?"
+                    className="pl-12 h-14 text-base border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                  />
+                </div>
+
+                {/* Divider */}
+                <div className="hidden md:block w-px bg-border self-stretch my-2" />
+
+                {/* Location Search */}
+                <div className="relative flex-1">
+                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
                   <Input
                     value={locationSearchQuery}
                     onChange={(e) => setLocationSearchQuery(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && locationSearchQuery.trim() && handleLocationSearch()}
-                    placeholder="Enter postcode, city, or address..."
-                    className="pl-12 h-14 text-base bg-background shadow-lg"
+                    onKeyDown={(e) => e.key === "Enter" && handleCombinedSearch()}
+                    placeholder="Location"
+                    className="pl-12 h-14 text-base border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                   {addressSuggestions.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-background border border-border rounded-lg shadow-2xl z-[100] max-h-80 overflow-y-auto">
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-2xl z-[100] max-h-80 overflow-y-auto">
                       {addressSuggestions.map((s, i) => (
                         <button key={i} onClick={() => handleLocationSearch(s)} className="w-full text-left px-4 py-3 hover:bg-muted border-b border-border/50 last:border-0 text-foreground">
                           <p className="font-medium text-sm">{s.city || s.postcode}</p>
@@ -275,32 +337,31 @@ export default function Home() {
                     </div>
                   )}
                 </div>
-                <Button onClick={() => handleLocationSearch()} disabled={isGeocoding} size="lg" className="h-14 px-8 shadow-lg">
+
+                {/* Search Button */}
+                <Button
+                  onClick={handleCombinedSearch}
+                  disabled={isGeocoding}
+                  size="lg"
+                  className="h-14 px-8 rounded-xl"
+                >
                   {isGeocoding ? <Loader2 className="animate-spin" /> : "Search"}
                 </Button>
               </div>
             </div>
 
-            {/* Location toggle - aligned elements */}
-            <div className="flex justify-center items-center gap-3 flex-wrap">
-              {searchLocation && (
-                <div className="h-11 px-4 flex items-center gap-2 bg-background/90 rounded-lg shadow-md border border-border/50 max-w-xs">
-                  <MapPin className="w-4 h-4 text-primary flex-shrink-0" />
-                  <span className="truncate text-sm font-medium">Near {searchLocation.name}</span>
-                </div>
-              )}
-              <Button
-                variant={useLocationPermissions ? "default" : "secondary"}
-                className={`h-11 gap-2 shadow-lg ${useLocationPermissions ? 'bg-primary text-primary-foreground' : 'bg-white dark:bg-slate-800 text-foreground hover:bg-white/90 dark:hover:bg-slate-700'}`}
-                onClick={() => {
-                  const newValue = !useLocationPermissions;
-                  setUseLocationPermissions(newValue);
-                  if (newValue) handleBrowserLocation();
-                }}
-              >
-                <MapPin className="w-4 h-4" />
-                {useLocationPermissions ? "Location Active" : "Use My Location"}
-              </Button>
+            {/* Popular Searches */}
+            <div className="flex justify-center items-center gap-2 flex-wrap text-white/70">
+              <span className="text-sm">Popular:</span>
+              {popularSearches.map((term, i) => (
+                <button
+                  key={term}
+                  onClick={() => handlePopularClick(term)}
+                  className="text-primary hover:text-primary/80 transition-colors text-sm font-medium"
+                >
+                  {term}
+                </button>
+              ))}
             </div>
           </div>
         </div>
