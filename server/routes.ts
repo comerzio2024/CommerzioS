@@ -220,6 +220,7 @@ import { validateSwissAddress } from "./swissAddressService";
 import { sendVerificationCode } from "./contactVerificationService";
 import { fromZodError } from "zod-validation-error";
 import { ObjectStorageService, ObjectNotFoundError } from "./r2Storage";
+import { getArchiveStats, runManualCleanup, deleteExpiredArchives } from "./imageArchiveService";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -7716,6 +7717,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error in test bypass scenario:", error);
       res.status(400).json({ message: error.message });
+    }
+  });
+
+  // ============================================
+  // Admin Archive Management Routes
+  // ============================================
+
+  /**
+   * Get archive statistics for admin dashboard
+   */
+  app.get('/api/admin/archive/stats', isAuthenticated, async (req: any, res) => {
+    try {
+      // Check if user is admin
+      const user = await storage.getUser(req.user.id);
+      if (!user?.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const stats = await getArchiveStats();
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Error getting archive stats:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  /**
+   * Trigger manual cleanup (archive orphans + delete expired)
+   */
+  app.post('/api/admin/archive/cleanup', isAuthenticated, async (req: any, res) => {
+    try {
+      // Check if user is admin
+      const user = await storage.getUser(req.user.id);
+      if (!user?.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const result = await runManualCleanup(req.user.id);
+      res.json({
+        message: "Cleanup completed",
+        ...result
+      });
+    } catch (error: any) {
+      console.error("Error running archive cleanup:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  /**
+   * Delete expired archives only (without archiving new orphans)
+   */
+  app.post('/api/admin/archive/delete-expired', isAuthenticated, async (req: any, res) => {
+    try {
+      // Check if user is admin
+      const user = await storage.getUser(req.user.id);
+      if (!user?.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const result = await deleteExpiredArchives();
+      res.json({
+        message: "Expired archives deleted",
+        deletedCount: result.deletedCount,
+        errors: result.errors
+      });
+    } catch (error: any) {
+      console.error("Error deleting expired archives:", error);
+      res.status(500).json({ message: error.message });
     }
   });
 
