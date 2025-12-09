@@ -433,23 +433,37 @@ export default function Home() {
             <div className="container mx-auto px-4">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <div className="flex-1">
-                  <h2 className="text-2xl font-bold flex items-center gap-2">
-                    <MapPin className="text-primary flex-shrink-0" />
-                    <span className="truncate">Services Near {searchLocation.name?.split(',')[2]?.trim() || searchLocation.name?.split(',')[1]?.trim() || searchLocation.name?.split(',')[0]}</span>
-                  </h2>
-                  <div className="flex items-center justify-between mt-2 gap-4">
-                    <p className="text-sm text-muted-foreground">
-                      Found {nearbyServices.length} services within {radiusKm}km
-                    </p>
+                  <div className="flex justify-between items-center w-full mb-2">
+                    <h2 className="text-2xl font-bold flex items-center gap-2">
+                      <MapPin className="text-primary flex-shrink-0" />
+                      <span className="truncate">
+                        {searchLocation
+                          ? `Services Near ${searchLocation.name?.split(',')[2]?.trim() || searchLocation.name?.split(',')[1]?.trim() || searchLocation.name?.split(',')[0]}`
+                          : "Explore Services Map"
+                        }
+                      </span>
+                    </h2>
+
+                    {/* Map Toggle Button - Placed right above/near the map area */}
                     <div className="flex items-center gap-2">
                       <Button
-                        variant="soft"
+                        variant="outline"
                         size="sm"
-                        className="h-8 text-xs"
+                        className="h-8 text-xs border-primary/20 hover:bg-primary/5 hover:text-primary"
                         onClick={() => setIsMapVisible(!isMapVisible)}
                       >
                         {isMapVisible ? "Close Map" : "Open Map"}
                       </Button>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mt-2 gap-4">
+                    <p className="text-sm text-muted-foreground">
+                      {searchLocation
+                        ? `Found ${nearbyServices.length} services within ${radiusKm}km`
+                        : "Browse services across Switzerland"
+                      }
+                    </p>
+                    <div className="flex items-center gap-2">
 
                       {/* Show expand button inline when map is NOT expanded */}
                       {!isMapExpanded && nearbyServices.length > 0 && !nearbyLoading && (
