@@ -59,8 +59,15 @@ function getTransporter(): nodemailer.Transporter {
         },
       } as nodemailer.Transporter;
     }
-    
-    transporter = nodemailer.createTransport(smtpConfig);
+
+    console.log(`📧 Initializing email service with host: ${smtpConfig.host}:${smtpConfig.port} (Secure: ${smtpConfig.secure})`);
+
+    transporter = nodemailer.createTransport({
+      ...smtpConfig,
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 5000,    // 5 seconds
+      socketTimeout: 10000,     // 10 seconds
+    });
   }
   return transporter;
 }
@@ -149,7 +156,7 @@ export async function sendVerificationEmail(
   token: string
 ): Promise<boolean> {
   const verifyUrl = `${appUrl}/verify-email?token=${token}`;
-  
+
   const content = `
     <h2>Welcome to ${appName}!</h2>
     <p>Hi ${firstName},</p>
@@ -164,7 +171,7 @@ export async function sendVerificationEmail(
     </div>
     <p>If you didn't create an account with ${appName}, please ignore this email.</p>
   `;
-  
+
   return sendEmail({
     to: email,
     subject: `Verify your email for ${appName}`,
@@ -181,7 +188,7 @@ export async function sendPasswordResetEmail(
   token: string
 ): Promise<boolean> {
   const resetUrl = `${appUrl}/reset-password?token=${token}`;
-  
+
   const content = `
     <h2>Password Reset Request</h2>
     <p>Hi ${firstName},</p>
@@ -196,7 +203,7 @@ export async function sendPasswordResetEmail(
     </div>
     <p>If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.</p>
   `;
-  
+
   return sendEmail({
     to: email,
     subject: `Reset your ${appName} password`,
@@ -226,7 +233,7 @@ export async function sendWelcomeEmail(
     </p>
     <p>If you have any questions, our support team is here to help!</p>
   `;
-  
+
   return sendEmail({
     to: email,
     subject: `Welcome to ${appName}!`,
@@ -255,7 +262,7 @@ export async function sendPasswordChangedEmail(
       <li>Enable two-factor authentication if available</li>
     </ul>
   `;
-  
+
   return sendEmail({
     to: email,
     subject: `Your ${appName} password was changed`,
@@ -271,7 +278,7 @@ export async function verifyEmailConnection(): Promise<boolean> {
     console.log("📧 Email service not configured (SMTP credentials missing)");
     return false;
   }
-  
+
   try {
     const transport = getTransporter();
     await transport.verify();
