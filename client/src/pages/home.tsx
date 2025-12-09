@@ -212,6 +212,7 @@ export default function Home() {
       setLocationSearchQuery("");
       setIsMapVisible(true); // Open map when user searches
       setIsMapExpanded(true);
+      setRadiusKm(10); // Default to 10km radius for location search
       fetchPredictedRadius(result.lat, result.lng);
       setTimeout(() => scrollToServicesSection(), 500);
       toast({ title: "Location found", description: `Searching near ${result.name || result.displayName}` });
@@ -236,6 +237,7 @@ export default function Home() {
       setSearchLocation({ lat, lng, name: locationName });
       setIsMapVisible(true); // Open map when user uses their location
       setIsMapExpanded(true);
+      setRadiusKm(10); // Default to 10km radius when using browser location
       fetchPredictedRadius(lat, lng);
       setTimeout(() => scrollToServicesSection(), 500);
       toast({ title: "Location detected", description: `Using: ${locationName}` });
