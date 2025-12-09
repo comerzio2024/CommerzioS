@@ -1410,7 +1410,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                     <div>
                       <Label>Hashtags (Optional)</Label>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Add up to 3 hashtags to help users discover your service
+                        Add up to 5 hashtags to help users discover your service
                       </p>
                     </div>
 

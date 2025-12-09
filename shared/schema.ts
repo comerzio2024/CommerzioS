@@ -958,7 +958,7 @@ export const insertServiceDraftSchema = createInsertSchema(services, {
   price: z.string().optional(),
   priceText: z.string().optional(),
   priceList: z.any().optional(),
-  hashtags: z.array(z.string()).max(3).optional().default([]),
+  hashtags: z.array(z.string()).max(5).optional().default([]),
   subcategoryId: z.string().optional().nullable(),
   categoryId: z.string().optional().nullable(),
   images: z.array(z.string()).optional().default([]),
