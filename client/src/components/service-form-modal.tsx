@@ -1036,11 +1036,22 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
     // New structure: contact is valid if it has phone OR email
     const validContacts = formData.contacts.filter((c: Contact) => c.phone?.trim() || c.email?.trim());
 
-    // Basic validation for draft - only require title
-    if (!formData.title) {
+    // Relaxed validation for draft - require at least 1 filled field
+    const hasAnyField =
+      formData.title?.trim() ||
+      formData.description?.trim() ||
+      formData.images.length > 0 ||
+      (formData.priceType === 'fixed' && formData.price) ||
+      (formData.priceType === 'text' && formData.priceText?.trim()) ||
+      (formData.priceType === 'list' && formData.priceList.length > 0) ||
+      validLocations.length > 0 ||
+      validContacts.length > 0 ||
+      formData.categoryId;
+
+    if (!hasAnyField) {
       toast({
-        title: "Validation Error",
-        description: "Please provide at least a title for your draft",
+        title: "Cannot Save Draft",
+        description: "Please fill in at least one field (title, description, images, price, or location)",
         variant: "destructive",
       });
       return;
@@ -2060,13 +2071,13 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                   <div
                     key={step.id}
                     className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${step.done
-                        ? 'bg-primary/10 text-primary'
-                        : 'bg-background text-muted-foreground'
+                      ? 'bg-primary/10 text-primary'
+                      : 'bg-background text-muted-foreground'
                       }`}
                   >
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${step.done
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted'
                       }`}>
                       {step.done ? (
                         <CheckCircle2 className="w-5 h-5" />
