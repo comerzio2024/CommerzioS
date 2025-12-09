@@ -431,7 +431,7 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
             <div className="flex-1">
-              <div className="flex justify-between items-center w-full mb-2">
+              <div className="flex items-center w-full mb-2">
                 <h2 className="text-2xl font-bold flex items-center gap-2">
                   <MapPin className="text-primary flex-shrink-0" />
                   <span className="truncate">
@@ -440,43 +440,56 @@ export default function Home() {
                       : "Explore Services Map"
                     }
                   </span>
+                  {/* Map Toggle Button - Directly next to title text */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={`h-7 text-xs ml-3 flex-shrink-0 ${isMapVisible
+                      ? 'border-destructive/30 hover:bg-destructive/10 hover:text-destructive'
+                      : 'border-primary/20 hover:bg-primary/5 hover:text-primary'}`}
+                    onClick={() => {
+                      if (isMapVisible) {
+                        setIsMapVisible(false);
+                        setIsMapExpanded(false);
+                      } else {
+                        setIsMapVisible(true);
+                        setIsMapExpanded(true);
+                      }
+                    }}
+                  >
+                    {isMapVisible ? (
+                      <>
+                        <X className="w-3 h-3 mr-1" />
+                        Close Map
+                      </>
+                    ) : (
+                      <>
+                        <MapPin className="w-3 h-3 mr-1" />
+                        Open Map
+                      </>
+                    )}
+                  </Button>
                 </h2>
-                {/* Map Toggle Button - Fixed position next to title */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={`h-8 text-xs flex-shrink-0 ${isMapVisible
-                    ? 'border-destructive/30 hover:bg-destructive/10 hover:text-destructive'
-                    : 'border-primary/20 hover:bg-primary/5 hover:text-primary'}`}
-                  onClick={() => {
-                    if (isMapVisible) {
-                      setIsMapVisible(false);
-                      setIsMapExpanded(false);
-                    } else {
-                      setIsMapVisible(true);
-                      setIsMapExpanded(true);
-                    }
-                  }}
-                >
-                  {isMapVisible ? (
-                    <>
-                      <X className="w-3 h-3 mr-1" />
-                      Close Map
-                    </>
-                  ) : (
-                    <>
-                      <MapPin className="w-3 h-3 mr-1" />
-                      Open Map
-                    </>
-                  )}
-                </Button>
               </div>
-              <p className="text-sm text-muted-foreground">
-                {searchLocation
-                  ? `Found ${nearbyServices.length} services within ${radiusKm}km`
-                  : "Browse services across Switzerland"
-                }
-              </p>
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-sm text-muted-foreground">
+                  {searchLocation
+                    ? `Found ${nearbyServices.length} services within ${radiusKm}km`
+                    : "Browse services across Switzerland"
+                  }
+                </p>
+                {/* Expand to Grid button */}
+                {nearbyServices.length > 0 && !nearbyLoading && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-primary hover:text-primary/80"
+                    onClick={() => setNearbyMode((m) => (m === "slider" ? "grid" : "slider"))}
+                  >
+                    {nearbyMode === "slider" ? "Expand to Grid" : "Minimize to Slider"}
+                  </Button>
+                )}
+              </div>
             </div>
 
             {/* Radius controls - only show when map is visible AND expanded */}
