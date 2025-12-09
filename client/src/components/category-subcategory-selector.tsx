@@ -113,6 +113,12 @@ export function CategorySubcategorySelector({
             <SelectValue placeholder={categoryId ? "Select a subcategory" : "First select a category"} />
           </SelectTrigger>
           <SelectContent>
+            {/* Fallback: if subcategoryId exists but isn't in the list, show it as an option */}
+            {subcategoryId && !filteredSubcategories.some(sub => sub.id === subcategoryId) && (
+              <SelectItem key={subcategoryId} value={subcategoryId} data-testid="subcategory-option-loading">
+                Loading subcategory...
+              </SelectItem>
+            )}
             {filteredSubcategories.map((subcategory) => (
               <SelectItem key={subcategory.id} value={subcategory.id} data-testid={`subcategory-option-${subcategory.slug}`}>
                 {subcategory.name}
