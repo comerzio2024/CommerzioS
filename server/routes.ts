@@ -260,7 +260,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName, lastName, phoneNumber, profileImageUrl,
         locationLat, locationLng, preferredLocationName,
         // Vendor payment settings
-        acceptCardPayments, acceptTwintPayments, acceptCashPayments, requireBookingApproval
+        acceptCardPayments, acceptTwintPayments, acceptCashPayments, requireBookingApproval,
+        // About me
+        vendorBio
       } = req.body;
 
       // Validate Swiss phone number if provided
@@ -285,6 +287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName?: string; lastName?: string; phoneNumber?: string; profileImageUrl?: string;
         locationLat?: number | null; locationLng?: number | null; preferredLocationName?: string;
         acceptCardPayments?: boolean; acceptTwintPayments?: boolean; acceptCashPayments?: boolean; requireBookingApproval?: boolean;
+        vendorBio?: string;
       } = {};
       if (firstName !== undefined) updateData.firstName = firstName;
       if (lastName !== undefined) updateData.lastName = lastName;
@@ -298,6 +301,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (acceptTwintPayments !== undefined) updateData.acceptTwintPayments = acceptTwintPayments;
       if (acceptCashPayments !== undefined) updateData.acceptCashPayments = acceptCashPayments;
       if (requireBookingApproval !== undefined) updateData.requireBookingApproval = requireBookingApproval;
+      // About me
+      if (vendorBio !== undefined) updateData.vendorBio = vendorBio;
 
       const user = await storage.updateUserProfile(userId, updateData);
       res.json(user);
