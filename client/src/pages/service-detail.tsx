@@ -718,6 +718,40 @@ function ServiceDetailContent({ serviceId }: { serviceId: string }) {
                   )}
                 </div>
 
+                {/* Accepted Payment Methods - Data-driven, scalable */}
+                {(() => {
+                  // Payment methods configuration - add new methods here and they'll appear automatically
+                  const PAYMENT_METHODS = [
+                    { key: 'card', label: 'Credit/Debit Card', icon: '💳' },
+                    { key: 'twint', label: 'TWINT', icon: '📱' },
+                    { key: 'cash', label: 'Cash', icon: '💵' },
+                    { key: 'bank_transfer', label: 'Bank Transfer', icon: '🏦' },
+                    { key: 'crypto', label: 'Crypto', icon: '₿' },
+                  ];
+
+                  const acceptedMethods = service.acceptedPaymentMethods || [];
+                  const activeMethods = PAYMENT_METHODS.filter(m => acceptedMethods.includes(m.key));
+
+                  if (activeMethods.length === 0) return null;
+
+                  return (
+                    <>
+                      <Separator className="my-6" />
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-sm">Accepted Payment Methods</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {activeMethods.map(method => (
+                            <Badge key={method.key} variant="secondary" className="text-xs py-1.5 px-3 gap-1.5">
+                              <span>{method.icon}</span>
+                              {method.label}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+
                 <Separator className="my-6" />
 
                 <div className="space-y-3">
