@@ -109,6 +109,9 @@ export interface IStorage {
   updateService(id: string, service: Partial<InsertService>): Promise<Service | undefined>;
   deleteService(id: string): Promise<void>;
   incrementViewCount(id: string): Promise<void>;
+  incrementShareCount(id: string): Promise<void>;
+  getServiceFavoritesCount(serviceId: string): Promise<number>;
+  getServiceUnreadMessageCount(serviceId: string, ownerId: string): Promise<number>;
   renewService(id: string): Promise<Service | undefined>;
   expireOldServices(): Promise<void>;
 
@@ -497,6 +500,46 @@ export class DatabaseStorage implements IStorage {
     return !!result;
   }
 
+  // Service stats operations
+  async incrementViewCount(id: string): Promise<void> {
+    await db
+      .update(services)
+      .set({ viewCount: sql`${services.viewCount} + 1` })
+      .where(eq(services.id, id));
+  }
+
+  async incrementShareCount(id: string): Promise<void> {
+    await db
+      .update(services)
+      .set({ shareCount: sql`${services.shareCount} + 1` })
+      .where(eq(services.id, id));
+  }
+
+  async getServiceFavoritesCount(serviceId: string): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(favorites)
+      .where(eq(favorites.serviceId, serviceId));
+    return Number(result[0]?.count) || 0;
+  }
+
+  async getServiceUnreadMessageCount(serviceId: string, ownerId: string): Promise<number> {
+    // Count unread messages in conversations about this service where owner hasn't read them
+    // If messages table doesn't exist yet, return 0 for now
+    try {
+      const result = await db.execute(sql`
+        SELECT COUNT(*) as count FROM messages m
+        INNER JOIN conversations c ON m.conversation_id = c.id
+        WHERE c.service_id = ${serviceId}
+        AND m.sender_id != ${ownerId}
+        AND m.read_at IS NULL
+      `);
+      return Number((result.rows[0] as any)?.count) || 0;
+    } catch {
+      // Messages table may not exist, return 0
+      return 0;
+    }
+  }
   // Category suggestion operations
   async submitCategory(category: InsertSubmittedCategory): Promise<SubmittedCategory> {
     const [submittedCategory] = await db

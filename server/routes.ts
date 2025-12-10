@@ -772,6 +772,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get service stats for owner (favorites count, unread messages)
+  app.get('/api/services/:id/stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user!.id;
+      const serviceId = req.params.id;
+
+      // Get the service to verify ownership
+      const service = await storage.getService(serviceId);
+      if (!service) {
+        return res.status(404).json({ message: "Service not found" });
+      }
+
+      if (service.ownerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to view stats" });
+      }
+
+      // Get favorites count for this service
+      const favoritesCount = await storage.getServiceFavoritesCount(serviceId);
+
+      // Get unread message count for conversations about this service
+      const unreadMessageCount = await storage.getServiceUnreadMessageCount(serviceId, userId);
+
+      res.json({
+        viewCount: service.viewCount || 0,
+        shareCount: service.shareCount || 0,
+        favoritesCount,
+        unreadMessageCount,
+      });
+    } catch (error) {
+      console.error("Error fetching service stats:", error);
+      res.status(500).json({ message: "Failed to fetch service stats" });
+    }
+  });
+
+  // Increment share count when user shares a service
+  app.post('/api/services/:id/share', async (req, res) => {
+    try {
+      await storage.incrementShareCount(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error incrementing share count:", error);
+      res.status(500).json({ message: "Failed to record share" });
+    }
+  });
+
   app.post('/api/services', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user!.id;

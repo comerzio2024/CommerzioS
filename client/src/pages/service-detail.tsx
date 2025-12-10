@@ -26,6 +26,8 @@ import {
   Lock,
   Send,
   Reply,
+  Eye,
+  Edit2,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -222,6 +224,16 @@ function ServiceDetailContent({ serviceId }: { serviceId: string }) {
   const isFeatured = service?.featured || false;
   const certifications = (service?.owner?.certifications || []) as Array<{ name: string; year?: number }>;
   const vendorBio = service?.owner?.vendorBio || '';
+
+  // Owner detection
+  const isOwner = user?.id === service?.ownerId;
+
+  // Fetch stats for owner (favorites count)
+  const { data: serviceStats } = useQuery<{ viewCount: number; shareCount: number; favoritesCount: number; unreadMessageCount: number }>({
+    queryKey: [`/api/services/${serviceId}/stats`],
+    queryFn: () => apiRequest(`/api/services/${serviceId}/stats`),
+    enabled: isOwner && !!service,
+  });
 
   // Rating breakdown
   const ratingBreakdown = reviews.reduce((acc, review) => {
@@ -669,6 +681,7 @@ function ServiceDetailContent({ serviceId }: { serviceId: string }) {
           <div className="lg:col-span-1">
             <Card className="sticky top-20">
               <CardContent className="p-5">
+                {/* Price display - always show */}
                 <div className="mb-4">
                   <div className="flex items-end gap-2 mb-1">
                     <span className="text-3xl font-bold">CHF {service.price}</span>
@@ -679,119 +692,179 @@ function ServiceDetailContent({ serviceId }: { serviceId: string }) {
                   )}
                 </div>
 
-                {service.status === "active" ? (
-                  <Button size="lg" className="w-full mb-2" onClick={() => {
-                    if (!isAuthenticated) { toast({ title: "Sign in required", variant: "destructive" }); setLocation("/auth"); return; }
-                    setLocation(`/service/${serviceId}/book`);
-                  }}>
-                    <Calendar className="mr-2 h-5 w-5" />
-                    Book Now
-                  </Button>
-                ) : (
-                  <div className="p-3 rounded-lg bg-muted text-center mb-2">
-                    <AlertCircle className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">Booking unavailable - listing is {service.status}</p>
-                  </div>
-                )}
-
-                <Button size="lg" variant="outline" className="w-full mb-4 bg-transparent" onClick={() => {
-                  if (!isAuthenticated) { setLocation("/auth"); return; }
-                  setLocation(`/chat?vendor=${service.owner.id}&service=${serviceId}`);
-                }}>
-                  <MessageSquare className="mr-2 h-5 w-5" />
-                  Contact Vendor
-                </Button>
-
-                <Separator className="mb-4" />
-
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 text-sm">
-                    <Shield className="h-4 w-4 text-accent flex-shrink-0" />
-                    <div>
-                      <p className="font-medium text-sm">Escrow Protection</p>
-                      <p className="text-muted-foreground text-xs">Payment held until confirmed</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm">
-                    <Clock className="h-4 w-4 text-accent flex-shrink-0" />
-                    <div>
-                      <p className="font-medium text-sm">Instant Booking</p>
-                      <p className="text-muted-foreground text-xs">Confirmation in minutes</p>
-                    </div>
-                  </div>
-                  {satisfactionRate > 0 && (
-                    <div className="flex items-center gap-3 text-sm">
-                      <CheckCircle2 className="h-4 w-4 text-accent flex-shrink-0" />
-                      <div>
-                        <p className="font-medium text-sm">Satisfaction Guarantee</p>
-                        <p className="text-muted-foreground text-xs">{satisfactionRate.toFixed(0)}% satisfaction rate</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Accepted Payment Methods - Compact with hover effects */}
-                {(() => {
-                  const PAYMENT_METHODS = [
-                    { key: 'card', label: 'Card', icon: '💳' },
-                    { key: 'twint', label: 'TWINT', icon: '📱' },
-                    { key: 'cash', label: 'Cash', icon: '💵' },
-                    { key: 'bank_transfer', label: 'Bank', icon: '🏦' },
-                    { key: 'crypto', label: 'Crypto', icon: '₿' },
-                  ];
-
-                  const acceptedMethods = service.acceptedPaymentMethods || [];
-                  const activeMethods = PAYMENT_METHODS.filter(m => acceptedMethods.includes(m.key));
-
-                  if (activeMethods.length === 0) return null;
-
-                  return (
-                    <>
-                      <Separator className="my-4" />
-                      <div className="space-y-2">
-                        <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wide">Payment Methods</h4>
-                        <div className="flex flex-wrap gap-1.5">
-                          {activeMethods.map(method => (
-                            <Badge
-                              key={method.key}
-                              variant="outline"
-                              className="text-xs py-1 px-2 gap-1 cursor-default hover:bg-primary/10 hover:border-primary/50 hover:scale-105 transition-all duration-200"
-                            >
-                              <span>{method.icon}</span>
-                              {method.label}
-                            </Badge>
-                          ))}
+                {/* Owner View - Stats Panel */}
+                {isOwner ? (
+                  <>
+                    <div className="space-y-4 mb-4">
+                      <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Listing Statistics</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="p-3 bg-muted/50 rounded-lg text-center">
+                          <Eye className="h-5 w-5 mx-auto mb-1 text-accent" />
+                          <p className="text-xl font-bold">{serviceStats?.viewCount || service.viewCount || 0}</p>
+                          <p className="text-xs text-muted-foreground">Views</p>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-lg text-center">
+                          <Heart className="h-5 w-5 mx-auto mb-1 text-red-500" />
+                          <p className="text-xl font-bold">{serviceStats?.favoritesCount || 0}</p>
+                          <p className="text-xs text-muted-foreground">Favorites</p>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-lg text-center">
+                          <Share2 className="h-5 w-5 mx-auto mb-1 text-accent" />
+                          <p className="text-xl font-bold">{serviceStats?.shareCount || service.shareCount || 0}</p>
+                          <p className="text-xs text-muted-foreground">Shares</p>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-lg text-center cursor-pointer hover:bg-muted transition-colors" onClick={() => setLocation(`/chat?service=${serviceId}`)}>
+                          <MessageSquare className="h-5 w-5 mx-auto mb-1 text-accent" />
+                          <p className="text-xl font-bold">{serviceStats?.unreadMessageCount || 0}</p>
+                          <p className="text-xs text-muted-foreground">Messages</p>
                         </div>
                       </div>
-                    </>
-                  );
-                })()}
+                    </div>
 
-                {/* Compact Share & Report row */}
-                <Separator className="my-4" />
-                <div className="flex items-center justify-between">
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" className="h-8 px-2" onClick={copyServiceLink} title="Copy link">
-                      <Share2 className="h-4 w-4" />
+                    <Separator className="my-4" />
+
+                    <div className="space-y-2">
+                      <Button size="lg" className="w-full" onClick={() => setLocation(`/services/${serviceId}/edit`)}>
+                        <Edit2 className="mr-2 h-5 w-5" />
+                        Edit Listing
+                      </Button>
+                      <Button size="lg" variant="outline" className="w-full bg-transparent" onClick={() => setLocation(`/chat?service=${serviceId}`)}>
+                        <MessageSquare className="mr-2 h-5 w-5" />
+                        View Chats {serviceStats?.unreadMessageCount ? `(${serviceStats.unreadMessageCount} new)` : ''}
+                      </Button>
+                    </div>
+
+                    <Separator className="my-4" />
+
+                    {/* Share link for owner */}
+                    <div className="flex items-center justify-between">
+                      <Button variant="ghost" size="sm" className="h-8 px-2" onClick={copyServiceLink} title="Copy link">
+                        <Share2 className="h-4 w-4" />
+                      </Button>
+                      <p className="text-xs text-muted-foreground">Share your listing</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Visitor View - Booking UI */}
+                    {service.status === "active" ? (
+                      <Button size="lg" className="w-full mb-2" onClick={() => {
+                        if (!isAuthenticated) { toast({ title: "Sign in required", variant: "destructive" }); setLocation("/auth"); return; }
+                        setLocation(`/service/${serviceId}/book`);
+                      }}>
+                        <Calendar className="mr-2 h-5 w-5" />
+                        Book Now
+                      </Button>
+                    ) : (
+                      <div className="p-3 rounded-lg bg-muted text-center mb-2">
+                        <AlertCircle className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground">Booking unavailable - listing is {service.status}</p>
+                      </div>
+                    )}
+
+                    <Button size="lg" variant="outline" className="w-full mb-4 bg-transparent" onClick={() => {
+                      if (!isAuthenticated) { setLocation("/auth"); return; }
+                      setLocation(`/chat?vendor=${service.owner.id}&service=${serviceId}`);
+                    }}>
+                      <MessageSquare className="mr-2 h-5 w-5" />
+                      Contact Vendor
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 px-2"
-                      title={isSaved ? "Remove from saved" : "Save service"}
-                      onClick={() => {
-                        if (!isAuthenticated) { setLocation("/auth"); return; }
-                        toggleSaved.mutate({ action: isSaved ? 'remove' : 'add' });
-                      }}
-                    >
-                      <Heart className={`h-4 w-4 ${isSaved ? 'fill-red-500 text-red-500' : ''}`} />
-                    </Button>
-                  </div>
-                  <Button variant="ghost" size="sm" className="h-8 text-muted-foreground text-xs gap-1 hover:text-destructive">
-                    <Flag className="w-3 h-3" />
-                    Report
-                  </Button>
-                </div>
+
+                    <Separator className="mb-4" />
+
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3 text-sm">
+                        <Shield className="h-4 w-4 text-accent flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-sm">Escrow Protection</p>
+                          <p className="text-muted-foreground text-xs">Payment held until confirmed</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 text-sm">
+                        <Clock className="h-4 w-4 text-accent flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-sm">Instant Booking</p>
+                          <p className="text-muted-foreground text-xs">Confirmation in minutes</p>
+                        </div>
+                      </div>
+                      {satisfactionRate > 0 && (
+                        <div className="flex items-center gap-3 text-sm">
+                          <CheckCircle2 className="h-4 w-4 text-accent flex-shrink-0" />
+                          <div>
+                            <p className="font-medium text-sm">Satisfaction Guarantee</p>
+                            <p className="text-muted-foreground text-xs">{satisfactionRate.toFixed(0)}% satisfaction rate</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Payment Methods */}
+                    {(() => {
+                      const PAYMENT_METHODS = [
+                        { key: 'card', label: 'Card', icon: '💳' },
+                        { key: 'twint', label: 'TWINT', icon: '📱' },
+                        { key: 'cash', label: 'Cash', icon: '💵' },
+                        { key: 'bank_transfer', label: 'Bank', icon: '🏦' },
+                        { key: 'crypto', label: 'Crypto', icon: '₿' },
+                      ];
+
+                      const acceptedMethods = service.acceptedPaymentMethods || [];
+                      const activeMethods = PAYMENT_METHODS.filter(m => acceptedMethods.includes(m.key));
+
+                      if (activeMethods.length === 0) return null;
+
+                      return (
+                        <>
+                          <Separator className="my-4" />
+                          <div className="space-y-2">
+                            <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wide">Payment Methods</h4>
+                            <div className="flex flex-wrap gap-1.5">
+                              {activeMethods.map(method => (
+                                <Badge
+                                  key={method.key}
+                                  variant="outline"
+                                  className="text-xs py-1 px-2 gap-1 cursor-default hover:bg-primary/10 hover:border-primary/50 hover:scale-105 transition-all duration-200"
+                                >
+                                  <span>{method.icon}</span>
+                                  {method.label}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
+
+                    {/* Share & Report row */}
+                    <Separator className="my-4" />
+                    <div className="flex items-center justify-between">
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" className="h-8 px-2" onClick={async () => {
+                          copyServiceLink();
+                          try { await fetch(`/api/services/${serviceId}/share`, { method: 'POST' }); } catch { }
+                        }} title="Copy link">
+                          <Share2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2"
+                          title={isSaved ? "Remove from saved" : "Save service"}
+                          onClick={() => {
+                            if (!isAuthenticated) { setLocation("/auth"); return; }
+                            toggleSaved.mutate({ action: isSaved ? 'remove' : 'add' });
+                          }}
+                        >
+                          <Heart className={`h-4 w-4 ${isSaved ? 'fill-red-500 text-red-500' : ''}`} />
+                        </Button>
+                      </div>
+                      <Button variant="ghost" size="sm" className="h-8 text-muted-foreground text-xs gap-1 hover:text-destructive">
+                        <Flag className="w-3 h-3" />
+                        Report
+                      </Button>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>

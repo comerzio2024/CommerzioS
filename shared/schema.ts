@@ -617,6 +617,7 @@ export const services = pgTable("services", {
   contactPhone: varchar("contact_phone", { length: 50 }).notNull(),
   contactEmail: varchar("contact_email", { length: 200 }).notNull(),
   viewCount: integer("view_count").default(0).notNull(),
+  shareCount: integer("share_count").default(0).notNull(),
 
   // Payment preferences for this service
   acceptedPaymentMethods: text("accepted_payment_methods").array().default(sql`ARRAY['card', 'twint', 'cash']::text[]`).notNull(),
