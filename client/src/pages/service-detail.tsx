@@ -608,9 +608,21 @@ function ServiceDetailContent({ serviceId }: { serviceId: string }) {
                   <Card>
                     <CardContent className="p-6">
                       <h3 className="text-xl font-semibold mb-4">About {service.owner.firstName} {service.owner.lastName}</h3>
-                      <p className="text-muted-foreground leading-relaxed mb-6">
-                        {vendorBio || `${service.owner.firstName} is a verified service provider on Commerzio. They have been a member since ${new Date(service.owner.createdAt).getFullYear()} and are committed to delivering exceptional quality and customer satisfaction.`}
+
+                      {/* Custom vendor bio if available */}
+                      {vendorBio && (
+                        <p className="text-muted-foreground leading-relaxed mb-4 whitespace-pre-wrap">
+                          {vendorBio}
+                        </p>
+                      )}
+
+                      {/* Always show member since info */}
+                      <p className="text-sm text-muted-foreground mb-6">
+                        <span className="font-medium text-foreground">{service.owner.firstName}</span> has been a verified member since {new Date(service.owner.createdAt).getFullYear()}.
+                        {!vendorBio && " They are committed to delivering exceptional quality and customer satisfaction."}
                       </p>
+
+                      {/* Badges grid - always show */}
                       <div className="grid md:grid-cols-3 gap-4">
                         {certifications.length > 0 ? (
                           certifications.map((cert, i) => (
