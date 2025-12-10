@@ -148,25 +148,8 @@ export default function Home() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    if (user?.locationLat && user?.locationLng && !searchLocation) {
-      setSearchLocation({
-        lat: parseFloat(user.locationLat as string),
-        lng: parseFloat(user.locationLng as string),
-        name: user.preferredLocationName || "Your Location",
-      });
-      fetchPredictedRadius(parseFloat(user.locationLat as string), parseFloat(user.locationLng as string));
-    } else if (!searchLocation) {
-      try {
-        const saved = localStorage.getItem("lastSearchLocation");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          setSearchLocation(parsed);
-          fetchPredictedRadius(parsed.lat, parsed.lng);
-        }
-      } catch { /* ignore */ }
-    }
-  }, [user]);
+  // REMOVED: Auto-location restore. Users must explicitly click "Use My Location" or search.
+  // Location is only set when user takes action (handleBrowserLocation or handleLocationSearch)
 
   useEffect(() => {
     if (searchLocation) localStorage.setItem("lastSearchLocation", JSON.stringify(searchLocation));
@@ -224,11 +207,19 @@ export default function Home() {
   });
 
   const nearbyServices = useMemo(() => {
-    if (!searchLocation || nearbyLoading) return [];
+    // If no location set, show all services (category-filtered only)
+    if (!searchLocation) {
+      let allServices = services || [];
+      if (selectedCategory) allServices = allServices.filter((s) => s.categoryId === selectedCategory);
+      return allServices;
+    }
+
+    // With location, filter by distance
+    if (nearbyLoading) return [];
     let filtered = allNearbyData || [];
     if (selectedCategory) filtered = filtered.filter((s) => s.categoryId === selectedCategory);
     return filtered.filter((s) => (s.distance || 0) <= debouncedRadius);
-  }, [allNearbyData, searchLocation, nearbyLoading, selectedCategory, debouncedRadius]);
+  }, [allNearbyData, searchLocation, nearbyLoading, selectedCategory, debouncedRadius, services]);
 
   useEffect(() => {
     if (!searchLocation || nearbyLoading || !allNearbyData.length || autoExpandTriggeredRef.current) return;
@@ -659,8 +650,8 @@ export default function Home() {
               <div className="text-center py-12 text-muted-foreground">No services found in this area.</div>
             ) : (
               <>
-                {/* Show expand button here only when map IS expanded */}
-                {isMapExpanded && (
+                {/* Show expand/minimize button whenever services exist */}
+                {nearbyServices.length > 0 && (
                   <div className="flex justify-end mb-4">
                     <Button variant="outline" size="sm" onClick={() => setNearbyMode((m) => (m === "slider" ? "grid" : "slider"))}>
                       {nearbyMode === "slider" ? "Expand to Grid" : "Minimize to Slider"}
