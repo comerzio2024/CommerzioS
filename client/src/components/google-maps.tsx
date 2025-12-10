@@ -332,7 +332,8 @@ export function GoogleMaps({
 
       mapRef.current = new Map(mapContainerRef.current, {
         center: { lat: userLocation?.lat || 46.8182, lng: userLocation?.lng || 8.2275 },
-        zoom: 10,
+        // Zoom 8 for Switzerland overview, zoom 12 for specific location
+        zoom: userLocation ? 12 : 8,
         disableDefaultUI: true,
         zoomControl: true,
         gestureHandling: "greedy",

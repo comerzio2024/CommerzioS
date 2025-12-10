@@ -565,8 +565,8 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Radius controls - only show when map is visible AND expanded */}
-            {isMapVisible && isMapExpanded && (
+            {/* Radius controls - only show when map is visible AND expanded AND user has searched a location */}
+            {isMapVisible && isMapExpanded && searchLocation && (
               <div className="flex items-center gap-4 w-full md:w-auto">
                 {/* Slider */}
                 <div className="flex-1 md:w-[200px] flex items-center gap-3">
