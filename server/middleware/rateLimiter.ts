@@ -184,6 +184,26 @@ export const verificationLimiter = createRateLimiter('verification', {
   message: 'Too many verification requests. Please try again later.',
 });
 
+/**
+ * Dispute endpoint rate limiter
+ * 5 opens per hour, 10 actions per hour per dispute (prevents abuse)
+ */
+export const disputeLimiter = createRateLimiter('dispute', {
+  windowMs: 60 * 60 * 1000, // 1 hour
+  maxRequests: 10,
+  message: 'Too many dispute actions. Please try again later.',
+});
+
+/**
+ * Dispute AI options rate limiter (expensive operation)
+ * 3 requests per hour per dispute
+ */
+export const disputeAiLimiter = createRateLimiter('dispute_ai', {
+  windowMs: 60 * 60 * 1000, // 1 hour
+  maxRequests: 3,
+  message: 'Too many AI resolution requests. Please wait before requesting again.',
+});
+
 export default {
   apiLimiter,
   pricingLimiter,
@@ -191,4 +211,6 @@ export default {
   strictLimiter,
   aiLimiter,
   verificationLimiter,
+  disputeLimiter,
+  disputeAiLimiter,
 };

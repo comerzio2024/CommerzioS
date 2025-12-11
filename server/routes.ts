@@ -26,7 +26,7 @@ import {
   pointsLog,
 } from "@shared/schema";
 // Security middleware imports
-import { pricingLimiter, authLimiter, aiLimiter, verificationLimiter } from "./middleware/rateLimiter";
+import { pricingLimiter, authLimiter, aiLimiter, verificationLimiter, disputeLimiter, disputeAiLimiter } from "./middleware/rateLimiter";
 import { idempotencyMiddleware } from "./middleware/idempotency";
 import { verifyReauthPassword } from "./middleware/reauth";
 import { logPricingOptionCreate, logPricingOptionUpdate, logPricingOptionDelete } from "./services/auditService";
@@ -132,6 +132,12 @@ import {
   getUserDisputes,
   getDisputeDetails,
 } from "./services/disputeResolutionService";
+import {
+  openDisputeSchema,
+  counterOfferSchema,
+  selectOptionSchema,
+  validateInput,
+} from "./validators/disputeValidator";
 import {
   createTip,
   confirmTipPayment,
@@ -5779,6 +5785,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const disputeId = req.params.id;
 
+      // Guard: Validate that ID is a valid UUID (prevents matching reserved paths like 'open')
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(disputeId)) {
+        return res.status(400).json({ message: "Invalid dispute ID format" });
+      }
+
       // Use getDisputeDetails for comprehensive data
       const details = await getDisputeDetails(disputeId);
 
@@ -5916,13 +5928,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   /**
    * Open a new dispute on a booking (uses new 3-phase system)
    */
-  app.post('/api/disputes/open', isAuthenticated, async (req: any, res) => {
+  app.post('/api/disputes/open', isAuthenticated, disputeLimiter, async (req: any, res) => {
     try {
-      const { bookingId, reason, description } = req.body;
-
-      if (!bookingId || !reason || !description) {
-        return res.status(400).json({ message: "bookingId, reason, and description are required" });
+      // Validate input with Zod schema
+      const validation = validateInput(openDisputeSchema, req.body);
+      if (!validation.success) {
+        return res.status(400).json({ message: validation.error });
       }
+      const { bookingId, reason, description } = validation.data;
 
       // Verify booking access
       const booking = await getBookingById(bookingId, req.user!.id);
@@ -5941,7 +5954,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   /**
    * Submit a counter-offer (Phase 1)
    */
-  app.post('/api/disputes/:id/counter-offer', isAuthenticated, async (req: any, res) => {
+  app.post('/api/disputes/:id/counter-offer', isAuthenticated, disputeLimiter, async (req: any, res) => {
     try {
       const disputeId = req.params.id;
       const { refundPercentage, message } = req.body;
@@ -6006,7 +6019,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   /**
    * Request escalation to AI mediation (Phase 1 → Phase 2)
    */
-  app.post('/api/disputes/:id/escalate', isAuthenticated, async (req: any, res) => {
+  app.post('/api/disputes/:id/escalate', isAuthenticated, disputeLimiter, async (req: any, res) => {
     try {
       const disputeId = req.params.id;
 
@@ -6032,7 +6045,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   /**
    * Select an AI-proposed option (Phase 2)
    */
-  app.post('/api/disputes/:id/select-option', isAuthenticated, async (req: any, res) => {
+  app.post('/api/disputes/:id/select-option', isAuthenticated, disputeAiLimiter, async (req: any, res) => {
     try {
       const disputeId = req.params.id;
       const { optionId } = req.body;
@@ -6097,7 +6110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   /**
    * Choose external resolution (Phase 3 - with penalty)
    */
-  app.post('/api/disputes/:id/external-resolution', isAuthenticated, async (req: any, res) => {
+  app.post('/api/disputes/:id/external-resolution', isAuthenticated, disputeLimiter, async (req: any, res) => {
     try {
       const disputeId = req.params.id;
 
@@ -6315,6 +6328,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error closing dispute:", error);
       res.status(400).json({ message: error.message || "Failed to close dispute" });
+    }
+  });
+
+  /**
+   * Admin: Seed test disputes for a specific user (development only)
+   */
+  app.post('/api/admin/seed-test-disputes', isAdmin, async (req: any, res) => {
+    try {
+      const { email, count = 10 } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+      
+      // Find user
+      const [targetUser] = await db.select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+      
+      if (!targetUser) {
+        return res.status(404).json({ message: `User ${email} not found` });
+      }
+      
+      const disputeReasons = [
+        "service_not_provided", "poor_quality", "wrong_service", 
+        "overcharged", "no_show", "other"
+      ] as const;
+      
+      const descriptions = [
+        "The vendor did not show up for the scheduled appointment.",
+        "The quality of work was significantly below what was advertised.",
+        "I was charged more than the quoted price without prior agreement.",
+        "A different service was provided than what was booked.",
+        "The vendor was unprofessional and left the work unfinished.",
+        "Communication was terrible - vendor ignored messages for days.",
+        "The result is not acceptable. Multiple issues remain unresolved.",
+        "Vendor arrived 3 hours late and rushed through the service.",
+        "Was promised premium materials but received cheap alternatives.",
+        "The vendor's behavior was rude and dismissive."
+      ];
+      
+      // Find bookings for this user
+      const userBookings = await db.select()
+        .from(bookings)
+        .leftJoin(escrowTransactions, eq(escrowTransactions.bookingId, bookings.id))
+        .where(or(
+          eq(bookings.customerId, targetUser.id),
+          eq(bookings.vendorId, targetUser.id)
+        ))
+        .limit(20);
+      
+      // Get existing disputes
+      const existingDisputes = await db.select({ bookingId: escrowDisputes.bookingId })
+        .from(escrowDisputes);
+      const disputedBookingIds = new Set(existingDisputes.map(d => d.bookingId));
+      
+      const availableBookings = userBookings.filter(b => !disputedBookingIds.has(b.bookings.id));
+      
+      if (availableBookings.length === 0) {
+        return res.status(400).json({ 
+          message: "No available bookings without disputes",
+          existingDisputeCount: existingDisputes.length
+        });
+      }
+      
+      const toCreate = Math.min(count, availableBookings.length);
+      const created = [];
+      
+      for (let i = 0; i < toCreate; i++) {
+        const { bookings: booking, escrow_transactions: escrow } = availableBookings[i];
+        const isCustomer = booking.customerId === targetUser.id;
+        
+        const dispute = await db.insert(escrowDisputes).values({
+          bookingId: booking.id,
+          escrowTransactionId: escrow?.id || null,
+          customerId: booking.customerId,
+          vendorId: booking.vendorId,
+          raisedBy: isCustomer ? "customer" : "vendor",
+          raisedByUserId: targetUser.id,
+          reason: disputeReasons[i % disputeReasons.length],
+          description: descriptions[i % descriptions.length],
+          evidenceUrls: [],
+          status: "open",
+          escrowAmount: escrow?.amount || booking.totalPrice || "0",
+        }).returning();
+        
+        // Initialize phase
+        const deadline = new Date();
+        deadline.setDate(deadline.getDate() + 7);
+        await db.insert(disputePhases).values({
+          disputeId: dispute[0].id,
+          currentPhase: "phase_1",
+          phase1StartedAt: new Date(),
+          phase1Deadline: deadline,
+        });
+        
+        created.push(dispute[0]);
+      }
+      
+      res.json({ 
+        success: true, 
+        message: `Created ${created.length} test disputes for ${email}`,
+        disputes: created.map(d => ({ id: d.id, reason: d.reason }))
+      });
+      
+    } catch (error: any) {
+      console.error("Error seeding disputes:", error);
+      res.status(500).json({ message: error.message || "Failed to seed disputes" });
     }
   });
 

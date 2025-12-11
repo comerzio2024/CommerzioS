@@ -23,6 +23,7 @@ import {
   Info
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DisputeDisclaimer } from './dispute-disclaimer';
 
 interface OpenDisputeModalProps {
   open: boolean;
@@ -83,6 +84,7 @@ export function OpenDisputeModal({
 }: OpenDisputeModalProps) {
   const [reason, setReason] = useState('');
   const [description, setDescription] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -96,6 +98,11 @@ export function OpenDisputeModal({
 
     if (!description.trim() || description.trim().length < 20) {
       setError('Please provide a detailed description (at least 20 characters)');
+      return;
+    }
+
+    if (!termsAccepted) {
+      setError('You must accept the AI Dispute Resolution terms to proceed');
       return;
     }
 
@@ -114,6 +121,7 @@ export function OpenDisputeModal({
     if (!isLoading) {
       setReason('');
       setDescription('');
+      setTermsAccepted(false);
       setError(null);
       onOpenChange(false);
     }
@@ -138,20 +146,11 @@ export function OpenDisputeModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Warning Banner */}
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-            <div className="flex gap-2">
-              <Info className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-amber-800">
-                <p className="font-medium">Before opening a dispute:</p>
-                <ul className="mt-1 space-y-1 text-amber-700">
-                  <li>• Try to resolve the issue directly with the other party first</li>
-                  <li>• Disputes go through a 3-phase resolution process</li>
-                  <li>• You'll have 7 days to negotiate before AI mediation</li>
-                </ul>
-              </div>
-            </div>
-          </div>
+          {/* AI Dispute Resolution Disclaimer */}
+          <DisputeDisclaimer 
+            showCheckbox={true} 
+            onAcknowledge={(accepted) => setTermsAccepted(accepted)} 
+          />
 
           {/* Escrow Amount */}
           {escrowAmount !== undefined && (
@@ -231,7 +230,7 @@ export function OpenDisputeModal({
             <Button 
               type="submit" 
               variant="destructive"
-              disabled={isLoading}
+              disabled={isLoading || !termsAccepted}
             >
               {isLoading ? 'Opening Dispute...' : 'Open Dispute'}
             </Button>

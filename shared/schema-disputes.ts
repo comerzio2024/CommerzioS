@@ -254,6 +254,9 @@ export const disputeAiDecisions = pgTable("dispute_ai_decisions", {
   customerRefundStripeId: text("customer_refund_stripe_id"),
   vendorPaymentStripeId: text("vendor_payment_stripe_id"),
   
+  // Tamper-proof integrity hash (SHA256)
+  integrityHash: varchar("integrity_hash", { length: 64 }),
+  
   // Timestamps
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -467,6 +470,54 @@ export const disputeFeeChargesRelations = relations(disputeFeeCharges, ({ one })
   user: one(users, {
     fields: [disputeFeeCharges.userId],
     references: [users.id],
+  }),
+}));
+
+// ============================================
+// AI CONSENSUS LOGS
+// ============================================
+
+export const disputeAiConsensusLogs = pgTable("dispute_ai_consensus_logs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  
+  disputeId: varchar("dispute_id").notNull().references(() => escrowDisputes.id, { onDelete: "cascade" }),
+  
+  // Phase (phase_2 or phase_3)
+  phase: disputePhaseEnum("phase").notNull(),
+  
+  // Inputs used for this run
+  inputContext: jsonb("input_context").notNull(),
+  
+  // Raw outputs from each model
+  modelOutputs: jsonb("model_outputs").$type<{
+    claude: any;
+    gpt: any;
+    gemini: any;
+  }>().notNull(),
+  
+  // Final aggregated result
+  aggregatedResult: jsonb("aggregated_result").notNull(),
+  
+  // Metadata about the consensus process
+  consensusMetadata: jsonb("consensus_metadata").$type<{
+    agreementScore: number;
+    method: "majority" | "weighted" | "manual_escalation";
+    iterations: number;
+  }>(),
+  
+  // Tamper-proof integrity hash (SHA256)
+  integrityHash: varchar("integrity_hash", { length: 64 }),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  disputeIdx: index("dispute_consensus_logs_dispute_idx").on(table.disputeId),
+}));
+
+export const disputeAiConsensusLogsRelations = relations(disputeAiConsensusLogs, ({ one }) => ({
+  dispute: one(escrowDisputes, {
+    fields: [disputeAiConsensusLogs.disputeId],
+    references: [escrowDisputes.id],
   }),
 }));
 

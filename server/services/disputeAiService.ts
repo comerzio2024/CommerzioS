@@ -3,16 +3,24 @@
  * 
  * Handles AI-powered dispute analysis and resolution:
  * - Evidence analysis
- * - Generating 3 resolution options for Phase 2
- * - Making binding decisions for Phase 3
+ * - Generating 3 resolution options for Phase 2 (via Consensus Service)
+ * - Making binding decisions for Phase 3 (via Consensus Service)
  * 
- * Uses GPT-4 for nuanced analysis of complex disputes.
+ * Uses multi-model architecture (GPT-5.1, Claude Opus 4.5, Gemini 3 Pro).
  */
 
 import OpenAI from "openai";
 import { db } from "../db";
 import { eq, and, desc } from "drizzle-orm";
-import { escrowDisputes, escrowTransactions, users, bookings, services } from "../../shared/schema";
+import { 
+  escrowDisputes, 
+  escrowTransactions, 
+  users, 
+  bookings, 
+  services,
+  chatConversations,
+  chatMessages
+} from "../../shared/schema";
 import { 
   disputeAiAnalysis, 
   disputeAiOptions,
@@ -25,6 +33,7 @@ import {
   type InsertDisputeAiOption,
   type InsertDisputeAiDecision
 } from "../../shared/schema-disputes";
+import { runConsensusPhase2, runConsensusPhase3 } from "./disputeConsensusService";
 
 // ============================================
 // CONFIGURATION
@@ -34,7 +43,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const AI_MODEL = "gpt-4-turbo-preview";
+const AI_MODEL = "gpt-4-turbo-preview"; // Used for initial analysis only
 
 // ============================================
 // TYPES
@@ -59,22 +68,44 @@ interface AiAnalysisResult {
   overallAssessment: NonNullable<InsertDisputeAiAnalysis["overallAssessment"]>;
 }
 
-interface AiResolutionOption {
-  label: string;
-  title: string;
-  customerRefundPercent: number;
-  vendorPaymentPercent: number;
-  reasoning: string;
-  keyFactors: string[];
-  isRecommended: boolean;
-}
+// ============================================
+// HELPERS: FRAUD & RISK METRICS
+// ============================================
 
-interface AiFinalDecision {
-  customerRefundPercent: number;
-  vendorPaymentPercent: number;
-  decisionSummary: string;
-  fullReasoning: string;
-  keyFactors: string[];
+async function getDisputeHistoryStats(userId: string) {
+  const disputes = await db
+    .select()
+    .from(disputeAiDecisions) // Check decisions to see win/loss
+    .leftJoin(escrowDisputes, eq(disputeAiDecisions.disputeId, escrowDisputes.id))
+    .where(
+      or(
+        eq(escrowDisputes.customerId, userId), 
+        eq(escrowDisputes.vendorId, userId)
+      )
+    );
+
+  const total = disputes.length;
+  if (total === 0) return { total: 0, winRate: 0 };
+
+  // Heuristic: "Win" if refunded > 50% (customer) or paid > 50% (vendor)
+  let wins = 0;
+  for (const d of disputes) {
+    if (!d.dispute_ai_decisions) continue;
+    
+    // If they were customer
+    if (d.escrow_disputes?.customerId === userId) {
+      if (d.dispute_ai_decisions.customerRefundPercent > 50) wins++;
+    } 
+    // If they were vendor
+    else if (d.escrow_disputes?.vendorId === userId) {
+      if (d.dispute_ai_decisions.vendorPaymentPercent > 50) wins++;
+    }
+  }
+
+  return {
+    total,
+    winRate: parseFloat((wins / total).toFixed(2))
+  };
 }
 
 // ============================================
@@ -84,7 +115,7 @@ interface AiFinalDecision {
 /**
  * Gather all context needed for AI analysis
  */
-async function gatherDisputeContext(disputeId: string): Promise<DisputeContext> {
+async function gatherDisputeContext(disputeId: string): Promise<DisputeContext & { riskMetrics: any }> {
   // Get dispute
   const [dispute] = await db
     .select()
@@ -123,25 +154,44 @@ async function gatherDisputeContext(disputeId: string): Promise<DisputeContext> 
 
   // Get customer and vendor from booking
   const [customer] = await db
-    .select({ id: users.id, firstName: users.firstName, lastName: users.lastName })
+    .select({ id: users.id, firstName: users.firstName, lastName: users.lastName, createdAt: users.createdAt })
     .from(users)
     .where(eq(users.id, booking.customerId))
     .limit(1);
 
   const [vendor] = await db
-    .select({ id: users.id, firstName: users.firstName, lastName: users.lastName })
+    .select({ id: users.id, firstName: users.firstName, lastName: users.lastName, createdAt: users.createdAt })
     .from(users)
     .where(eq(users.id, booking.vendorId))
     .limit(1);
 
   // Get evidence from evidenceUrls field
   const evidenceUrls = (dispute.evidenceUrls as string[]) || [];
-  // For now, split evidence (in practice you'd need better tracking of who submitted what)
   const customerEvidence = dispute.raisedBy === "customer" ? evidenceUrls : [];
   const vendorEvidence = dispute.raisedBy === "vendor" ? evidenceUrls : [];
 
-  // Chat history is not in current schema, use empty array
-  const chatHistory: any[] = [];
+  // Get Chat History (Phase 1 Monitoring)
+  // Find conversation linked to booking
+  let chatHistory: any[] = [];
+  const [conversation] = await db.select()
+    .from(chatConversations)
+    .where(eq(chatConversations.bookingId, dispute.bookingId))
+    .limit(1);
+
+  if (conversation) {
+    const messages = await db.select()
+      .from(chatMessages)
+      .where(eq(chatMessages.conversationId, conversation.id))
+      .orderBy(desc(chatMessages.createdAt));
+    
+    // Reverse to chronological order for AI context
+    chatHistory = messages.reverse().map(m => ({
+      sender: m.senderId === customer.id ? "Customer" : "Vendor",
+      content: m.content,
+      timestamp: m.createdAt,
+      type: m.messageType
+    }));
+  }
 
   // Get previous responses in this dispute
   const previousResponses = await db
@@ -150,6 +200,51 @@ async function gatherDisputeContext(disputeId: string): Promise<DisputeContext> 
     .where(eq(disputeResponses.disputeId, disputeId))
     .orderBy(desc(disputeResponses.createdAt));
 
+  // Risk Metrics Calculation
+  const customerStats = await getDisputeHistoryStats(customer.id);
+  const vendorStats = await getDisputeHistoryStats(vendor.id);
+  
+  // Calculate message latencies (average response time in hours)
+  const calculateLatency = (senderId: string) => {
+    const senderMessages = chatHistory.filter(m => 
+      (senderId === customer.id && m.sender === "Customer") ||
+      (senderId === vendor.id && m.sender === "Vendor")
+    );
+    if (senderMessages.length < 2) return 0;
+    
+    let totalLatency = 0;
+    let count = 0;
+    for (let i = 1; i < chatHistory.length; i++) {
+      const prev = chatHistory[i - 1];
+      const curr = chatHistory[i];
+      // Only count if this message was a response (different sender)
+      if (prev.sender !== curr.sender && 
+          ((senderId === customer.id && curr.sender === "Customer") ||
+           (senderId === vendor.id && curr.sender === "Vendor"))) {
+        const diff = new Date(curr.timestamp).getTime() - new Date(prev.timestamp).getTime();
+        totalLatency += diff / (1000 * 60 * 60); // Convert to hours
+        count++;
+      }
+    }
+    return count > 0 ? parseFloat((totalLatency / count).toFixed(1)) : 0;
+  };
+  
+  // Scan for chargeback/threat keywords
+  const chargebackKeywords = ['chargeback', 'bank', 'lawyer', 'sue', 'legal', 'police', 'fraud', 'scam'];
+  const detectChargebackThreats = (senderId: string) => {
+    const senderMessages = chatHistory.filter(m => 
+      (senderId === customer.id && m.sender === "Customer") ||
+      (senderId === vendor.id && m.sender === "Vendor")
+    );
+    for (const msg of senderMessages) {
+      const content = (msg.content || "").toLowerCase();
+      for (const keyword of chargebackKeywords) {
+        if (content.includes(keyword)) return true;
+      }
+    }
+    return false;
+  };
+  
   return {
     dispute: { 
       ...dispute, 
@@ -157,7 +252,7 @@ async function gatherDisputeContext(disputeId: string): Promise<DisputeContext> 
       vendorId: booking.vendorId,
       escrowAmount: escrowAmount,
       customerDescription: dispute.description,
-      vendorResponse: null, // Would need to be tracked separately
+      vendorResponse: null, 
     },
     booking,
     service,
@@ -167,6 +262,20 @@ async function gatherDisputeContext(disputeId: string): Promise<DisputeContext> 
     vendorEvidence,
     chatHistory,
     previousResponses,
+    riskMetrics: {
+      customer: {
+        ...customerStats,
+        accountAgeDays: Math.floor((Date.now() - new Date(customer.createdAt).getTime()) / (1000 * 60 * 60 * 24)),
+        avgLatencyHours: calculateLatency(customer.id),
+        chargebackThreatDetected: detectChargebackThreats(customer.id)
+      },
+      vendor: {
+        ...vendorStats,
+        accountAgeDays: Math.floor((Date.now() - new Date(vendor.createdAt).getTime()) / (1000 * 60 * 60 * 24)),
+        avgLatencyHours: calculateLatency(vendor.id),
+        chargebackThreatDetected: detectChargebackThreats(vendor.id)
+      }
+    }
   };
 }
 
@@ -175,11 +284,13 @@ async function gatherDisputeContext(disputeId: string): Promise<DisputeContext> 
 // ============================================
 
 /**
- * Perform comprehensive AI analysis of the dispute
+ * Perform comprehensive AI analysis of the dispute (Initial Context Analysis)
+ */
+/**
+ * Perform comprehensive AI analysis of the dispute (Initial Context Analysis)
  */
 export async function analyzeDispute(disputeId: string): Promise<DisputeAiAnalysis> {
   const context = await gatherDisputeContext(disputeId);
-
   const prompt = buildAnalysisPrompt(context);
 
   const response = await openai.chat.completions.create({
@@ -187,9 +298,17 @@ export async function analyzeDispute(disputeId: string): Promise<DisputeAiAnalys
     messages: [
       {
         role: "system",
-        content: `You are an impartial dispute resolution specialist for a Swiss marketplace platform.
-Your job is to analyze disputes between customers and vendors objectively.
-Be fair, consider all evidence, and provide balanced assessments.
+        content: `You are a fair and highly vigilant dispute resolution AI. 
+Your task is to analyze the entire chat history, evidence, and dispute metadata for a service marketplace dispute.
+
+IMPORTANT:
+- Carefully check for contradictions, suspicious behavior, or signs of manipulation from either party.
+- Consider the tone, timing, and consistency of all communications.
+- Factor in dispute history, message latency, sentiment shifts, and evidence submission timing.
+- Penalize any detected bad-faith actions or fabricated claims.
+- Identify and highlight any scam patterns such as chargeback threats, repeated contradictory requests, evasiveness, or suspicious edits.
+- Assign a scam risk score (0-100) for each party based on your analysis.
+
 Always respond in valid JSON format.`
       },
       {
@@ -198,7 +317,7 @@ Always respond in valid JSON format.`
       }
     ],
     response_format: { type: "json_object" },
-    temperature: 0.3,  // Lower temperature for more consistent analysis
+    temperature: 0.3,
   });
 
   const aiResponse = JSON.parse(response.choices[0].message.content || "{}") as AiAnalysisResult;
@@ -210,7 +329,7 @@ Always respond in valid JSON format.`
       disputeId,
       evidenceAnalysis: aiResponse.evidenceAnalysis,
       descriptionAnalysis: aiResponse.descriptionAnalysis,
-      behaviorAnalysis: aiResponse.behaviorAnalysis,
+      behaviorAnalysis: aiResponse.behaviorAnalysis, // Now includes scamRiskScore inside
       overallAssessment: aiResponse.overallAssessment,
       rawAiResponse: aiResponse,
       aiModel: AI_MODEL,
@@ -219,18 +338,26 @@ Always respond in valid JSON format.`
     })
     .returning();
 
-  console.log(`[DisputeAI] Analyzed dispute ${disputeId}`);
+  console.log(`[DisputeAI] Analyzed dispute ${disputeId} with fraud detection`);
 
   return analysis;
 }
 
-function buildAnalysisPrompt(context: DisputeContext): string {
-  return `Analyze this dispute and provide a comprehensive assessment.
+function buildAnalysisPrompt(context: DisputeContext & { riskMetrics: any }): string {
+  const chatTranscript = context.chatHistory.length > 0
+    ? context.chatHistory.map(m => `[${m.timestamp?.toISOString()}] ${m.sender}: ${m.content}`).join("\n")
+    : "No chat history available.";
+
+  return `Analyze this dispute and provide a comprehensive assessment including fraud risk.
 
 ## Dispute Details
 - Dispute ID: ${context.dispute.id}
 - Opened: ${context.dispute.createdAt}
 - Amount in Escrow: ${context.dispute.escrowAmount} CHF
+
+## Risk Metadata
+- Customer: ${context.riskMetrics.customer.total} past disputes (${context.riskMetrics.customer.winRate * 100}% win rate), Account Age: ${context.riskMetrics.customer.accountAgeDays} days
+- Vendor: ${context.riskMetrics.vendor.total} past disputes (${context.riskMetrics.vendor.winRate * 100}% win rate), Account Age: ${context.riskMetrics.vendor.accountAgeDays} days
 
 ## Booking Details
 - Service: ${context.service?.title || "N/A"}
@@ -240,24 +367,17 @@ function buildAnalysisPrompt(context: DisputeContext): string {
 ## Customer's Claim
 ${context.dispute.customerDescription || "No description provided"}
 
-## Vendor's Response
-${context.dispute.vendorResponse || "No response provided"}
+## Chat History (Phase 1)
+${chatTranscript}
 
 ## Evidence Submitted
-
 ### Customer Evidence (${context.customerEvidence.length} items)
 ${context.customerEvidence.map((e: string, i: number) => `${i + 1}. ${e}`).join("\n") || "No evidence submitted"}
 
 ### Vendor Evidence (${context.vendorEvidence.length} items)
 ${context.vendorEvidence.map((e: string, i: number) => `${i + 1}. ${e}`).join("\n") || "No evidence submitted"}
 
-## Previous Negotiation Attempts
-${context.previousResponses.length > 0 
-  ? context.previousResponses.map((r: any) => `- ${r.userId === context.customer.id ? "Customer" : "Vendor"}: ${r.responseType} - ${r.message || "No message"}`).join("\n")
-  : "No previous negotiation attempts"}
-
 ## Response Format
-Provide your analysis as a JSON object with this exact structure:
 {
   "evidenceAnalysis": {
     "customer": {
@@ -282,16 +402,16 @@ Provide your analysis as a JSON object with this exact structure:
   },
   "behaviorAnalysis": {
     "customer": {
-      "responseTime": "fast" | "moderate" | "slow" | "unresponsive",
-      "tone": "professional" | "neutral" | "frustrated" | "hostile",
-      "goodFaithScore": number (0-100),
-      "cooperationLevel": string
+      "scamRiskScore": number (0-100), // NEW: Fraud risk
+      "scamRiskReasoning": "Why this score?",
+      "responseTime": "fast" | "moderate" | "slow",
+      "tone": "professional" | "hostile" | "cooperative"
     },
     "vendor": {
-      "responseTime": "fast" | "moderate" | "slow" | "unresponsive",
-      "tone": "professional" | "neutral" | "frustrated" | "hostile",
-      "goodFaithScore": number (0-100),
-      "cooperationLevel": string
+      "scamRiskScore": number (0-100), // NEW: Fraud risk
+      "scamRiskReasoning": "Why this score?",
+      "responseTime": "fast" | "moderate" | "slow",
+      "tone": "professional" | "hostile" | "cooperative"
     }
   },
   "overallAssessment": {
@@ -308,7 +428,7 @@ Provide your analysis as a JSON object with this exact structure:
 // ============================================
 
 /**
- * Generate 3 resolution options for Phase 2
+ * Generate 3 resolution options for Phase 2 via Consensus Service
  */
 export async function generateResolutionOptions(
   disputeId: string,
@@ -338,103 +458,60 @@ export async function generateResolutionOptions(
 
   const prompt = buildOptionsPrompt(context, analysis);
 
-  const response = await openai.chat.completions.create({
-    model: AI_MODEL,
-    messages: [
-      {
-        role: "system",
-        content: `You are an impartial dispute resolution specialist for a Swiss marketplace platform.
-Generate fair resolution options that both parties might find acceptable.
-Always provide exactly 3 options with different approaches.
-Response in valid JSON format.`
-      },
-      {
-        role: "user",
-        content: prompt
-      }
-    ],
-    response_format: { type: "json_object" },
-    temperature: 0.5,
-  });
+  // DELEGATE TO CONSENSUS SERVICE
+  const result = await runConsensusPhase2(disputeId, prompt);
 
-  const aiResponse = JSON.parse(response.choices[0].message.content || "{}") as { options: AiResolutionOption[] };
-  const escrowAmount = parseFloat(context.dispute.escrowAmount);
+  console.log(`[DisputeAI] Consensus generated ${result.options.length} resolution options (Log ID: ${result.consensusLogId})`);
 
-  // Store options
-  const options: DisputeAiOption[] = [];
-  
-  for (const opt of aiResponse.options) {
-    const customerAmount = Math.round(escrowAmount * opt.customerRefundPercent / 100 * 100) / 100;
-    const vendorAmount = Math.round(escrowAmount * opt.vendorPaymentPercent / 100 * 100) / 100;
-
-    const [saved] = await db
-      .insert(disputeAiOptions)
-      .values({
-        disputeId,
-        analysisId: analysis?.id,
-        optionLabel: opt.label,
-        optionTitle: opt.title,
-        customerRefundPercent: opt.customerRefundPercent,
-        vendorPaymentPercent: opt.vendorPaymentPercent,
-        customerRefundAmount: customerAmount.toFixed(2),
-        vendorPaymentAmount: vendorAmount.toFixed(2),
-        reasoning: opt.reasoning,
-        keyFactors: opt.keyFactors,
-        basedOn: [],
-        isRecommended: opt.isRecommended,
-      })
-      .returning();
-
-    options.push(saved);
-  }
-
-  console.log(`[DisputeAI] Generated ${options.length} resolution options for dispute ${disputeId}`);
-
-  return options;
+  // Return the options (they are already inserted by consensus service)
+  return result.options as DisputeAiOption[];
 }
 
-function buildOptionsPrompt(context: DisputeContext, analysis: DisputeAiAnalysis | null): string {
+function buildOptionsPrompt(context: DisputeContext & { riskMetrics: any }, analysis: DisputeAiAnalysis | null): string {
+  const behavior = analysis?.behaviorAnalysis as any;
   const analysisSection = analysis ? `
 ## AI Analysis Summary
-- Customer Evidence Strength: ${(analysis.evidenceAnalysis as any)?.customer?.evidenceStrength || "N/A"}
-- Vendor Evidence Strength: ${(analysis.evidenceAnalysis as any)?.vendor?.evidenceStrength || "N/A"}
+- Customer Scam Risk: ${behavior?.customer?.scamRiskScore || "N/A"} (${behavior?.customer?.scamRiskReasoning || ""})
+- Vendor Scam Risk: ${behavior?.vendor?.scamRiskScore || "N/A"} (${behavior?.vendor?.scamRiskReasoning || ""})
 - Primary Issue: ${(analysis.overallAssessment as any)?.primaryIssue || "N/A"}
-- Fault Assessment: ${(analysis.overallAssessment as any)?.faultAssessment || "N/A"}
 ` : "";
 
-  return `Generate 3 fair resolution options for this dispute.
+  const chatTranscript = context.chatHistory.length > 0
+    ? context.chatHistory.map(m => `[${m.timestamp?.toISOString()}] ${m.sender}: ${m.content}`).join("\n")
+    : "No chat history available.";
+
+  return `Generate 3 progressive negotiation proposals for this dispute.
 
 ## Dispute Details
 - Escrow Amount: ${context.dispute.escrowAmount} CHF
 - Customer's Claim: ${context.dispute.customerDescription || "N/A"}
-- Vendor's Response: ${context.dispute.vendorResponse || "N/A"}
+
+## Risk Metadata
+- Customer: ${context.riskMetrics.customer.total} past disputes, Account Age: ${context.riskMetrics.customer.accountAgeDays} days
+- Vendor: ${context.riskMetrics.vendor.total} past disputes, Account Age: ${context.riskMetrics.vendor.accountAgeDays} days
+
+## Chat History Context
+${chatTranscript}
 
 ${analysisSection}
 
-## Requirements
-1. Option A: Evidence-based (favor party with stronger evidence)
-2. Option B: Compromise (balanced split considering both perspectives)
-3. Option C: Platform policy-based (based on what our TOS would support)
-
-Each option must have percentages that sum to 100% (customer + vendor = 100).
+## Instructions
+- Provide 3 progressive options (Conservative, Balanced, Policy-Strict).
+- Penalize any detected bad-faith actions or high scam risk scores in your proposals.
+- If a party has a high scam risk (>70), their favorable options should be severely limited.
 
 ## Response Format
 {
   "options": [
     {
-      "label": "A",
+      "label": "A", 
       "title": "Evidence-Based Resolution",
-      "customerRefundPercent": number (0-100),
-      "vendorPaymentPercent": number (0-100),
-      "reasoning": "Brief explanation",
-      "keyFactors": ["factor1", "factor2"],
-      "isRecommended": true/false
-    },
-    // ... options B and C
+      "customerRefundPercent": number,
+      "vendorPaymentPercent": number,
+      "reasoning": "Brief explanation including risk factors"
+    }
   ]
-}
-
-Mark exactly ONE option as isRecommended: true (the most fair in your assessment).`;
+}`;
 }
 
 // ============================================
@@ -442,7 +519,7 @@ Mark exactly ONE option as isRecommended: true (the most fair in your assessment
 // ============================================
 
 /**
- * Generate binding AI decision for Phase 3
+ * Generate binding AI decision for Phase 3 via Consensus Service
  */
 export async function generateFinalDecision(disputeId: string): Promise<DisputeAiDecision> {
   const context = await gatherDisputeContext(disputeId);
@@ -468,59 +545,50 @@ export async function generateFinalDecision(disputeId: string): Promise<DisputeA
 
   const prompt = buildDecisionPrompt(context, analysis, options, responses);
 
-  const response = await openai.chat.completions.create({
-    model: AI_MODEL,
-    messages: [
-      {
-        role: "system",
-        content: `You are rendering a binding decision as an impartial dispute resolution specialist.
-This decision is FINAL and will be executed automatically.
-Be fair, thorough, and explain your reasoning clearly.
-Both parties agreed to binding AI arbitration when using the platform.
-Response in valid JSON format.`
-      },
-      {
-        role: "user",
-        content: prompt
-      }
-    ],
-    response_format: { type: "json_object" },
-    temperature: 0.2,  // Very low temperature for consistency
-  });
+  // DELEGATE TO CONSENSUS SERVICE
+  const result = await runConsensusPhase3(disputeId, prompt);
 
-  const aiResponse = JSON.parse(response.choices[0].message.content || "{}") as AiFinalDecision;
+  // Store the decision in the decisions table (Consensus service only logs it, doesn't create the official decision record until here - actually wait, consensus service return format suggests it just returns data)
+  // Let's check consensus service: runConsensusPhase3 returns { decision: {...}, consensusLogId }
+  // We need to insert it into disputeAiDecisions here.
+  
   const escrowAmount = parseFloat(context.dispute.escrowAmount);
+  const customerAmount = Math.round(escrowAmount * result.decision.customerRefundPercent / 100 * 100) / 100;
+  const vendorAmount = Math.round(escrowAmount * result.decision.vendorPaymentPercent / 100 * 100) / 100;
 
-  const customerAmount = Math.round(escrowAmount * aiResponse.customerRefundPercent / 100 * 100) / 100;
-  const vendorAmount = Math.round(escrowAmount * aiResponse.vendorPaymentPercent / 100 * 100) / 100;
-
-  // Store decision
   const [decision] = await db
     .insert(disputeAiDecisions)
     .values({
       disputeId,
-      customerRefundPercent: aiResponse.customerRefundPercent,
-      vendorPaymentPercent: aiResponse.vendorPaymentPercent,
+      customerRefundPercent: result.decision.customerRefundPercent,
+      vendorPaymentPercent: result.decision.vendorPaymentPercent,
       customerRefundAmount: customerAmount.toFixed(2),
       vendorPaymentAmount: vendorAmount.toFixed(2),
-      decisionSummary: aiResponse.decisionSummary,
-      fullReasoning: aiResponse.fullReasoning,
-      keyFactors: aiResponse.keyFactors,
+      decisionSummary: result.decision.decisionSummary,
+      fullReasoning: result.decision.fullReasoning,
+      keyFactors: [], // Consensus might not return this yet, could add it
       status: "pending",
     })
     .returning();
 
-  console.log(`[DisputeAI] Generated final decision for dispute ${disputeId}: Customer ${aiResponse.customerRefundPercent}%, Vendor ${aiResponse.vendorPaymentPercent}%`);
+  console.log(`[DisputeAI] Generated final decision for dispute ${disputeId} via Consensus`);
 
   return decision;
 }
 
 function buildDecisionPrompt(
-  context: DisputeContext,
+  context: DisputeContext & { riskMetrics: any },
   analysis: DisputeAiAnalysis | null,
   options: DisputeAiOption[],
   responses: any[]
 ): string {
+  const behavior =  analysis?.behaviorAnalysis as any;
+  const riskContext = analysis ? `
+## AI Risk Assessment
+- Customer Scam Risk: ${behavior?.customer?.scamRiskScore || "N/A"}
+- Vendor Scam Risk: ${behavior?.vendor?.scamRiskScore || "N/A"}
+` : "";
+
   // Summarize Phase 2 activity
   const customerResponses = responses.filter(r => r.userId === context.customer.id);
   const vendorResponses = responses.filter(r => r.userId === context.vendor.id);
@@ -532,43 +600,42 @@ ${options.map(o => `- Option ${o.optionLabel}: ${o.customerRefundPercent}% custo
 ## Party Responses
 - Customer selected: ${customerResponses.find(r => r.selectedOptionLabel)?.selectedOptionLabel || "None"}
 - Vendor selected: ${vendorResponses.find(r => r.selectedOptionLabel)?.selectedOptionLabel || "None"}
-- Customer counter-proposals: ${customerResponses.filter(r => r.responseType === "counter_propose").length}
-- Vendor counter-proposals: ${vendorResponses.filter(r => r.responseType === "counter_propose").length}
 ` : "No Phase 2 options were generated.";
 
-  const analysisSection = analysis ? `
-## AI Analysis
-- Customer Evidence: ${(analysis.evidenceAnalysis as any)?.customer?.evidenceStrength || "N/A"}
-- Vendor Evidence: ${(analysis.evidenceAnalysis as any)?.vendor?.evidenceStrength || "N/A"}
-- Fault Assessment: ${(analysis.overallAssessment as any)?.faultAssessment || "N/A"}
-` : "";
+  const chatTranscript = context.chatHistory.length > 0
+    ? context.chatHistory.map(m => `[${m.timestamp?.toISOString()}] ${m.sender}: ${m.content}`).join("\n")
+    : "No chat history available.";
 
   return `Render a FINAL BINDING DECISION for this dispute.
 
 ## Dispute Details
 - Escrow Amount: ${context.dispute.escrowAmount} CHF
 - Customer's Claim: ${context.dispute.customerDescription || "N/A"}
-- Vendor's Response: ${context.dispute.vendorResponse || "N/A"}
 
-${analysisSection}
+## Risk Metadata
+- Customer: ${context.riskMetrics.customer.total} past disputes, Account Age: ${context.riskMetrics.customer.accountAgeDays} days
+- Vendor: ${context.riskMetrics.vendor.total} past disputes, Account Age: ${context.riskMetrics.vendor.accountAgeDays} days
+
+${riskContext}
+
+## Chat History
+${chatTranscript}
 
 ${phase2Summary}
 
 ## Your Task
-Make a final, binding decision on how to split the ${context.dispute.escrowAmount} CHF escrow.
-Consider all evidence, both parties' behavior during negotiation, and platform policies.
-The percentages MUST sum to 100%.
+Make a final, binding decision.
+- Re-assess any scam risk indicators and inconsistencies thoroughly.
+- Use weighted reasoning across all evidence and behaviors to decide the fairest outcome.
+- Explicitly mention detecting risk factors or suspicious behavior in your reasoning.
 
 ## Response Format
 {
   "customerRefundPercent": number (0-100),
-  "vendorPaymentPercent": number (0-100),
+  "vendorPaymentPercent": number (0-100), // must be 100 - customerRefundPercent
   "decisionSummary": "One paragraph summary of the decision",
-  "fullReasoning": "Detailed multi-paragraph explanation of the decision",
-  "keyFactors": ["factor1", "factor2", "factor3"]
-}
-
-Be fair and thorough. Both parties have agreed to abide by this decision.`;
+  "fullReasoning": "Detailed multi-paragraph explanation of the decision"
+}`;
 }
 
 // ============================================
@@ -627,9 +694,6 @@ export async function markDecisionOverridden(
 // QUERIES
 // ============================================
 
-/**
- * Get the latest AI analysis for a dispute
- */
 export async function getLatestAnalysis(disputeId: string): Promise<DisputeAiAnalysis | null> {
   const [analysis] = await db
     .select()
@@ -641,9 +705,6 @@ export async function getLatestAnalysis(disputeId: string): Promise<DisputeAiAna
   return analysis || null;
 }
 
-/**
- * Get resolution options for a dispute
- */
 export async function getResolutionOptions(disputeId: string): Promise<DisputeAiOption[]> {
   return db
     .select()
@@ -652,9 +713,6 @@ export async function getResolutionOptions(disputeId: string): Promise<DisputeAi
     .orderBy(disputeAiOptions.optionLabel);
 }
 
-/**
- * Get the AI decision for a dispute
- */
 export async function getAiDecision(disputeId: string): Promise<DisputeAiDecision | null> {
   const [decision] = await db
     .select()
