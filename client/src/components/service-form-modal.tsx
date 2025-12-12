@@ -1114,8 +1114,8 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
     }, 100);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent, explicitAction?: 'save' | 'publish') => {
+    if (e) e.preventDefault();
 
     if (!formData) return;
 
@@ -1154,8 +1154,12 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
         return;
       }
 
-      // If editing a draft and form is complete, publish it
-      const shouldPublish = isDraftEdit && formProgress.isComplete;
+      // If editing a draft and form is complete, publish it ONLY if explicitly requested
+      // Default to saving the draft (keep status 'draft')
+      // publishDraft: true -> sets status to 'active'
+      // publishDraft: false -> keeps current status
+
+      const shouldPublish = explicitAction === 'publish';
 
       updateServiceMutation.mutate({
         data: {
@@ -2330,20 +2334,37 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                         </>
                       )
                     ) : isDraftEdit ? (
-                      // Draft editing - allow publishing
-                      updateServiceMutation.isPending ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                          Publishing...
-                        </>
-                      ) : formProgress.isComplete ? (
-                        "Publish Service"
-                      ) : (
-                        <>
-                          <CheckCircle2 className="w-4 h-4 mr-1.5" />
-                          Update Draft
-                        </>
-                      )
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => handleSubmit(undefined, 'save')}
+                          disabled={updateServiceMutation.isPending}
+                          className="bg-slate-100 text-slate-900 border-slate-200 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700 dark:hover:bg-slate-700"
+                        >
+                          {updateServiceMutation.isPending ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <Save className="w-4 h-4 mr-2" />
+                          )}
+                          Save Draft
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => handleSubmit(undefined, 'publish')}
+                          disabled={isSubmitDisabled || !formProgress.isComplete}
+                          className="bg-gradient-to-r from-primary to-primary/90"
+                        >
+                          {updateServiceMutation.isPending ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                              Publishing...
+                            </>
+                          ) : (
+                            "Review & Publish"
+                          )}
+                        </Button>
+                      </div>
                     ) : (
                       createServiceMutation.isPending ? (
                         <>
