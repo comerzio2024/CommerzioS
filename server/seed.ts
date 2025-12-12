@@ -1,5 +1,14 @@
 import { db } from "./db";
-import { categories, subcategories, users, services, reviews, plans, chatConversations, chatMessages, notifications } from "@shared/schema";
+import {
+  categories, subcategories, users, services, reviews, plans,
+  chatConversations, chatMessages, notifications,
+  escrowDisputes, escrowTransactions, bookings, tips,
+  vendorCalendarBlocks, vendorAvailabilitySettings, orders,
+  listingQuestions, listingAnswers, favorites, serviceContacts,
+  pointsLog, referralTransactions, referralStats, referralConfig,
+  userModerationActions, bannedIdentifiers, userReports, userBlocks,
+  notificationPreferences, pushSubscriptions, customerReviews, reviewRemovalRequests
+} from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 
 const CATEGORIES = [
@@ -93,7 +102,7 @@ const SUBCATEGORIES = [
 const SAMPLE_USERS = [
   {
     id: "admin-user",
-    email: "admin@servemkt.ch",
+    email: "admin@commerzio.online",
     firstName: "Admin",
     lastName: "User",
     profileImageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=Admin",
@@ -301,45 +310,109 @@ export async function resetDatabase(confirmReset: boolean = false) {
   if (!confirmReset) {
     throw new Error("resetDatabase requires confirmReset=true parameter to prevent accidental data loss");
   }
-  
+
   // Additional safety: warn if running in production
   if (process.env.NODE_ENV === "production") {
     console.warn("⚠️  WARNING: Resetting database in PRODUCTION environment!");
     console.warn("⚠️  This will permanently delete all data!");
   }
-  
+
   try {
     console.log("Resetting database...");
-    
-    // Delete in reverse order of dependencies
+
+    // Delete in reverse order of dependencies (children first, parents last)
+
+    // Notification-related
+    console.log("Clearing push subscriptions...");
+    await db.delete(pushSubscriptions);
+    console.log("Clearing notification preferences...");
+    await db.delete(notificationPreferences);
     console.log("Clearing notifications...");
     await db.delete(notifications);
-    
+
+    // Q&A
+    console.log("Clearing listing answers...");
+    await db.delete(listingAnswers);
+    console.log("Clearing listing questions...");
+    await db.delete(listingQuestions);
+
+    // Chat
     console.log("Clearing chat messages...");
     await db.delete(chatMessages);
-    
     console.log("Clearing chat conversations...");
     await db.delete(chatConversations);
-    
+
+    // User interactions
+    console.log("Clearing user blocks...");
+    await db.delete(userBlocks);
+    console.log("Clearing user reports...");
+    await db.delete(userReports);
+
+    // Escrow & Disputes
+    console.log("Clearing escrow disputes...");
+    await db.delete(escrowDisputes);
+    console.log("Clearing tips...");
+    await db.delete(tips);
+    console.log("Clearing escrow transactions...");
+    await db.delete(escrowTransactions);
+
+    // Bookings
+    console.log("Clearing bookings...");
+    await db.delete(bookings);
+    console.log("Clearing vendor calendar blocks...");
+    await db.delete(vendorCalendarBlocks);
+    console.log("Clearing vendor availability settings...");
+    await db.delete(vendorAvailabilitySettings);
+    console.log("Clearing orders...");
+    await db.delete(orders);
+
+    // Reviews
+    console.log("Clearing review removal requests...");
+    await db.delete(reviewRemovalRequests);
+    console.log("Clearing customer reviews...");
+    await db.delete(customerReviews);
     console.log("Clearing reviews...");
     await db.delete(reviews);
-    
+
+    // Services
+    console.log("Clearing favorites...");
+    await db.delete(favorites);
+    console.log("Clearing service contacts...");
+    await db.delete(serviceContacts);
     console.log("Clearing services...");
     await db.delete(services);
-    
+
+    // Referrals
+    console.log("Clearing referral stats...");
+    await db.delete(referralStats);
+    console.log("Clearing referral transactions...");
+    await db.delete(referralTransactions);
+    console.log("Clearing points log...");
+    await db.delete(pointsLog);
+    console.log("Clearing referral config...");
+    await db.delete(referralConfig);
+
+    // User moderation
+    console.log("Clearing user moderation actions...");
+    await db.delete(userModerationActions);
+    console.log("Clearing banned identifiers...");
+    await db.delete(bannedIdentifiers);
+
+    // Categories
     console.log("Clearing subcategories...");
     await db.delete(subcategories);
-    
     console.log("Clearing categories...");
     await db.delete(categories);
-    
-    console.log("Clearing users (except sessions)...");
+
+    // Users (will cascade delete related data)
+    console.log("Clearing users...");
     await db.delete(users);
-    
+
+    // Plans
     console.log("Clearing plans...");
     await db.delete(plans);
-    
-    console.log("Database reset complete!");
+
+    console.log("✅ Database reset complete!");
   } catch (error) {
     console.error("Error resetting database:", error);
     throw error;
@@ -387,7 +460,7 @@ export async function seedDatabase() {
     for (const subcategory of SUBCATEGORIES) {
       // Find the parent category
       const parentCategory = allCategories.find((c) => c.slug === subcategory.categorySlug);
-      
+
       if (!parentCategory) {
         console.log(`Skipping subcategory ${subcategory.name} - parent category ${subcategory.categorySlug} not found`);
         continue;
@@ -434,7 +507,7 @@ export async function seedDatabase() {
     const technologyCategory = allCategories.find((c) => c.slug === "technology");
 
     if (!homeCategory || !designCategory || !educationCategory || !wellnessCategory || !businessCategory ||
-        !automotiveCategory || !petsCategory || !eventsCategory || !legalCategory || !technologyCategory) {
+      !automotiveCategory || !petsCategory || !eventsCategory || !legalCategory || !technologyCategory) {
       console.log("Skipping service seeding - not all categories found");
       return;
     }
@@ -1330,7 +1403,7 @@ export async function seedDatabase() {
       const baseCoords = ownerCoordinates[service.ownerId] || { lat: 47.3769, lng: 8.5417 };
       // Add slight variation to coordinates to spread services within city area
       const variation = (serviceCounter * COORD_VARIATION_STEP) % COORD_VARIATION_MAX;
-      
+
       return {
         ...service,
         hashtags: service.hashtags || service.tags.map(tag => tag.toLowerCase().replace(/\s+/g, '')),
@@ -1857,7 +1930,7 @@ async function seedDemoNotifications() {
     // This ensures we get the demo users even if isAdmin defaults weren't applied
     const allUsers = await db.select().from(users).limit(20);
     const demoUsers = allUsers.filter(u => u.id.startsWith("demo-user-"));
-    
+
     if (demoUsers.length === 0) {
       console.log("No demo users found for notifications, skipping...");
       return;
@@ -1948,19 +2021,19 @@ async function seedDemoNotifications() {
     // Create notifications for each demo user (mix of read and unread)
     const baseTime = new Date();
     let notificationCount = 0;
-    
+
     for (let userIndex = 0; userIndex < Math.min(demoUsers.length, 6); userIndex++) {
       const user = demoUsers[userIndex];
-      
+
       // Each user gets 2-4 notifications
       const numNotifications = 2 + (userIndex % 3);
-      
+
       for (let i = 0; i < numNotifications; i++) {
         const templateIndex = (userIndex * 3 + i) % notificationTemplates.length;
         const template = notificationTemplates[templateIndex];
         const notificationTime = new Date(baseTime.getTime() - (i + userIndex) * 60 * 60 * 1000); // Hours ago
         const isRead = i > 0 && Math.random() > 0.5; // First notification unread, others random
-        
+
         await db.insert(notifications).values({
           userId: user.id,
           type: template.type,
@@ -1974,7 +2047,7 @@ async function seedDemoNotifications() {
           deliveredVia: ["in_app"],
           createdAt: notificationTime,
         });
-        
+
         notificationCount++;
       }
     }

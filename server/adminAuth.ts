@@ -25,10 +25,13 @@ import { eq } from "drizzle-orm";
  * 2. Regular user authentication with isAdmin flag
  */
 export const isAdmin: RequestHandler = async (req: any, res, next) => {
+  console.log("[isAdmin] Checking - isAuthenticated:", req.isAuthenticated?.(), "user:", req.user?.email, "userId:", req.user?.id);
+
   // Check if user is logged in via regular auth and has isAdmin flag
   if (req.isAuthenticated && req.isAuthenticated() && req.user) {
     try {
       const user = await storage.getUser(req.user.id);
+      console.log("[isAdmin] User from DB:", user?.email, "isAdmin:", user?.isAdmin);
 
       if (user && user.isAdmin) {
         // Store admin info in request for use in routes
@@ -40,6 +43,7 @@ export const isAdmin: RequestHandler = async (req: any, res, next) => {
     }
   }
 
+  console.log("[isAdmin] Access denied - no valid admin session");
   return res.status(403).json({ message: "Admin access required" });
 };
 
@@ -53,9 +57,13 @@ export const isAdmin: RequestHandler = async (req: any, res, next) => {
  * Body: { email: string, password: string }
  */
 export const adminLogin: RequestHandler = async (req, res) => {
-  const { email, password } = req.body;
+  console.log("[AdminAuth] Login request body:", JSON.stringify(req.body));
+  // Accept both 'email' and 'username' fields for backwards compatibility
+  const email = req.body.email || req.body.username;
+  const { password } = req.body;
 
   if (!email || !password) {
+    console.log("[AdminAuth] Missing credentials - email:", !!email, "password:", !!password);
     return res.status(400).json({
       success: false,
       message: "Email and password are required",
@@ -254,6 +262,10 @@ function isStrongPassword(password: string): boolean {
  */
 export async function seedAdminIfNeeded(): Promise<void> {
   try {
+    // Get admin credentials from environment
+    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminPassword = process.env.ADMIN_PASSWORD;
+
     // Check if any admin users exist
     const [existingAdmin] = await db
       .select()
@@ -263,12 +275,39 @@ export async function seedAdminIfNeeded(): Promise<void> {
 
     if (existingAdmin) {
       console.log("Admin user already exists:", existingAdmin.email);
+
+      // If env password is set, update the password hash to ensure sync
+      if (adminPassword && adminEmail) {
+        const targetEmail = adminEmail.toLowerCase();
+
+        // If admin email differs, check if target email already exists as a different user
+        if (existingAdmin.email.toLowerCase() !== targetEmail) {
+          const [conflictUser] = await db
+            .select()
+            .from(users)
+            .where(eq(users.email, targetEmail))
+            .limit(1);
+
+          if (conflictUser && conflictUser.id !== existingAdmin.id) {
+            // Remove the conflicting user (it's likely a seeded demo user)
+            console.log(`Removing conflicting user ${conflictUser.email} to allow admin email update`);
+            await db.delete(users).where(eq(users.id, conflictUser.id));
+          }
+        }
+
+        const passwordHash = await hashPassword(adminPassword);
+        await db
+          .update(users)
+          .set({
+            passwordHash,
+            email: targetEmail,
+            updatedAt: new Date()
+          })
+          .where(eq(users.id, existingAdmin.id));
+        console.log("✔ Admin password synced with environment variable");
+      }
       return;
     }
-
-    // Get admin credentials from environment
-    const adminEmail = process.env.ADMIN_EMAIL;
-    const adminPassword = process.env.ADMIN_PASSWORD;
 
     // In production, require environment variables
     const isProduction = process.env.NODE_ENV === "production";

@@ -48,7 +48,7 @@ import { useLocation } from "wouter";
 function ServiceRedirect() {
   const [match, params] = useRoute("/services/:id");
   const [, setLocation] = useLocation();
-  
+
   useEffect(() => {
     if (match && params?.id) {
       // Preserve hash and search params when redirecting
@@ -63,7 +63,7 @@ function ServiceRedirect() {
       setLocation(`/service/${params.id}${newSearch}${hash.startsWith('#questions-') ? '' : hash}`);
     }
   }, [match, params?.id, setLocation]);
-  
+
   return null;
 }
 
@@ -78,6 +78,8 @@ export function usePageContextActions() {
   }
   return context;
 }
+
+import { CookieConsent } from "@/components/cookie-consent";
 
 function Router() {
   return (
@@ -151,6 +153,7 @@ function App() {
                 <Toaster />
                 <Router />
                 <FloatingChatWidget pageContext={pageContext} />
+                <CookieConsent />
               </PageContextActionsContext.Provider>
             </ConfirmDialogProvider>
           </TooltipProvider>

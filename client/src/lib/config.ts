@@ -27,23 +27,23 @@ export function getApiUrl(path: string): string {
  */
 export function getImageUrl(path: string | null | undefined): string {
   if (!path) return '';
-  
+
   // Already a full URL
   if (path.startsWith('http://') || path.startsWith('https://')) {
     return path;
   }
-  
+
   // Convert /objects/uploads/... to CDN URL
   if (path.startsWith('/objects/')) {
     const objectPath = path.replace('/objects/', '');
     return CDN_URL ? `${CDN_URL}/${objectPath}` : `${API_BASE_URL}${path}`;
   }
-  
+
   // For other relative paths, use API
   if (path.startsWith('/')) {
     return `${API_BASE_URL}${path}`;
   }
-  
+
   return path;
 }
 
@@ -64,13 +64,13 @@ export function fetchApi(input: RequestInfo | URL, init?: RequestInit): Promise<
       credentials: init?.credentials ?? 'include', // Default to include for cross-domain auth
     });
   }
-  
+
   // Handle Request objects
   if (input instanceof Request) {
     const url = input.url.startsWith('/api') ? getApiUrl(input.url) : input.url;
     return fetch(new Request(url, input), init);
   }
-  
+
   // Handle URL objects
   const urlStr = input.toString();
   const fullUrl = urlStr.startsWith('/api') ? getApiUrl(urlStr) : urlStr;

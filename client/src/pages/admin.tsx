@@ -50,10 +50,10 @@ export function AdminPage() {
   const [location, setLocation] = useLocation();
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  
+
   // Derive active tab from URL path
   const activeTab = useMemo(() => getTabFromPath(location), [location]);
-  
+
   // Handle tab change - update URL
   const handleTabChange = (tab: string) => {
     if (tab === "users") {
@@ -142,113 +142,167 @@ export function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="bg-white border-b border-border">
-        <div className="container mx-auto px-4 py-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+      {/* Header */}
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-slate-900/80 border-b border-slate-700/50">
+        <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Shield className="w-6 h-6 text-primary" />
-              <h1 className="text-2xl font-bold">Commerzio Services Admin</h1>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500">
+                <Shield className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-white">Commerzio Services Admin</h1>
+                <p className="text-xs text-slate-400">Platform Management Console</p>
+              </div>
             </div>
             <Button
               variant="outline"
+              size="sm"
               onClick={() => {
                 apiRequest("/api/admin/logout", { method: "POST" });
                 setIsLoggedIn(false);
                 refetchSession();
               }}
+              className="border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white"
               data-testid="button-admin-logout"
             >
               Logout
             </Button>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-6 py-8">
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="grid w-full grid-cols-10 mb-6">
-            <TabsTrigger value="users" data-testid="tab-users">
-              <Users className="w-4 h-4 mr-2" />
-              Users
-            </TabsTrigger>
-            <TabsTrigger value="services" data-testid="tab-services">
-              <FileText className="w-4 h-4 mr-2" />
-              Services
-            </TabsTrigger>
-            <TabsTrigger value="disputes" data-testid="tab-disputes">
-              <Gavel className="w-4 h-4 mr-2" />
-              Disputes
-            </TabsTrigger>
-            <TabsTrigger value="reviews" data-testid="tab-reviews">
-              <Star className="w-4 h-4 mr-2" />
-              Reviews
-            </TabsTrigger>
-            <TabsTrigger value="categories" data-testid="tab-categories">
-              <Folder className="w-4 h-4 mr-2" />
-              Categories
-            </TabsTrigger>
-            <TabsTrigger value="referrals" data-testid="tab-referrals">
-              <Gift className="w-4 h-4 mr-2" />
-              Referrals
-            </TabsTrigger>
-            <TabsTrigger value="plans" data-testid="tab-plans">
-              <CreditCard className="w-4 h-4 mr-2" />
-              Plans
-            </TabsTrigger>
-            <TabsTrigger value="test-users" data-testid="tab-test-users">
-              <TestTube className="w-4 h-4 mr-2" />
-              E2E Tests
-            </TabsTrigger>
-            <TabsTrigger value="ai-assistant" data-testid="tab-ai-assistant">
-              <Brain className="w-4 h-4 mr-2" />
-              AI
-            </TabsTrigger>
-            <TabsTrigger value="settings" data-testid="tab-settings">
-              <Settings className="w-4 h-4 mr-2" />
-              Settings
-            </TabsTrigger>
-          </TabsList>
+          {/* Navigation Tabs */}
+          <div className="mb-8 p-1 rounded-2xl bg-slate-800/50 border border-slate-700/50 backdrop-blur-sm">
+            <TabsList className="flex flex-wrap gap-1 bg-transparent p-0 h-auto">
+              <TabsTrigger
+                value="users"
+                data-testid="tab-users"
+                className="flex-1 min-w-[100px] data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl py-3 text-slate-400 hover:text-white transition-all"
+              >
+                <Users className="w-4 h-4 mr-2" />
+                Users
+              </TabsTrigger>
+              <TabsTrigger
+                value="services"
+                data-testid="tab-services"
+                className="flex-1 min-w-[100px] data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl py-3 text-slate-400 hover:text-white transition-all"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Services
+              </TabsTrigger>
+              <TabsTrigger
+                value="disputes"
+                data-testid="tab-disputes"
+                className="flex-1 min-w-[100px] data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl py-3 text-slate-400 hover:text-white transition-all"
+              >
+                <Gavel className="w-4 h-4 mr-2" />
+                Disputes
+              </TabsTrigger>
+              <TabsTrigger
+                value="reviews"
+                data-testid="tab-reviews"
+                className="flex-1 min-w-[100px] data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl py-3 text-slate-400 hover:text-white transition-all"
+              >
+                <Star className="w-4 h-4 mr-2" />
+                Reviews
+              </TabsTrigger>
+              <TabsTrigger
+                value="categories"
+                data-testid="tab-categories"
+                className="flex-1 min-w-[100px] data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl py-3 text-slate-400 hover:text-white transition-all"
+              >
+                <Folder className="w-4 h-4 mr-2" />
+                Categories
+              </TabsTrigger>
+              <TabsTrigger
+                value="referrals"
+                data-testid="tab-referrals"
+                className="flex-1 min-w-[100px] data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl py-3 text-slate-400 hover:text-white transition-all"
+              >
+                <Gift className="w-4 h-4 mr-2" />
+                Referrals
+              </TabsTrigger>
+              <TabsTrigger
+                value="plans"
+                data-testid="tab-plans"
+                className="flex-1 min-w-[100px] data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl py-3 text-slate-400 hover:text-white transition-all"
+              >
+                <CreditCard className="w-4 h-4 mr-2" />
+                Plans
+              </TabsTrigger>
+              <TabsTrigger
+                value="test-users"
+                data-testid="tab-test-users"
+                className="flex-1 min-w-[100px] data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl py-3 text-slate-400 hover:text-white transition-all"
+              >
+                <TestTube className="w-4 h-4 mr-2" />
+                E2E Tests
+              </TabsTrigger>
+              <TabsTrigger
+                value="ai-assistant"
+                data-testid="tab-ai-assistant"
+                className="flex-1 min-w-[100px] data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl py-3 text-slate-400 hover:text-white transition-all"
+              >
+                <Brain className="w-4 h-4 mr-2" />
+                AI
+              </TabsTrigger>
+              <TabsTrigger
+                value="settings"
+                data-testid="tab-settings"
+                className="flex-1 min-w-[100px] data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-xl py-3 text-slate-400 hover:text-white transition-all"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Settings
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-          <TabsContent value="users">
-            <UsersManagement />
-          </TabsContent>
+          {/* Content Area with dark card styling */}
+          <div className="[&_.card]:bg-slate-800/50 [&_.card]:border-slate-700/50 [&_.card]:backdrop-blur-sm [&_h1]:text-white [&_h2]:text-white [&_h3]:text-white [&_h4]:text-slate-200 [&_h5]:text-slate-200 [&_p]:text-slate-400 [&_label]:text-slate-300 [&_th]:text-slate-300 [&_td]:text-slate-300 [&_input]:bg-slate-900/50 [&_input]:border-slate-600 [&_input]:text-white [&_textarea]:bg-slate-900/50 [&_textarea]:border-slate-600 [&_textarea]:text-white [&_select]:bg-slate-900/50 [&_select]:border-slate-600">
+            <TabsContent value="users">
+              <UsersManagement />
+            </TabsContent>
 
-          <TabsContent value="services">
-            <ServicesManagement />
-          </TabsContent>
+            <TabsContent value="services">
+              <ServicesManagement />
+            </TabsContent>
 
-          <TabsContent value="disputes">
-            <DisputesManagement />
-          </TabsContent>
+            <TabsContent value="disputes">
+              <DisputesManagement />
+            </TabsContent>
 
-          <TabsContent value="reviews">
-            <ReviewsManagement />
-          </TabsContent>
+            <TabsContent value="reviews">
+              <ReviewsManagement />
+            </TabsContent>
 
-          <TabsContent value="categories">
-            <CategorySuggestionsManagement />
-          </TabsContent>
+            <TabsContent value="categories">
+              <CategorySuggestionsManagement />
+            </TabsContent>
 
-          <TabsContent value="referrals">
-            <ReferralManagement />
-          </TabsContent>
+            <TabsContent value="referrals">
+              <ReferralManagement />
+            </TabsContent>
 
-          <TabsContent value="plans">
-            <PlansManagement />
-          </TabsContent>
+            <TabsContent value="plans">
+              <PlansManagement />
+            </TabsContent>
 
-          <TabsContent value="test-users">
-            <TestUsersManagement />
-          </TabsContent>
+            <TabsContent value="test-users">
+              <TestUsersManagement />
+            </TabsContent>
 
-          <TabsContent value="ai-assistant">
-            <AIAssistantManagement />
-          </TabsContent>
+            <TabsContent value="ai-assistant">
+              <AIAssistantManagement />
+            </TabsContent>
 
-          <TabsContent value="settings">
-            <SettingsManagement />
-          </TabsContent>
+            <TabsContent value="settings">
+              <SettingsManagement />
+            </TabsContent>
+          </div>
         </Tabs>
       </div>
     </div>
@@ -405,7 +459,7 @@ function UsersManagement() {
                     <div className="flex items-center gap-2">
                       <Switch
                         checked={user.isVerified || false}
-                        onCheckedChange={(checked) => 
+                        onCheckedChange={(checked) =>
                           updateUserMutation.mutate({ id: user.id, data: { isVerified: checked } })
                         }
                         data-testid={`switch-verified-${user.id}`}
@@ -790,7 +844,7 @@ function ServicesManagement() {
 
   const handleSaveEdit = () => {
     if (!editService) return;
-    
+
     const updateData: any = {};
     if (editForm.title !== editService.title) updateData.title = editForm.title;
     if (editForm.description !== editService.description) updateData.description = editForm.description;
@@ -800,22 +854,22 @@ function ServicesManagement() {
     if (editForm.contactPhone !== editService.contactPhone) updateData.contactPhone = editForm.contactPhone;
     if (editForm.contactEmail !== editService.contactEmail) updateData.contactEmail = editForm.contactEmail;
     if (editForm.status !== editService.status) updateData.status = editForm.status;
-    
+
     if (editForm.priceType === "fixed" && editForm.price !== editService.price?.toString()) {
       updateData.price = parseFloat(editForm.price) || null;
     }
     if (editForm.priceType === "text" && editForm.priceText !== editService.priceText) {
       updateData.priceText = editForm.priceText;
     }
-    
+
     const locationsArray = editForm.locations.split(",").map(l => l.trim()).filter(l => l);
     const tagsArray = editForm.tags.split(",").map(t => t.trim()).filter(t => t);
     const hashtagsArray = editForm.hashtags.split(",").map(h => h.trim()).filter(h => h);
-    
+
     if (JSON.stringify(locationsArray) !== JSON.stringify(editService.locations)) updateData.locations = locationsArray;
     if (JSON.stringify(tagsArray) !== JSON.stringify(editService.tags)) updateData.tags = tagsArray;
     if (JSON.stringify(hashtagsArray) !== JSON.stringify(editService.hashtags)) updateData.hashtags = hashtagsArray;
-    
+
     if (Object.keys(updateData).length === 0) {
       toast({
         title: "No changes",
@@ -1330,8 +1384,8 @@ function CategorySuggestionsManagement() {
                           suggestion.status === "approved"
                             ? "default"
                             : suggestion.status === "rejected"
-                            ? "destructive"
-                            : "secondary"
+                              ? "destructive"
+                              : "secondary"
                         }
                       >
                         {suggestion.status}
@@ -2116,17 +2170,15 @@ function AIAssistantManagement() {
               {messages.map((message, index) => (
                 <div
                   key={index}
-                  className={`flex ${
-                    message.role === "user" ? "justify-end" : "justify-start"
-                  }`}
+                  className={`flex ${message.role === "user" ? "justify-end" : "justify-start"
+                    }`}
                   data-testid={`message-${message.role}-${index}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-lg px-4 py-3 ${
-                      message.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
-                    }`}
+                    className={`max-w-[80%] rounded-lg px-4 py-3 ${message.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted"
+                      }`}
                   >
                     <p className="text-sm whitespace-pre-wrap break-words">
                       {message.content}
@@ -2199,6 +2251,247 @@ function AIAssistantManagement() {
   );
 }
 
+// ===========================================
+// DATABASE MANAGEMENT COMPONENT
+// ===========================================
+
+function DatabaseManagement() {
+  const { toast } = useToast();
+  const [isResetting, setIsResetting] = useState(false);
+  const [isResetOnly, setIsResetOnly] = useState(false);
+  const [isReseeding, setIsReseeding] = useState(false);
+  const [activeConfirm, setActiveConfirm] = useState<'reset' | 'reset-only' | null>(null);
+
+  const handleReset = async () => {
+    setIsResetting(true);
+    try {
+      await apiRequest("/api/admin/database/reset", {
+        method: "POST",
+        body: JSON.stringify({ confirmReset: true }),
+      });
+      toast({
+        title: "✅ Database Reset Complete",
+        description: "Database has been reset and reseeded with sample data.",
+      });
+      setActiveConfirm(null);
+      window.location.reload();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reset database",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  const handleResetOnly = async () => {
+    setIsResetOnly(true);
+    try {
+      await apiRequest("/api/admin/database/reset-only", {
+        method: "POST",
+        body: JSON.stringify({ confirmReset: true }),
+      });
+      toast({
+        title: "✅ Database Cleared",
+        description: "All data cleared. Only admin credentials restored.",
+      });
+      setActiveConfirm(null);
+      window.location.reload();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reset database",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResetOnly(false);
+    }
+  };
+
+  const handleReseed = async () => {
+    setIsReseeding(true);
+    try {
+      await apiRequest("/api/admin/database/reseed", {
+        method: "POST",
+      });
+      toast({
+        title: "✅ Database Reseeded",
+        description: "Sample data has been added to the database.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reseed database",
+        variant: "destructive",
+      });
+    } finally {
+      setIsReseeding(false);
+    }
+  };
+
+  return (
+    <Card className="border border-red-500/30 bg-gradient-to-br from-red-950/20 to-transparent">
+      <CardHeader className="border-b border-red-500/20 pb-4">
+        <CardTitle className="flex items-center gap-3 text-red-400">
+          <div className="p-2 rounded-lg bg-red-500/10">
+            <AlertCircle className="w-5 h-5" />
+          </div>
+          Database Management
+        </CardTitle>
+        <CardDescription className="text-slate-400">
+          Danger zone — these actions are irreversible. Use with extreme caution.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="pt-6 space-y-6">
+        {/* Development Actions */}
+        <div className="space-y-3">
+          <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Development</h4>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="p-4 rounded-lg border border-slate-700 bg-slate-800/50">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <h5 className="font-medium text-slate-200">Add Sample Data</h5>
+                  <p className="text-xs text-slate-400 mt-1">Add demo users, services, and reviews without deleting existing data.</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleReseed}
+                disabled={isReseeding}
+                className="mt-3 w-full"
+              >
+                {isReseeding ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Seeding...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Reseed Database
+                  </>
+                )}
+              </Button>
+            </div>
+
+            <div className="p-4 rounded-lg border border-amber-700/50 bg-amber-950/20">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <h5 className="font-medium text-amber-300">Reset & Reseed</h5>
+                  <p className="text-xs text-slate-400 mt-1">Wipe everything and repopulate with fresh sample data.</p>
+                </div>
+              </div>
+              {activeConfirm !== 'reset' ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActiveConfirm('reset')}
+                  className="mt-3 w-full border-amber-600/50 text-amber-300 hover:bg-amber-900/30"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Reset & Reseed
+                </Button>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs text-amber-400 font-medium">⚠️ This will delete ALL data!</p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleReset}
+                      disabled={isResetting}
+                      className="flex-1"
+                    >
+                      {isResetting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirm"}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setActiveConfirm(null)}
+                      disabled={isResetting}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Production Actions */}
+        <div className="space-y-3 pt-4 border-t border-slate-700">
+          <h4 className="text-sm font-semibold text-red-400 uppercase tracking-wider flex items-center gap-2">
+            <Shield className="w-4 h-4" />
+            Production Launch
+          </h4>
+          <div className="p-4 rounded-lg border border-red-600/50 bg-red-950/30">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-red-500/20 mt-0.5">
+                <Trash2 className="w-5 h-5 text-red-400" />
+              </div>
+              <div className="flex-1">
+                <h5 className="font-medium text-red-300">Complete Database Reset</h5>
+                <p className="text-xs text-slate-400 mt-1">
+                  Deletes ALL users (except admin), services, bookings, messages, disputes, and notifications.
+                  <strong className="text-red-300"> No sample data will be added.</strong> Use this when launching to production.
+                </p>
+                {activeConfirm !== 'reset-only' ? (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setActiveConfirm('reset-only')}
+                    className="mt-3"
+                  >
+                    <AlertCircle className="w-4 h-4 mr-2" />
+                    Reset for Production
+                  </Button>
+                ) : (
+                  <div className="mt-3 p-3 rounded-lg bg-red-900/50 border border-red-500/50">
+                    <p className="text-sm text-red-200 font-medium mb-3">
+                      ⚠️ Are you absolutely sure? This cannot be undone!
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleResetOnly}
+                        disabled={isResetOnly}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        {isResetOnly ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Resetting...
+                          </>
+                        ) : (
+                          "Yes, Clear Everything"
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setActiveConfirm(null)}
+                        disabled={isResetOnly}
+                        className="text-slate-300"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function SettingsManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -2257,7 +2550,7 @@ function SettingsManagement() {
         cardProcessingFeeFixed: settings.cardProcessingFeeFixed ?? "0.30",
         twintProcessingFeePercent: settings.twintProcessingFeePercent ?? "1.30",
       });
-      
+
       // Load saved Google Maps API key
       if (settings.googleMapsApiKey) {
         setApiKeys(prev => ({
@@ -2314,7 +2607,7 @@ function SettingsManagement() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/env-status"] });
       queryClient.invalidateQueries({ queryKey: ["/api/maps/config"] });
       queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
-      
+
       toast({
         title: "Success",
         description: "Google Maps API key saved successfully!",
@@ -2338,24 +2631,27 @@ function SettingsManagement() {
     return false;
   };
 
-  if (isLoading) return <div>Loading...</div>;
+  if (isLoading) return <div className="text-slate-400">Loading...</div>;
 
   return (
     <div className="space-y-6">
-      <Alert data-testid="alert-settings-info">
+      <Alert className="bg-blue-950/30 border-blue-500/30 text-blue-200" data-testid="alert-settings-info">
         <AlertDescription>
           These settings control verification requirements for the platform. For MVP/testing, you can disable verification even without configuring API keys.
         </AlertDescription>
       </Alert>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Verification Settings</CardTitle>
-          <CardDescription>
+      <Card className="bg-slate-800/50 border-slate-700/50 backdrop-blur-sm">
+        <CardHeader className="border-b border-slate-700/50">
+          <CardTitle className="text-white flex items-center gap-2">
+            <CheckCircle className="w-5 h-5 text-green-400" />
+            Verification Settings
+          </CardTitle>
+          <CardDescription className="text-slate-400">
             Configure verification requirements for users and services
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="pt-6 space-y-6">
           <div className="space-y-4">
             <div className="flex items-center justify-between" data-testid="setting-email-verification">
               <div className="space-y-0.5">
@@ -2482,22 +2778,22 @@ function SettingsManagement() {
       </Card>
 
       {/* Commission & Fees Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="w-5 h-5" />
+      <Card className="bg-slate-800/50 border-slate-700/50 backdrop-blur-sm">
+        <CardHeader className="border-b border-slate-700/50">
+          <CardTitle className="text-white flex items-center gap-2">
+            <CreditCard className="w-5 h-5 text-cyan-400" />
             Commission & Payment Fees
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-slate-400">
             Configure platform commission and payment processing fees. These fees are applied to all bookings.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <Alert>
-            <AlertDescription>
-              <strong>Total fee to customer:</strong> Platform Commission + Processing Fee
+        <CardContent className="pt-6 space-y-6">
+          <Alert className="bg-slate-900/50 border-slate-600">
+            <AlertDescription className="text-slate-300">
+              <strong className="text-white">Total fee to customer:</strong> Platform Commission + Processing Fee
               <br />
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm text-slate-400">
                 Card: {localSettings.platformCommissionPercent}% + {localSettings.cardProcessingFeePercent}% + CHF {localSettings.cardProcessingFeeFixed} = ~{(parseFloat(localSettings.platformCommissionPercent) + parseFloat(localSettings.cardProcessingFeePercent)).toFixed(1)}%
                 <br />
                 TWINT: {localSettings.platformCommissionPercent}% + {localSettings.twintProcessingFeePercent}% = {(parseFloat(localSettings.platformCommissionPercent) + parseFloat(localSettings.twintProcessingFeePercent)).toFixed(1)}%
@@ -2604,22 +2900,25 @@ function SettingsManagement() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>API Configuration</CardTitle>
-          <CardDescription>
+      <Card className="bg-slate-800/50 border-slate-700/50 backdrop-blur-sm">
+        <CardHeader className="border-b border-slate-700/50">
+          <CardTitle className="text-white flex items-center gap-2">
+            <Settings className="w-5 h-5 text-purple-400" />
+            API Configuration
+          </CardTitle>
+          <CardDescription className="text-slate-400">
             Configure API keys for third-party services (stored as environment variables)
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <Alert data-testid="alert-api-keys-info">
-            <AlertDescription>
+        <CardContent className="pt-6 space-y-6">
+          <Alert className="bg-slate-900/50 border-slate-600" data-testid="alert-api-keys-info">
+            <AlertDescription className="text-slate-300">
               API keys are stored as environment variables for security. Enter values below and click Save to configure. Leave fields empty to keep existing values.
             </AlertDescription>
           </Alert>
 
           <div className="space-y-4">
-            <div className="border-b pb-4">
+            <div className="border-b border-slate-700 pb-4">
               <h3 className="font-semibold mb-3 flex items-center gap-2">
                 Twilio Configuration
                 <Badge variant={isConfigured("twilio") ? "default" : "secondary"} data-testid="badge-twilio-status">
@@ -2735,7 +3034,7 @@ function SettingsManagement() {
               </div>
             </div>
 
-            <div className="border-t pt-4">
+            <div className="border-t border-slate-700 pt-4">
               <h3 className="font-semibold mb-3 flex items-center gap-2">
                 Google Maps Configuration
                 <Badge variant={isConfigured("googlemaps") ? "default" : "secondary"} data-testid="badge-googlemaps-status">
@@ -2745,7 +3044,7 @@ function SettingsManagement() {
               <div className="space-y-3">
                 <div>
                   <Label htmlFor="google-maps-key">Google Maps API Key</Label>
-                  <p className="text-sm text-muted-foreground mb-2">
+                  <p className="text-sm text-slate-400 mb-2">
                     Get your API key from <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google Cloud Console</a>
                   </p>
                   <div className="flex gap-2">
@@ -2789,6 +3088,9 @@ function SettingsManagement() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Database Management */}
+      <DatabaseManagement />
     </div>
   );
 }
@@ -3376,8 +3678,8 @@ function TestUsersManagement() {
 
   // Cleanup mutation
   const cleanupMutation = useMutation({
-    mutationFn: (dryRun: boolean) => 
-      apiRequest("/api/admin/test-users/cleanup", { 
+    mutationFn: (dryRun: boolean) =>
+      apiRequest("/api/admin/test-users/cleanup", {
         method: "POST",
         body: JSON.stringify({ dryRun }),
       }),
@@ -3385,8 +3687,8 @@ function TestUsersManagement() {
       const total = Object.values(data.deleted).reduce((a: number, b: any) => a + (b as number), 0);
       toast({
         title: data.dryRun ? "Dry Run Complete" : "Cleanup Complete",
-        description: data.dryRun 
-          ? `Would delete ${total} test records` 
+        description: data.dryRun
+          ? `Would delete ${total} test records`
           : `Deleted ${total} test records successfully`,
       });
       setConfirmCleanup(false);
@@ -3426,7 +3728,7 @@ function TestUsersManagement() {
 
   // Start test run mutation
   const startRunMutation = useMutation({
-    mutationFn: (testType: string) => 
+    mutationFn: (testType: string) =>
       apiRequest("/api/admin/test-users/runs/start", {
         method: "POST",
         body: JSON.stringify({ testType }),
@@ -3809,11 +4111,11 @@ function TestUsersManagement() {
               </TableHeader>
               <TableBody>
                 {runsData.runs.slice(0, 10).map((run) => {
-                  const duration = run.completedAt 
+                  const duration = run.completedAt
                     ? Math.round((new Date(run.completedAt).getTime() - new Date(run.startedAt).getTime()) / 1000)
                     : null;
                   const dataCount = Object.values(run.createdData).flat().length;
-                  
+
                   return (
                     <TableRow key={run.id}>
                       <TableCell className="font-mono text-xs">
@@ -3823,12 +4125,12 @@ function TestUsersManagement() {
                         <Badge variant="outline">{run.testType}</Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge 
+                        <Badge
                           variant={
                             run.status === 'completed' ? 'default' :
-                            run.status === 'running' ? 'secondary' :
-                            run.status === 'cleaned' ? 'outline' :
-                            'destructive'
+                              run.status === 'running' ? 'secondary' :
+                                run.status === 'cleaned' ? 'outline' :
+                                  'destructive'
                           }
                         >
                           {run.status}

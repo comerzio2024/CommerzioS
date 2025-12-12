@@ -50,21 +50,21 @@ export default function Contact() {
                   <div>
                     <p className="text-sm font-medium text-muted-foreground mb-1">General Inquiries</p>
                     <a 
-                      href="mailto:info@servemkt.ch" 
+                      href="mailto:info@commerzio.online" 
                       className="text-primary font-medium hover:underline"
                       data-testid="link-info-email"
                     >
-                      info@servemkt.ch
+                      info@commerzio.online
                     </a>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground mb-1">Customer Support</p>
                     <a 
-                      href="mailto:support@servemkt.ch" 
+                      href="mailto:support@commerzio.online" 
                       className="text-primary font-medium hover:underline"
                       data-testid="link-support-email"
                     >
-                      support@servemkt.ch
+                      support@commerzio.online
                     </a>
                   </div>
                 </CardContent>

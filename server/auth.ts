@@ -19,10 +19,10 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import connectPg from "connect-pg-simple";
 import type { Express, Request, Response, NextFunction, RequestHandler } from "express";
-import { 
-  registerUser, 
-  loginUser, 
-  verifyEmail, 
+import {
+  registerUser,
+  loginUser,
+  verifyEmail,
   resendVerificationEmail,
   requestPasswordReset,
   resetPassword,
@@ -78,15 +78,15 @@ export function getSession() {
     ttl: SESSION_TTL / 1000, // in seconds
     tableName: "session", // Matches drizzle schema
   });
-  
+
   const sessionSecret = process.env.SESSION_SECRET;
   if (!sessionSecret || sessionSecret === "change-this-secret-in-production") {
     console.warn("⚠️  WARNING: SESSION_SECRET is not set or using default value. Set a strong secret in production!");
   }
-  
+
   const isProduction = process.env.NODE_ENV === "production";
   const crossDomain = isCrossDomainSetup();
-  
+
   // For cross-domain auth (Vercel + Railway), we need sameSite: 'none' and secure: true
   // This allows cookies to be sent with cross-origin requests
   const cookieConfig = {
@@ -97,15 +97,15 @@ export function getSession() {
     // Set domain for cross-subdomain cookies (e.g., .commerzio.online)
     ...(crossDomain && process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
   };
-  
+
   if (crossDomain) {
-    console.log('🔐 Cross-domain auth enabled, cookie config:', { 
-      sameSite: cookieConfig.sameSite, 
+    console.log('🔐 Cross-domain auth enabled, cookie config:', {
+      sameSite: cookieConfig.sameSite,
       secure: cookieConfig.secure,
       domain: process.env.COOKIE_DOMAIN || '(not set)',
     });
   }
-  
+
   return session({
     secret: sessionSecret || "dev-secret-change-in-production",
     store: sessionStore,
@@ -122,14 +122,14 @@ export function getSession() {
 export async function setupAuth(app: Express) {
   // Trust proxy for secure cookies behind reverse proxy
   app.set("trust proxy", 1);
-  
+
   // Session middleware
   app.use(getSession());
-  
+
   // Initialize Passport
   app.use(passport.initialize());
   app.use(passport.session());
-  
+
   // Configure Local Strategy
   passport.use(
     new LocalStrategy(
@@ -145,11 +145,14 @@ export async function setupAuth(app: Express) {
             password,
             ipAddress: req.ip,
           });
-          
+
           if (!result.success) {
-            return done(null, false, { message: result.message });
+            return done(null, false, {
+              message: result.message,
+              isDeactivated: (result as any).isDeactivated || false
+            });
           }
-          
+
           return done(null, result.user);
         } catch (error) {
           return done(error);
@@ -157,12 +160,12 @@ export async function setupAuth(app: Express) {
       }
     )
   );
-  
+
   // Serialize user to session
   passport.serializeUser((user, done) => {
     done(null, user.id);
   });
-  
+
   // Deserialize user from session
   passport.deserializeUser(async (id: string, done) => {
     try {
@@ -170,12 +173,12 @@ export async function setupAuth(app: Express) {
       if (!user) {
         return done(null, false);
       }
-      
+
       // Check if user is banned/suspended/kicked
       if (user.status === "banned" || user.status === "suspended" || user.status === "kicked") {
         return done(null, false);
       }
-      
+
       done(null, {
         id: user.id,
         email: user.email!,
@@ -189,11 +192,11 @@ export async function setupAuth(app: Express) {
       done(error);
     }
   });
-  
+
   // ===================
   // AUTH ROUTES
   // ===================
-  
+
   /**
    * Register a new user
    * POST /api/auth/register
@@ -205,28 +208,28 @@ export async function setupAuth(app: Express) {
   app.post("/api/auth/register", async (req: Request, res: Response) => {
     try {
       // Get referral code from body, query, or session/cookie
-      const referralCode = req.body.referralCode || 
-                           req.query.ref as string || 
-                           (req.session as any)?.referralCode ||
-                           req.cookies?.referral_code;
-      
+      const referralCode = req.body.referralCode ||
+        req.query.ref as string ||
+        (req.session as any)?.referralCode ||
+        req.cookies?.referral_code;
+
       const validated = registerWithReferralSchema.parse({
         ...req.body,
         referralCode: referralCode || undefined,
       });
-      
+
       const result = await registerUser(validated);
-      
+
       if (!result.success) {
         return res.status(400).json({ message: result.message });
       }
-      
+
       // Clear referral code from session if used
       if ((req.session as any)?.referralCode) {
         delete (req.session as any).referralCode;
       }
-      
-      res.status(201).json({ 
+
+      res.status(201).json({
         message: result.message,
         referrerName: result.referrerName,
       });
@@ -238,20 +241,20 @@ export async function setupAuth(app: Express) {
       res.status(500).json({ message: "Registration failed. Please try again." });
     }
   });
-  
+
   /**
    * Store referral code in session (for OAuth flows)
    * GET /api/auth/set-referral?ref=CODE
    */
   app.get("/api/auth/set-referral", (req: Request, res: Response) => {
     const referralCode = req.query.ref as string;
-    
+
     if (referralCode && referralCode.length >= 4 && referralCode.length <= 20) {
       (req.session as any).referralCode = referralCode.toUpperCase();
-      
+
       const isProduction = process.env.NODE_ENV === 'production';
       const crossDomain = isCrossDomainSetup();
-      
+
       // Also set a cookie for persistence
       res.cookie('referral_code', referralCode.toUpperCase(), {
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
@@ -260,13 +263,13 @@ export async function setupAuth(app: Express) {
         sameSite: crossDomain && isProduction ? 'none' : 'lax',
         ...(crossDomain && process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
       });
-      
+
       res.json({ success: true, message: "Referral code stored" });
     } else {
       res.status(400).json({ success: false, message: "Invalid referral code" });
     }
   });
-  
+
   /**
    * Login with email/password
    * POST /api/auth/login
@@ -280,24 +283,31 @@ export async function setupAuth(app: Express) {
       }
       return res.status(400).json({ message: "Invalid request" });
     }
-    
+
     passport.authenticate("local", (err: any, user: Express.User | false, info: { message: string } | undefined) => {
       if (err) {
         console.error("Login error:", err);
         return res.status(500).json({ message: "Login failed. Please try again." });
       }
-      
+
       if (!user) {
+        // Check if this is a deactivated account
+        if ((info as any)?.isDeactivated) {
+          return res.status(401).json({
+            message: info?.message || "Account is deactivated",
+            isDeactivated: true
+          });
+        }
         return res.status(401).json({ message: info?.message || "Invalid credentials" });
       }
-      
+
       // Regenerate session for security
       req.login(user, (loginErr) => {
         if (loginErr) {
           console.error("Session error:", loginErr);
           return res.status(500).json({ message: "Login failed. Please try again." });
         }
-        
+
         res.json({
           message: "Login successful",
           user: {
@@ -313,7 +323,7 @@ export async function setupAuth(app: Express) {
       });
     })(req, res, next);
   });
-  
+
   /**
    * Logout
    * POST /api/auth/logout
@@ -324,7 +334,7 @@ export async function setupAuth(app: Express) {
         console.error("Logout error:", err);
         return res.status(500).json({ message: "Logout failed" });
       }
-      
+
       req.session.destroy((destroyErr) => {
         if (destroyErr) {
           console.error("Session destroy error:", destroyErr);
@@ -334,7 +344,7 @@ export async function setupAuth(app: Express) {
       });
     });
   });
-  
+
   /**
    * Get current user (for backwards compatibility with /api/login redirect)
    * Also handles the legacy /api/login and /api/logout redirects
@@ -343,7 +353,7 @@ export async function setupAuth(app: Express) {
     // Redirect to login page
     res.redirect("/login");
   });
-  
+
   app.get("/api/logout", (req: Request, res: Response) => {
     req.logout((err) => {
       if (err) {
@@ -358,7 +368,7 @@ export async function setupAuth(app: Express) {
       });
     });
   });
-  
+
   /**
    * Get current authenticated user
    * GET /api/auth/user
@@ -367,21 +377,21 @@ export async function setupAuth(app: Express) {
     if (!req.isAuthenticated() || !req.user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-    
+
     try {
       // Get full user data from database
       const user = await storage.getUser(req.user.id);
       if (!user) {
         return res.status(401).json({ message: "User not found" });
       }
-      
+
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
     }
   });
-  
+
   /**
    * Verify email
    * POST /api/auth/verify-email
@@ -389,24 +399,24 @@ export async function setupAuth(app: Express) {
   app.post("/api/auth/verify-email", async (req: Request, res: Response) => {
     try {
       const { token } = req.body;
-      
+
       if (!token) {
         return res.status(400).json({ message: "Verification token is required" });
       }
-      
+
       const result = await verifyEmail(token);
-      
+
       if (!result.success) {
         return res.status(400).json({ message: result.message });
       }
-      
+
       res.json({ message: result.message });
     } catch (error) {
       console.error("Email verification error:", error);
       res.status(500).json({ message: "Verification failed. Please try again." });
     }
   });
-  
+
   /**
    * Resend verification email
    * POST /api/auth/resend-verification
@@ -414,11 +424,11 @@ export async function setupAuth(app: Express) {
   app.post("/api/auth/resend-verification", async (req: Request, res: Response) => {
     try {
       const { email } = req.body;
-      
+
       if (!email) {
         return res.status(400).json({ message: "Email is required" });
       }
-      
+
       const result = await resendVerificationEmail(email);
       res.json({ message: result.message });
     } catch (error) {
@@ -426,7 +436,7 @@ export async function setupAuth(app: Express) {
       res.status(500).json({ message: "Failed to send verification email." });
     }
   });
-  
+
   /**
    * Request password reset
    * POST /api/auth/forgot-password
@@ -444,7 +454,7 @@ export async function setupAuth(app: Express) {
       res.status(500).json({ message: "Failed to process request." });
     }
   });
-  
+
   /**
    * Reset password with token
    * POST /api/auth/reset-password
@@ -456,11 +466,11 @@ export async function setupAuth(app: Express) {
         token: validated.token,
         newPassword: validated.password,
       });
-      
+
       if (!result.success) {
         return res.status(400).json({ message: result.message });
       }
-      
+
       res.json({ message: result.message });
     } catch (error: any) {
       if (error.name === "ZodError") {
@@ -470,7 +480,7 @@ export async function setupAuth(app: Express) {
       res.status(500).json({ message: "Failed to reset password." });
     }
   });
-  
+
   /**
    * Change password (authenticated)
    * POST /api/auth/change-password
@@ -483,11 +493,11 @@ export async function setupAuth(app: Express) {
         currentPassword: validated.currentPassword,
         newPassword: validated.newPassword,
       });
-      
+
       if (!result.success) {
         return res.status(400).json({ message: result.message });
       }
-      
+
       res.json({ message: result.message });
     } catch (error: any) {
       if (error.name === "ZodError") {
@@ -495,6 +505,45 @@ export async function setupAuth(app: Express) {
       }
       console.error("Password change error:", error);
       res.status(500).json({ message: "Failed to change password." });
+    }
+  });
+
+  /**
+   * Disconnect OAuth provider (authenticated)
+   * POST /api/user/disconnect-oauth
+   * Only allows disconnect if user has a platform password set
+   */
+  app.post("/api/user/disconnect-oauth", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const user = await storage.getUser(userId);
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (user.authProvider === "local") {
+        return res.status(400).json({ message: "No OAuth provider connected" });
+      }
+
+      if (!user.passwordHash) {
+        return res.status(400).json({
+          message: "Cannot disconnect OAuth without a platform password. Please set a password first."
+        });
+      }
+
+      // Update user to remove OAuth and use local auth
+      await db.update(users)
+        .set({
+          authProvider: "local",
+          oauthProviderId: null,
+        })
+        .where(eq(users.id, userId));
+
+      res.json({ message: "OAuth provider disconnected successfully" });
+    } catch (error: any) {
+      console.error("OAuth disconnect error:", error);
+      res.status(500).json({ message: "Failed to disconnect OAuth provider" });
     }
   });
 }
@@ -506,14 +555,14 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
   if (!req.isAuthenticated() || !req.user) {
     return res.status(401).json({ message: "Unauthorized" });
   }
-  
+
   // Check if user is banned/suspended/kicked
   try {
     const dbUser = await storage.getUser(req.user.id);
     if (!dbUser) {
       return res.status(401).json({ message: "User not found" });
     }
-    
+
     if (dbUser.status === "banned" || dbUser.status === "suspended" || dbUser.status === "kicked") {
       // Force logout
       req.logout((err) => {
@@ -526,10 +575,10 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
       });
       return;
     }
-    
+
     // Check if email verification is required
     // Email verification is required for posting services (checked in specific routes)
-    
+
     next();
   } catch (error) {
     console.error("Auth check error:", error);

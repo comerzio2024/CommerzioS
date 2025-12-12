@@ -20,8 +20,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, type ServiceWithDetails, type CategoryWithTemporary } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useGeocoding } from "@/hooks/useGeocoding";
 import { geocodeLocation, suggestionToGeocodeResult, type GeocodingSuggestion } from "@/lib/geocoding";
+import { useLocationState } from "@/hooks/useLocationState";
+import { useAnalytics } from "@/hooks/useAnalytics";
+import { ServiceSlider } from "@/components/service-slider";
+
 
 const RADIUS_PRESETS = [2, 5, 10, 20, 50, 100];
 
@@ -62,6 +67,81 @@ export default function Home() {
     suggestions: addressSuggestions,
     clearSuggestions,
   } = useGeocoding({ minQueryLength: 2, debounceMs: 300, limit: 10, autoSearch: true });
+
+  const { location, requestLocation } = useLocationState();
+  const { trackView, getTopInterests } = useAnalytics();
+  const [suggestedServices, setSuggestedServices] = useState<ServiceWithDetails[]>([]);
+
+  // Welcome back modal for reactivated users
+  const [showWelcomeBackModal, setShowWelcomeBackModal] = useState(false);
+
+  // Check for reactivation flag on mount
+  useEffect(() => {
+    if (localStorage.getItem('just_reactivated') === 'true') {
+      setShowWelcomeBackModal(true);
+      localStorage.removeItem('just_reactivated');
+    }
+  }, []);
+
+  // Sync location state from hook to local searchLocation state
+  useEffect(() => {
+    if (location.coords) {
+      // Only update if we don't have a specific manual search set, or if it's the first load
+      if (!searchLocation || useLocationPermissions) {
+        // Reverse geocode to get name
+        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${location.coords.latitude}&lon=${location.coords.longitude}&format=json`)
+          .then(res => res.json())
+          .then(data => {
+            const name = data.address?.city || data.display_name;
+            setSearchLocation({
+              lat: location.coords!.latitude,
+              lng: location.coords!.longitude,
+              name: name
+            });
+            setUseLocationPermissions(true);
+            setNearbyMode('grid'); // Default to grid when location is known
+          })
+          .catch(() => {
+            // Fallback if reverse geocoding fails, still set coords
+            setSearchLocation({
+              lat: location.coords!.latitude,
+              lng: location.coords!.longitude,
+              name: "Your Location"
+            });
+            setUseLocationPermissions(true);
+            setNearbyMode('grid');
+          });
+      }
+    } else if (location.permissionStatus === 'denied' && localStorage.getItem('location_prompt_seen') === 'true') {
+      // If explicitly denied and we've asked before, we rely on the banner
+      setNearbyMode('slider');
+    }
+  }, [location.coords, location.permissionStatus]);
+
+  // Persistent Prompt Component
+  const LocationPromptBanner = () => {
+    if (location.permissionStatus === 'granted' || location.permissionStatus === 'unknown') return null;
+
+    // If denied, we keep showing this until they enable it manually (browser limitation)
+    return (
+      <div className="bg-primary/10 border-b border-primary/20 px-4 py-3">
+        <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm text-foreground">
+            <MapPin className="h-4 w-4 text-primary" />
+            <span className="font-medium">Enable location services for the best local experience.</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" className="h-8 text-xs bg-background" onClick={requestLocation}>
+              Check Permission
+            </Button>
+            <p className="text-xs text-muted-foreground hidden md:block">
+              (You may need to update browser settings)
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const [debouncedRadius, setDebouncedRadius] = useState(radiusKm);
   useEffect(() => {
@@ -198,6 +278,17 @@ export default function Home() {
     });
     return c;
   }, [services]);
+
+  // Calculate top interests for suggestions
+  useEffect(() => {
+    const topCategories = getTopInterests();
+    if (topCategories.length > 0 && services.length > 0) {
+      const suggested = services.filter(s =>
+        topCategories.includes((s as any).categoryId || (s as any).category?.id)
+      ).slice(0, 4);
+      setSuggestedServices(suggested);
+    }
+  }, [services, getTopInterests]);
 
   const { data: allNearbyData = [], isLoading: nearbyLoading } = useQuery<Array<ServiceWithDetails & { distance: number }>>({
     queryKey: ["/api/services/nearby", searchLocation],
@@ -340,6 +431,7 @@ export default function Home() {
 
   return (
     <Layout>
+      <LocationPromptBanner />
       <section className="relative border-b overflow-hidden min-h-[600px]">
         <HeroVideoBackground />
         <div className="container mx-auto px-4 py-20 md:py-32 relative z-10 text-center">
@@ -669,25 +761,7 @@ export default function Home() {
                   </div>
                 )}
                 {nearbyMode === "slider" ? (
-                  <Carousel
-                    setApi={setCarouselApi}
-                    opts={{ align: "start", loop: true, duration: 30 }}
-                    className="w-full"
-                    onMouseEnter={() => setIsPaused(true)}
-                    onMouseLeave={() => setIsPaused(false)}
-                  >
-                    <CarouselContent>
-                      {nearbyServices.map((s) => (
-                        <CarouselItem key={(s as any).id} className="md:basis-1/2 lg:basis-1/3 xl:basis-1/4 pl-4">
-                          <div className="h-full p-2">
-                            <ServiceCard service={s} />
-                          </div>
-                        </CarouselItem>
-                      ))}
-                    </CarouselContent>
-                    <CarouselPrevious className="hidden md:flex" />
-                    <CarouselNext className="hidden md:flex" />
-                  </Carousel>
+                  <ServiceSlider services={nearbyServices} />
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {nearbyServices.map((s) => (
@@ -701,8 +775,28 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Suggested For You Section */}
+      {
+        suggestedServices.length > 0 && (
+          <section className="py-12 bg-background border-b border-border">
+            <div className="container mx-auto px-4">
+              <div className="flex items-center gap-2 mb-6">
+                <Sparkles className="h-5 w-5 text-primary" />
+                <h2 className="text-2xl font-bold">Suggested for you</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {suggestedServices.map((s) => (
+                  <ServiceCard key={(s as any).id} service={s} />
+                ))}
+              </div>
+            </div>
+          </section>
+        )
+      }
+
+
       {/* How Commerzio Works Section */}
-      <section className="py-16 md:py-24 bg-gradient-to-b from-background via-background to-muted/30">
+      < section className="py-16 md:py-24 bg-gradient-to-b from-background via-background to-muted/30" >
         <div className="container mx-auto px-4">
           {/* Section Badge */}
           <div className="flex justify-center mb-6">
@@ -757,10 +851,10 @@ export default function Home() {
             ))}
           </div>
         </div>
-      </section>
+      </section >
 
       {/* Why Choose Commerzio Section */}
-      <section className="py-16 md:py-24 bg-muted/30 dark:bg-muted/10">
+      < section className="py-16 md:py-24 bg-muted/30 dark:bg-muted/10" >
         <div className="container mx-auto px-4">
           {/* Section Heading */}
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-4 text-foreground">
@@ -859,12 +953,12 @@ export default function Home() {
             ))}
           </div>
         </div>
-      </section>
+      </section >
 
       {/* Ready to Get Started CTA Section */}
-      <section className="py-16 md:py-24 bg-gradient-to-br from-primary/10 via-background to-cyan-500/10 relative overflow-hidden">
+      < section className="py-16 md:py-24 bg-gradient-to-br from-primary/10 via-background to-cyan-500/10 relative overflow-hidden" >
         {/* Background decoration */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent pointer-events-none" />
+        < div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent pointer-events-none" />
 
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center max-w-2xl mx-auto">
@@ -897,7 +991,54 @@ export default function Home() {
             </div>
           </div>
         </div>
-      </section>
+      </section >
+
+      {/* Welcome Back Modal for Reactivated Users */}
+      <Dialog open={showWelcomeBackModal} onOpenChange={setShowWelcomeBackModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-2xl">
+              🎉 Welcome Back!
+            </DialogTitle>
+            <DialogDescription className="text-base">
+              We're so glad you're back! Your account has been successfully reactivated.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4 space-y-4">
+            <div className="bg-primary/10 border border-primary/30 rounded-lg p-4">
+              <p className="text-sm text-foreground">
+                Your account is now active again. Here's what you can do:
+              </p>
+              <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                <li className="flex items-start gap-2">
+                  <span>📋</span>
+                  <span>Check your archived listings and reactivate them</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span>💬</span>
+                  <span>View any messages you may have missed</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span>🔔</span>
+                  <span>Check your notifications for updates</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:flex-col">
+            <Link href="/profile?tab=listings&filter=archived" className="w-full">
+              <Button variant="outline" className="w-full" onClick={() => setShowWelcomeBackModal(false)}>
+                View Archived Listings
+              </Button>
+            </Link>
+            <Button className="w-full" onClick={() => setShowWelcomeBackModal(false)}>
+              Continue to Home
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout >
   );
 }

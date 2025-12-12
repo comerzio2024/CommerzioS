@@ -54,15 +54,15 @@ function PasswordStrengthIndicator({ password }: { password: string }) {
     <div className="space-y-2 mt-2">
       <Progress value={strength} className="h-2" />
       <div className="grid grid-cols-3 gap-2 text-xs">
-        <div className={`flex items-center gap-1 ${checks.length ? "text-green-600" : "text-muted-foreground"}`}>
+        <div className={`flex items-center gap-1 ${checks.length ? "text-green-600" : "text-gray-400"}`}>
           {checks.length ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
           8+ characters
         </div>
-        <div className={`flex items-center gap-1 ${checks.uppercase ? "text-green-600" : "text-muted-foreground"}`}>
+        <div className={`flex items-center gap-1 ${checks.uppercase ? "text-green-600" : "text-gray-400"}`}>
           {checks.uppercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
           Uppercase
         </div>
-        <div className={`flex items-center gap-1 ${checks.number ? "text-green-600" : "text-muted-foreground"}`}>
+        <div className={`flex items-center gap-1 ${checks.number ? "text-green-600" : "text-gray-400"}`}>
           {checks.number ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
           Number
         </div>
@@ -199,14 +199,14 @@ export default function RegisterPage() {
   }
   
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 py-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-white to-indigo-100 p-4 py-8">
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-indigo-100 rounded-full blur-3xl opacity-50" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-violet-100 rounded-full blur-3xl opacity-50" />
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-indigo-200 rounded-full blur-3xl opacity-40" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-violet-200 rounded-full blur-3xl opacity-40" />
       </div>
       
-      <Card className="w-full max-w-md relative backdrop-blur-sm bg-white/90 shadow-2xl border-0 animate-fade-in">
+      <Card className="w-full max-w-md relative bg-white shadow-2xl border border-gray-100">
         <CardHeader className="space-y-1 text-center pb-2">
           <Link href="/">
             <div className="inline-flex items-center justify-center gap-2.5 cursor-pointer mb-6 group">
@@ -220,13 +220,13 @@ export default function RegisterPage() {
                 </svg>
               </div>
               <div className="flex flex-col leading-tight text-left">
-                <span className="text-xl font-bold text-foreground">Commerzio</span>
-                <span className="text-xs font-medium text-primary -mt-0.5">Services</span>
+                <span className="text-xl font-bold text-gray-900">Commerzio</span>
+                <span className="text-xs font-medium text-blue-600 -mt-0.5">Services</span>
               </div>
             </div>
           </Link>
-          <CardTitle className="text-2xl font-bold">Create your account</CardTitle>
-          <CardDescription>Join Switzerland's trusted service marketplace</CardDescription>
+          <CardTitle className="text-2xl font-bold text-gray-900">Create your account</CardTitle>
+          <CardDescription className="text-gray-600">Join Switzerland's trusted service marketplace</CardDescription>
         </CardHeader>
         
         <CardContent className="space-y-4">
@@ -257,7 +257,7 @@ export default function RegisterPage() {
               <Separator className="w-full" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Or register with email</span>
+              <span className="bg-white px-2 text-gray-500">Or register with email</span>
             </div>
           </div>
           
@@ -273,103 +273,104 @@ export default function RegisterPage() {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName">First name</Label>
+                <Label htmlFor="firstName" className="text-gray-700 font-medium">First name</Label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
                     id="firstName"
                     placeholder="John"
-                    className="pl-10"
+                    className="pl-10 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400"
                     {...form.register("firstName")}
                   />
                 </div>
                 {form.formState.errors.firstName && (
-                  <p className="text-sm text-destructive">{form.formState.errors.firstName.message}</p>
+                  <p className="text-sm text-red-600">{form.formState.errors.firstName.message}</p>
                 )}
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="lastName">Last name</Label>
+                <Label htmlFor="lastName" className="text-gray-700 font-medium">Last name</Label>
                 <Input
                   id="lastName"
                   placeholder="Doe"
+                  className="bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400"
                   {...form.register("lastName")}
                 />
                 {form.formState.errors.lastName && (
-                  <p className="text-sm text-destructive">{form.formState.errors.lastName.message}</p>
+                  <p className="text-sm text-red-600">{form.formState.errors.lastName.message}</p>
                 )}
               </div>
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-gray-700 font-medium">Email</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   id="email"
                   type="email"
                   placeholder="you@example.com"
-                  className="pl-10"
+                  className="pl-10 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400"
                   {...form.register("email")}
                 />
               </div>
               {form.formState.errors.email && (
-                <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
+                <p className="text-sm text-red-600">{form.formState.errors.email.message}</p>
               )}
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="Create a strong password"
-                  className="pl-10 pr-10"
+                  className="pl-10 pr-10 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400"
                   {...form.register("password")}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
               {password && <PasswordStrengthIndicator password={password} />}
               {form.formState.errors.password && (
-                <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
+                <p className="text-sm text-red-600">{form.formState.errors.password.message}</p>
               )}
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm password</Label>
+              <Label htmlFor="confirmPassword" className="text-gray-700 font-medium">Confirm password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
                   placeholder="Confirm your password"
-                  className="pl-10 pr-10"
+                  className="pl-10 pr-10 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400"
                   {...form.register("confirmPassword")}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
               {form.formState.errors.confirmPassword && (
-                <p className="text-sm text-destructive">{form.formState.errors.confirmPassword.message}</p>
+                <p className="text-sm text-red-600">{form.formState.errors.confirmPassword.message}</p>
               )}
             </div>
             
             <Button
               type="submit"
-              className="w-full bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 shadow-lg"
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium shadow-lg"
               disabled={registerMutation.isPending}
             >
               {registerMutation.isPending ? (
@@ -382,14 +383,14 @@ export default function RegisterPage() {
               )}
             </Button>
             
-            <p className="text-xs text-center text-muted-foreground">
+            <p className="text-xs text-center text-gray-500">
               By creating an account, you agree to our{" "}
               <Link href="/terms">
-                <span className="text-primary hover:underline cursor-pointer">Terms of Service</span>
+                <span className="text-blue-600 hover:underline cursor-pointer">Terms of Service</span>
               </Link>{" "}
               and{" "}
               <Link href="/privacy">
-                <span className="text-primary hover:underline cursor-pointer">Privacy Policy</span>
+                <span className="text-blue-600 hover:underline cursor-pointer">Privacy Policy</span>
               </Link>
               .
             </p>
@@ -397,10 +398,10 @@ export default function RegisterPage() {
         </CardContent>
         
         <CardFooter className="flex flex-col space-y-4 pt-0">
-          <div className="text-center text-sm text-muted-foreground">
+          <div className="text-center text-sm text-gray-600">
             Already have an account?{" "}
             <Link href="/login">
-              <span className="text-primary font-medium hover:underline cursor-pointer">
+              <span className="text-blue-600 font-medium hover:underline cursor-pointer">
                 Sign in
               </span>
             </Link>

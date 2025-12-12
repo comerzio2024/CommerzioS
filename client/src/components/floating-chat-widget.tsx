@@ -17,7 +17,7 @@ interface FloatingChatWidgetProps {
   pageContext?: PageContext;
 }
 
-const STORAGE_KEY = "servemkt-chat-history";
+const STORAGE_KEY = "commerzio-chat-history";
 const PROACTIVE_DELAY = 2000; // Show help after 2 seconds
 const STUCK_DELAY = 30000; // Offer help after 30 seconds of inactivity
 

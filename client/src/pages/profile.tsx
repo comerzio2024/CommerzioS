@@ -8,7 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, Settings, CreditCard, BarChart3, RefreshCw, Clock, Trash2, Plus, Edit2, MapPin, CheckCircle2, CheckCircle, User as UserIcon, Camera, Loader2, Edit, Trash, Pencil, Check, Gift, Users, Star, TrendingUp, Copy, Share2, ChevronDown, ChevronRight, DollarSign, MessageCircle, MessageSquare, Bell, AlertTriangle, Key, Mail, Smartphone, Banknote, CalendarDays, Lock, History, ShoppingBag, Receipt, Sparkles } from "lucide-react";
+import { PlusCircle, Settings, CreditCard, BarChart3, RefreshCw, Clock, Trash2, Plus, Edit2, MapPin, CheckCircle2, CheckCircle, User as UserIcon, Camera, Loader2, Edit, Trash, Pencil, Check, X, Gift, Users, Star, TrendingUp, Copy, Share2, ChevronDown, ChevronRight, DollarSign, MessageCircle, MessageSquare, Bell, AlertTriangle, Key, Mail, Smartphone, Banknote, CalendarDays, Lock, History, ShoppingBag, Receipt, Sparkles, Shield, Home, Briefcase, Building2, Globe, Eye, EyeOff, ListTree, Edit3, Phone, Power } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +18,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, type ServiceWithDetails } from "@/lib/api";
 import { fetchApi } from "@/lib/config";
 import { useAuth } from "@/hooks/useAuth";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useLocation, Link } from "wouter";
 import { useEffect, useCallback, useRef } from "react";
 import type { Service, SelectAddress, Plan, Order } from "@shared/schema";
@@ -35,6 +38,41 @@ import { VendorEscrowDashboard } from "@/components/vendor/VendorEscrowDashboard
 import { VendorQuestionsTab } from "@/components/vendor/VendorQuestionsTab";
 import { BookingDetailDialog, type Booking } from "@/components/booking-detail-dialog";
 
+interface PasswordStrengthIndicatorProps {
+  password: string;
+}
+
+function PasswordStrengthIndicator({ password }: PasswordStrengthIndicatorProps) {
+  const checks = {
+    length: password.length >= 8,
+    uppercase: /[A-Z]/.test(password),
+    number: /[0-9]/.test(password),
+  };
+
+  const passedChecks = Object.values(checks).filter(Boolean).length;
+  const strength = (passedChecks / 3) * 100;
+
+  return (
+    <div className="space-y-2 mt-2">
+      <Progress value={strength} className="h-2" />
+      <div className="grid grid-cols-3 gap-2 text-xs">
+        <div className={`flex items-center gap-1 ${checks.length ? "text-green-600" : "text-gray-400"}`}>
+          {checks.length ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+          8+ characters
+        </div>
+        <div className={`flex items-center gap-1 ${checks.uppercase ? "text-green-600" : "text-gray-400"}`}>
+          {checks.uppercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+          Uppercase
+        </div>
+        <div className={`flex items-center gap-1 ${checks.number ? "text-green-600" : "text-gray-400"}`}>
+          {checks.number ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+          Number
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Profile() {
   // Scroll to top on mount and tab change
   useEffect(() => {
@@ -43,8 +81,9 @@ export default function Profile() {
 
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const [, setLocation] = useLocation();
+  const { confirm } = useConfirmDialog();
   const queryClient = useQueryClient();
-  const [location, setLocation] = useLocation();
 
   // Extract tab from URL search params
   const getTabFromUrl = () => {
@@ -156,6 +195,16 @@ export default function Profile() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // OAuth disconnect dialog state
+  const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
+
+  // Account deactivate/delete dialog states
+  const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState("");
 
   // Review back modal states - comprehensive type for both service and customer reviews
   const [showReviewBackModal, setShowReviewBackModal] = useState(false);
@@ -174,6 +223,8 @@ export default function Profile() {
   const [listingsSubTab, setListingsSubTab] = useState<'all' | 'active' | 'drafts' | 'toRenew' | 'expired' | 'archived'>('active');
   const [paymentsSubTab, setPaymentsSubTab] = useState<'overview' | 'escrow' | 'methods'>('overview');
   const [paymentHistoryTab, setPaymentHistoryTab] = useState<'all' | 'purchases' | 'sales' | 'commission' | 'promotional'>('all');
+  const [profileSubTab, setProfileSubTab] = useState<'personal' | 'account' | 'addresses'>('personal');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Multi-criteria ratings for comprehensive reviews
   const [serviceRating, setServiceRating] = useState(5);
@@ -267,6 +318,22 @@ export default function Profile() {
     queryFn: () => apiRequest("/api/questions/unanswered-count"),
     enabled: isAuthenticated,
     refetchInterval: 10000, // Poll every 10 seconds for real-time badge updates
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: () => apiRequest("/api/users/me", "DELETE"),
+    onSuccess: () => {
+      toast({ title: "Account deleted", description: "Your account has been successfully deleted." });
+      setLocation("/");
+      window.location.reload();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Deletion failed",
+        description: error.message || "Failed to delete account",
+        variant: "destructive",
+      });
+    },
   });
 
   // Calculate stats from transactions
@@ -719,10 +786,19 @@ export default function Profile() {
       });
       return;
     }
-    changePasswordMutation.mutate({
-      currentPassword,
-      newPassword,
-    });
+
+    // For users setting password for the first time (e.g. Google auth), currentPassword is not required
+    if (!user?.passwordHash) {
+      changePasswordMutation.mutate({
+        newPassword,
+        currentPassword: "", // Empty string for completely new password
+      });
+    } else {
+      changePasswordMutation.mutate({
+        currentPassword,
+        newPassword,
+      });
+    }
   };
 
   // Scroll to top on page load
@@ -1002,768 +1078,1120 @@ export default function Profile() {
 
   return (
     <Layout>
-      <div className="bg-muted min-h-screen py-10">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Profile</h1>
-              <p className="text-muted-foreground">Manage your services and account settings</p>
-            </div>
-            <Button
-              size="lg"
-              className="gap-2 shadow-md shadow-primary/20"
-              onClick={() => setShowCreateModal(true)}
-              data-testid="button-post-new-service"
-            >
-              <PlusCircle className="w-4 h-4" /> Post New Service
-            </Button>
-          </div>
-
-          <Tabs
-            value={activeTab}
-            onValueChange={(value) => {
-              setActiveTab(value); // Set state first
-              setLocation(`/profile?tab=${value}`); // Then update URL
-            }}
-            className="w-full"
-          >
-            <TabsList className="mb-6 bg-card p-1 border border-border flex-wrap">
-              <TabsTrigger value="profile" data-testid="tab-profile">Profile</TabsTrigger>
-              <TabsTrigger value="services" data-testid="tab-my-services">My Listings</TabsTrigger>
-              <TabsTrigger value="bookings" data-testid="tab-my-bookings" className="gap-1">
-                <CalendarDays className="w-3 h-3" />
-                My Bookings
-              </TabsTrigger>
-              <TabsTrigger value="reviews" data-testid="tab-reviews">Reviews ({receivedReviews.length})</TabsTrigger>
-              <TabsTrigger value="questions" data-testid="tab-questions" className="gap-1">
-                <MessageSquare className="w-3 h-3" />
-                Questions
-                {unansweredQuestionsData && unansweredQuestionsData.count > 0 && (
-                  <Badge variant="destructive" className="text-[10px] h-4 min-w-4 px-1 rounded-full">
-                    {unansweredQuestionsData.count}
-                  </Badge>
+      <div className="min-h-screen flex flex-col bg-background">
+        {/* Header Section - Vercel Design Style */}
+        <div className="border-b border-border bg-gradient-to-b from-primary/5 to-transparent">
+          <div className="container mx-auto px-4 py-8">
+            <div className="flex flex-col md:flex-row md:items-center gap-6">
+              {/* Avatar with edit overlay */}
+              <div className="relative group">
+                <Avatar className="h-24 w-24 ring-4 ring-background shadow-xl">
+                  <AvatarImage src={user?.profileImageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.id}`} />
+                  <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
+                    {user?.firstName?.[0]}{user?.lastName?.[0]}
+                  </AvatarFallback>
+                </Avatar>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                >
+                  <Camera className="h-6 w-6 text-white" />
+                </button>
+                {user?.isVerified && (
+                  <div className="absolute -bottom-1 -right-1 h-6 w-6 bg-green-500 rounded-full flex items-center justify-center ring-2 ring-background">
+                    <Check className="h-3 w-3 text-white" />
+                  </div>
                 )}
-              </TabsTrigger>
-              <TabsTrigger value="payments" data-testid="tab-payments" className="gap-1">
-                <Banknote className="w-3 h-3" />
-                Payments
-              </TabsTrigger>
-              <TabsTrigger value="referrals" data-testid="tab-referrals" className="gap-1">
-                <Gift className="w-3 h-3" />
-                Referrals
-              </TabsTrigger>
-              <TabsTrigger value="notifications" data-testid="tab-notifications" className="gap-1">
-                <Bell className="w-3 h-3" />
-                Notifications
-              </TabsTrigger>
-            </TabsList>
+              </div>
 
+              {/* User Info */}
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-1">
+                  <h1 className="text-2xl md:text-3xl font-bold">{user?.firstName} {user?.lastName}</h1>
+                  {user?.isVerified && (
+                    <Badge variant="secondary" className="gap-1">
+                      <Shield className="h-3 w-3" />
+                      Verified
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-muted-foreground mb-3">
+                  Member since {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Unknown'}
+                </p>
+                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                  {user?.preferredLocationName && (
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="h-4 w-4" />
+                      {user.preferredLocationName}
+                    </span>
+                  )}
+                  <span className="flex items-center gap-1.5">
+                    <Star className="h-4 w-4 fill-primary text-primary" />
+                    {receivedReviews.length > 0 ? (receivedReviews.reduce((acc: number, r: any) => acc + (r.rating || 0), 0) / receivedReviews.length).toFixed(1) : '0'} rating
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <CalendarDays className="h-4 w-4" />
+                    {financialStats.bookings + financialStats.services} bookings
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="gap-2 bg-transparent" onClick={() => {
+                  navigator.clipboard.writeText(window.location.href);
+                  toast({ title: "Link copied", description: "Profile link copied to clipboard" });
+                }}>
+                  <Share2 className="h-4 w-4" />
+                  Share Profile
+                </Button>
+                <Button size="sm" className="gap-2" onClick={() => setShowCreateModal(true)} data-testid="button-post-new-service">
+                  <Plus className="h-4 w-4" />
+                  New Service
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Tabs Navigation - Vercel Design Style */}
+        <div className="border-b border-border sticky top-0 bg-background/95 backdrop-blur-sm z-40">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center gap-1 overflow-x-auto py-1 scrollbar-hide">
+              {[
+                { id: 'profile', label: 'Profile', icon: UserIcon },
+                { id: 'services', label: 'My Listings', icon: ListTree },
+                { id: 'bookings', label: 'My Bookings', icon: CalendarDays },
+                { id: 'reviews', label: 'Reviews', icon: Star, count: receivedReviews.length },
+                { id: 'questions', label: 'Questions', icon: MessageSquare, count: unansweredQuestionsData?.count || 0, highlight: (unansweredQuestionsData?.count || 0) > 0 },
+                { id: 'payments', label: 'Payments', icon: CreditCard },
+                { id: 'referrals', label: 'Referrals', icon: Gift },
+                { id: 'notifications', label: 'Notifications', icon: Bell, count: 0 },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setLocation(`/profile?tab=${tab.id}`);
+                    }}
+                    data-testid={`tab-${tab.id === 'services' ? 'my-services' : tab.id}`}
+                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap rounded-lg transition-all relative ${activeTab === tab.id
+                      ? 'text-primary bg-primary/10'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                      }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {tab.label}
+                    {tab.count !== undefined && tab.count > 0 && (
+                      <Badge
+                        variant={tab.highlight ? 'destructive' : 'secondary'}
+                        className={`ml-1 h-5 min-w-5 px-1.5 text-xs ${tab.highlight ? 'animate-pulse' : ''}`}
+                      >
+                        {tab.count}
+                      </Badge>
+                    )}
+                    {activeTab === tab.id && (
+                      <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-primary rounded-full" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Tab Content */}
+        <div className="container mx-auto px-4 py-8">
+          <Tabs value={activeTab} onValueChange={(val) => { setActiveTab(val); setLocation(`/profile?tab=${val}`); }} className="w-full">
             <TabsContent value="questions" className="mt-0 space-y-6">
               <VendorQuestionsTab />
             </TabsContent>
 
-            {/* Sub-toggles for Profile Section Navigation */}
-            {activeTab === "profile" && (
-              <div className="mb-6 bg-card p-1 border border-border rounded-lg flex gap-1 flex-wrap">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => scrollToSection(personalInfoRef)}
-                  className="text-xs md:text-sm"
-                  data-testid="button-nav-personal-info"
-                >
-                  Personal Information
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => scrollToSection(accountInfoRef)}
-                  className="text-xs md:text-sm"
-                  data-testid="button-nav-account-info"
-                >
-                  Account Information
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => scrollToSection(addressesRef)}
-                  className="text-xs md:text-sm"
-                  data-testid="button-nav-addresses"
-                >
-                  Addresses
-                </Button>
-              </div>
-            )}
-
             <TabsContent value="profile" data-testid="panel-profile" className="space-y-6">
-              {/* Profile Header Card */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-3xl">Your Profile</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col items-center text-center mb-8 pb-8 border-b">
-                    <div className="relative group mb-4">
-                      <img
-                        src={user?.profileImageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.id}`}
-                        alt={`${user?.firstName} ${user?.lastName}`}
-                        className="w-24 h-24 rounded-full ring-4 ring-slate-100"
-                        data-testid="img-profile-avatar"
-                      />
-                      <button
-                        onClick={() => scrollToSection(personalInfoRef)}
-                        className="absolute inset-0 bg-black/20 rounded-full opacity-0 group-hover:opacity-100 md:group-hover:opacity-100 md:opacity-0 flex items-center justify-center transition-opacity cursor-pointer"
-                        data-testid="button-edit-profile-picture"
-                        aria-label="Edit profile picture"
-                      >
-                        <Pencil className="w-5 h-5 text-white" />
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2 mb-2 group">
-                      <h3 className="text-2xl font-bold">{user?.firstName} {user?.lastName}</h3>
-                      {user?.isVerified && (
-                        <CheckCircle2 className="w-5 h-5 text-primary fill-primary/10" />
-                      )}
-                      <button
-                        onClick={() => scrollToSection(personalInfoRef)}
-                        className="opacity-0 group-hover:opacity-100 md:group-hover:opacity-100 md:opacity-0 transition-opacity cursor-pointer p-1 hover:bg-accent rounded"
-                        data-testid="button-edit-name"
-                        aria-label="Edit name"
-                      >
-                        <Pencil className="w-4 h-4 text-muted-foreground" />
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2 group">
-                      <p className="text-muted-foreground">{user?.email}</p>
-                      <button
-                        onClick={() => scrollToSection(accountInfoRef)}
-                        className="opacity-0 group-hover:opacity-100 md:group-hover:opacity-100 md:opacity-0 transition-opacity cursor-pointer p-1 hover:bg-accent rounded"
-                        data-testid="button-edit-email"
-                        aria-label="Edit email"
-                      >
-                        <Pencil className="w-4 h-4 text-muted-foreground" />
-                      </button>
-                    </div>
-                    <div className="flex gap-2 flex-wrap justify-center mt-4">
-                      {user?.isVerified && (
-                        <Badge variant="secondary" className="flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Verified
-                        </Badge>
-                      )}
-                      {user?.marketingPackage && (
-                        <Badge variant="outline" className="capitalize">
-                          {user.marketingPackage} Plan
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Profile Sub-tabs - Vercel Design Style */}
+              <div className="flex items-center gap-2 p-1 bg-muted/50 rounded-xl w-fit">
+                {[
+                  { id: 'personal', label: 'Personal Information' },
+                  { id: 'account', label: 'Account Information' },
+                  { id: 'addresses', label: 'Addresses' },
+                  { id: 'settings', label: 'Settings' },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setProfileSubTab(tab.id as 'personal' | 'account' | 'addresses' | 'settings')}
+                    data-testid={`button-nav-${tab.id}`}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${profileSubTab === tab.id
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
 
-              {/* Personal Information Card */}
-              <Card ref={personalInfoRef}>
-                <CardHeader>
-                  <CardTitle>Personal Information</CardTitle>
-                  <CardDescription>Update your personal details</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleProfileSubmit} className="space-y-6">
-                    {/* Profile Picture Upload Section */}
-                    <div>
-                      <Label>Profile Picture</Label>
-                      <div className="flex flex-col items-center gap-4 mt-3">
-                        <Avatar className="w-20 h-20 ring-4 ring-slate-100">
-                          <AvatarImage
-                            src={user?.profileImageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.id}`}
-                            alt={`${user?.firstName} ${user?.lastName}`}
-                          />
-                          <AvatarFallback>
-                            <UserIcon className="w-10 h-10 text-muted-foreground" />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex gap-3">
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={handleFileSelect}
-                            className="hidden"
-                            data-testid="input-profile-picture"
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={updateProfileMutation.isPending}
-                            data-testid="button-change-photo"
-                          >
-                            <Camera className="w-4 h-4 mr-2" />
-                            Change Photo
-                          </Button>
+              {/* Personal Information Section */}
+              {profileSubTab === 'personal' && (
+                <div className="grid lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2 space-y-6">
+                    {/* Basic Information Card */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <UserIcon className="h-5 w-5 text-primary" />
+                          Basic Information
+                        </CardTitle>
+                        <CardDescription>Your personal details visible to service providers</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <form onSubmit={handleProfileSubmit} className="space-y-6">
+                          <div className="grid sm:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="firstName">First Name</Label>
+                              <Input
+                                id="firstName"
+                                value={firstName}
+                                onChange={(e) => setFirstName(e.target.value)}
+                                placeholder="Enter your first name"
+                                data-testid="input-firstName"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="lastName">Last Name</Label>
+                              <Input
+                                id="lastName"
+                                value={lastName}
+                                onChange={(e) => setLastName(e.target.value)}
+                                placeholder="Enter your last name"
+                                data-testid="input-lastName"
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="displayName">Display Name</Label>
+                            <Input
+                              id="displayName"
+                              value={`${firstName} ${lastName?.[0] || ''}.`}
+                              disabled
+                              className="bg-muted"
+                            />
+                            <p className="text-xs text-muted-foreground">This is how your name appears to vendors</p>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="vendorBio">Bio</Label>
+                            <textarea
+                              id="vendorBio"
+                              value={vendorBio}
+                              onChange={(e) => setVendorBio(e.target.value)}
+                              className="w-full min-h-24 px-3 py-2 text-sm rounded-lg border border-input bg-background resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                              placeholder="Tell service providers a bit about yourself..."
+                              data-testid="input-vendorBio"
+                            />
+                          </div>
+                          <div className="flex justify-end">
+                            <Button type="submit" className="gap-2" disabled={updateProfileMutation.isPending} data-testid="button-save-profile">
+                              <Check className="h-4 w-4" />
+                              {updateProfileMutation.isPending ? 'Saving...' : 'Save Changes'}
+                            </Button>
+                          </div>
+                        </form>
+                      </CardContent>
+                    </Card>
+
+                    {/* Contact Information Card */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Phone className="h-5 w-5 text-primary" />
+                          Contact Information
+                        </CardTitle>
+                        <CardDescription>How service providers can reach you</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                              <Mail className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium">{user?.email}</p>
+                              <p className="text-xs text-muted-foreground">Primary email</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {user?.emailVerified ? (
+                              <Badge variant="outline" className="gap-1 text-green-600 border-green-600/30">
+                                <Check className="h-3 w-3" />
+                                Verified
+                              </Badge>
+                            ) : (
+                              <Badge variant="destructive" className="gap-1">
+                                <AlertTriangle className="h-3 w-3" />
+                                Not Verified
+                              </Badge>
+                            )}
+                            <Button variant="ghost" size="icon" onClick={() => setProfileSubTab('account')}>
+                              <Edit3 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
-                        <p className="text-xs text-muted-foreground text-center">
-                          Square image, at least 400x400 pixels
+                        <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                              <Phone className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium">{phoneNumber || 'Not set'}</p>
+                              <p className="text-xs text-muted-foreground">Mobile phone</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {phoneNumber && validateSwissPhoneNumber(phoneNumber) && (
+                              <Badge variant="outline" className="gap-1 text-green-600 border-green-600/30">
+                                <Check className="h-3 w-3" />
+                                Valid
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="phoneNumber">Update Phone Number</Label>
+                          <Input
+                            id="phoneNumber"
+                            type="tel"
+                            value={phoneNumber}
+                            onChange={(e) => setPhoneNumber(e.target.value)}
+                            placeholder="+41 44 123 4567"
+                            className={phoneNumber && !validateSwissPhoneNumber(phoneNumber) ? "border-red-500" : ""}
+                            data-testid="input-phoneNumber"
+                          />
+                          {phoneNumber && !validateSwissPhoneNumber(phoneNumber) && (
+                            <p className="text-sm text-red-500">Phone number must start with +41 (e.g., +41 44 123 4567)</p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Sidebar */}
+                  <div className="space-y-6">
+                    {/* Profile Completion */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">Profile Completion</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {(() => {
+                          let completion = 0;
+                          if (user?.firstName) completion += 15;
+                          if (user?.lastName) completion += 15;
+                          if (user?.email) completion += 20;
+                          if (user?.emailVerified) completion += 15;
+                          if (user?.profileImageUrl) completion += 15;
+                          if (phoneNumber) completion += 10;
+                          if (vendorBio) completion += 10;
+                          return (
+                            <>
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground">{completion}% Complete</span>
+                                <span className="font-medium text-primary">{completion}/100</span>
+                              </div>
+                              <Progress value={completion} className="h-2" />
+                            </>
+                          );
+                        })()}
+                        <div className="space-y-2 pt-2">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            Complete these to boost your profile
+                          </p>
+                          {!user?.profileImageUrl && (
+                            <div
+                              onClick={() => fileInputRef.current?.click()}
+                              className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer hover:bg-muted/50 p-2 rounded-lg transition-colors"
+                            >
+                              <div className="h-5 w-5 rounded-full bg-muted flex items-center justify-center">
+                                <Camera className="h-3 w-3" />
+                              </div>
+                              <span>Add a profile photo</span>
+                              <Badge variant="secondary" className="ml-auto text-xs">+15</Badge>
+                            </div>
+                          )}
+                          {!vendorBio && (
+                            <div
+                              onClick={() => {
+                                setProfileSubTab('personal');
+                                setTimeout(() => {
+                                  const el = document.getElementById('vendorBio');
+                                  el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                  el?.focus();
+                                }, 100);
+                              }}
+                              className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer hover:bg-muted/50 p-2 rounded-lg transition-colors"
+                            >
+                              <div className="h-5 w-5 rounded-full bg-muted flex items-center justify-center">
+                                <Edit3 className="h-3 w-3" />
+                              </div>
+                              <span>Add a bio</span>
+                              <Badge variant="secondary" className="ml-auto text-xs">+10</Badge>
+                            </div>
+                          )}
+                          {!phoneNumber && (
+                            <div
+                              onClick={() => {
+                                setProfileSubTab('personal');
+                                setTimeout(() => {
+                                  const el = document.getElementById('phoneNumber');
+                                  el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                  el?.focus();
+                                }, 100);
+                              }}
+                              className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer hover:bg-muted/50 p-2 rounded-lg transition-colors"
+                            >
+                              <div className="h-5 w-5 rounded-full bg-muted flex items-center justify-center">
+                                <Phone className="h-3 w-3" />
+                              </div>
+                              <span>Add phone number</span>
+                              <Badge variant="secondary" className="ml-auto text-xs">+10</Badge>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Trust Score */}
+                    <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-primary/20">
+                      <CardContent className="p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center">
+                            <Shield className="h-6 w-6 text-primary" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold">Trust Score</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {receivedReviews.length > 0 ? 'Excellent' : 'Building'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 mb-2">
+                          {[1, 2, 3, 4, 5].map((i) => (
+                            <Star
+                              key={i}
+                              className={`h-5 w-5 ${i <= Math.round((receivedReviews.reduce((acc: number, r: any) => acc + (r.rating || 0), 0) / Math.max(receivedReviews.length, 1)))
+                                ? 'fill-primary text-primary'
+                                : 'text-muted'
+                                }`}
+                            />
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Based on {financialStats.bookings + financialStats.services} completed bookings and {receivedReviews.length} reviews
                         </p>
-                      </div>
-                    </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              )}
+              {/* Account Information Section */}
+              {profileSubTab === 'account' && (
+                <div className="grid lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2 space-y-6" ref={accountInfoRef}>
+                    {/* Security Settings Card */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Lock className="h-5 w-5 text-primary" />
+                          Security Settings
+                        </CardTitle>
+                        <CardDescription>Manage your password and security preferences</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                <Key className="h-5 w-5 text-primary" />
+                              </div>
+                              <div>
+                                <p className="font-medium">Password</p>
+                                <p className="text-xs text-muted-foreground">{!user.passwordHash ? 'Platform login not set' : 'Last changed: Never'}</p>
+                              </div>
+                            </div>
+                            <Button variant="outline" onClick={() => setShowChangePasswordDialog(true)} className="gap-2" data-testid="button-change-password">
+                              <Key className="h-4 w-4" />
+                              {!user.passwordHash ? 'Set platform login password' : 'Change Password'}
+                            </Button>
+                          </div>
+                        </div>
 
-                    <div>
-                      <Label htmlFor="email">Email Address</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="your.email@example.com"
-                        data-testid="input-email"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Changing your email may require re-verification.
-                      </p>
-                    </div>
+                        <div className="space-y-2">
+                          <Label>Email Verification</Label>
+                          <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                <Mail className="h-5 w-5 text-primary" />
+                              </div>
+                              <div>
+                                <p className="font-medium">{user?.email}</p>
+                                <p className="text-xs text-muted-foreground">Primary email address</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {user?.emailVerified ? (
+                                <Badge variant="outline" className="gap-1 text-green-600 border-green-600/30">
+                                  <Check className="h-3 w-3" />
+                                  Verified
+                                </Badge>
+                              ) : (
+                                <>
+                                  <Badge variant="destructive" className="gap-1">
+                                    <AlertTriangle className="h-3 w-3" />
+                                    Not Verified
+                                  </Badge>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => resendVerificationMutation.mutate()}
+                                    disabled={resendVerificationMutation.isPending}
+                                    className="gap-1"
+                                    data-testid="button-resend-verification"
+                                  >
+                                    <Mail className="h-3 w-3" />
+                                    {resendVerificationMutation.isPending ? "Sending..." : "Resend"}
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
 
-                    <div>
-                      <Label htmlFor="firstName">First Name</Label>
-                      <Input
-                        id="firstName"
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
-                        placeholder="Enter your first name"
-                        data-testid="input-firstName"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="lastName">Last Name</Label>
-                      <Input
-                        id="lastName"
-                        value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
-                        placeholder="Enter your last name"
-                        data-testid="input-lastName"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="phoneNumber">Phone Number</Label>
-                      <Input
-                        id="phoneNumber"
-                        type="tel"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        placeholder="+41 44 123 4567"
-                        className={phoneNumber && !validateSwissPhoneNumber(phoneNumber) ? "border-red-500" : ""}
-                        data-testid="input-phoneNumber"
-                      />
-                      {phoneNumber && !validateSwissPhoneNumber(phoneNumber) && (
-                        <p className="text-sm text-red-500 mt-1">
-                          Phone number must start with +41 (e.g., +41 44 123 4567)
-                        </p>
-                      )}
-                    </div>
+                    {/* Connected Accounts Card */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Globe className="h-5 w-5 text-primary" />
+                          Connected Accounts
+                        </CardTitle>
+                        <CardDescription>Manage your linked accounts for easier sign-in</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {user.authProvider && user.authProvider !== 'local' ? (
+                          <div className="flex items-center justify-between p-4 border rounded-xl">
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                                <Globe className="h-5 w-5" />
+                              </div>
+                              <div>
+                                <p className="font-medium capitalize">{user.authProvider}</p>
+                                <p className="text-xs text-muted-foreground">Connected</p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowDisconnectDialog(true)}
+                            >
+                              Disconnect
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="text-center py-6 text-muted-foreground">
+                            <Globe className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">No connected accounts</p>
+                            <p className="text-xs">Social login connections will appear here</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
 
-                    {/* About Me Section */}
-                    <div>
-                      <Label htmlFor="vendorBio">About Me</Label>
-                      <Textarea
-                        id="vendorBio"
-                        value={vendorBio}
-                        onChange={(e) => setVendorBio(e.target.value)}
-                        placeholder="Tell potential customers about yourself, your experience, and what makes your services special..."
-                        rows={4}
-                        className="resize-none"
-                        data-testid="input-vendorBio"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        This appears on your service listings under "About Vendor"
-                      </p>
-                    </div>
+                  {/* Sidebar */}
+                  <div className="space-y-6">
+                    {/* Account Status Card */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">Account Status</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Account Type</span>
+                          <Badge variant="secondary">{user?.isVerified ? 'Verified' : 'Standard'}</Badge>
+                        </div>
+                        <Separator />
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Member Since</span>
+                          <span className="text-sm font-medium">
+                            {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Unknown'}
+                          </span>
+                        </div>
+                        <Separator />
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Email Status</span>
+                          {user?.emailVerified ? (
+                            <span className="flex items-center gap-1 text-sm text-green-600">
+                              <Check className="h-3 w-3" /> Verified
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-sm text-destructive">
+                              <AlertTriangle className="h-3 w-3" /> Unverified
+                            </span>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
 
-                    <Button
-                      type="submit"
-                      disabled={updateProfileMutation.isPending}
-                      data-testid="button-save-profile"
-                    >
-                      {updateProfileMutation.isPending ? "Saving..." : "Save Changes"}
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-
-              {/* Account Information Card */}
-              <Card ref={accountInfoRef}>
-                <CardHeader>
-                  <CardTitle>Account Information</CardTitle>
-                  <CardDescription>Manage your email and password</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label>Email</Label>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Input
-                        value={user.email || ""}
-                        disabled
-                        className="bg-muted"
-                        data-testid="input-email-readonly"
-                      />
-                      {user.emailVerified ? (
-                        <Badge variant="default" className="flex items-center gap-1 bg-green-600 hover:bg-green-600">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Verified
-                        </Badge>
-                      ) : (
-                        <Badge variant="destructive" className="flex items-center gap-1">
-                          <AlertTriangle className="w-3 h-3" />
-                          Not Verified
-                        </Badge>
-                      )}
-                    </div>
-                    {!user.emailVerified && (
-                      <div className="mt-2">
+                    {/* Account Actions Card */}
+                    <Card className="border-destructive/30">
+                      <CardHeader>
+                        <CardTitle className="text-base text-destructive">Account Actions</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
                         <Button
                           variant="outline"
-                          size="sm"
-                          onClick={() => resendVerificationMutation.mutate()}
-                          disabled={resendVerificationMutation.isPending}
-                          className="gap-2"
-                          data-testid="button-resend-verification"
+                          className="w-full justify-start gap-2 border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
+                          onClick={() => setShowDeactivateDialog(true)}
                         >
-                          <Mail className="w-4 h-4" />
-                          {resendVerificationMutation.isPending ? "Sending..." : "Resend verification email"}
+                          <Power className="h-4 w-4" />
+                          Deactivate Account
                         </Button>
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <Label>Password</Label>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Input
-                        type="password"
-                        value="••••••••"
-                        disabled
-                        className="bg-muted"
-                        data-testid="input-password-readonly"
-                      />
-                      <Button
-                        variant="outline"
-                        onClick={() => setShowChangePasswordDialog(true)}
-                        className="gap-2"
-                        data-testid="button-change-password"
-                      >
-                        <Key className="w-4 h-4" />
-                        Change Password
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start gap-2 border-destructive/30 text-destructive hover:bg-destructive/10"
+                          onClick={() => setShowDeleteDialog(true)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete Account
+                        </Button>
+                      </CardContent>
+                    </Card>
 
-              {/* Addresses Card */}
-              <Card ref={addressesRef}>
-                <CardHeader>
-                  <CardTitle>Addresses</CardTitle>
-                  <CardDescription>Manage your saved addresses</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {addresses.length === 0 && !showAddressForm && (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <MapPin className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p>No addresses saved yet</p>
-                      </div>
-                    )}
+                  </div>
+                </div>
+              )}
 
-                    {[...addresses].sort((a, b) => {
-                      if (a.isPrimary && !b.isPrimary) return -1;
-                      if (!a.isPrimary && b.isPrimary) return 1;
-                      return 0;
-                    }).map((address) => (
-                      <div
-                        key={address.id}
-                        className="border rounded-lg p-4 space-y-2"
-                        data-testid={`address-card-${address.id}`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            {address.label && (
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className="font-semibold">{address.label}</span>
-                                {address.isPrimary && (
-                                  <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded">
-                                    Primary
-                                  </span>
-                                )}
+              {/* Addresses Section */}
+              {profileSubTab === 'addresses' && (
+                <div className="grid lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2 space-y-6" ref={addressesRef}>
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Addresses</CardTitle>
+                        <CardDescription>Manage your saved addresses</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {addresses.length === 0 && !showAddressForm && (
+                            <div className="text-center py-8 text-muted-foreground">
+                              <MapPin className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                              <p>No addresses saved yet</p>
+                            </div>
+                          )}
+
+                          {[...addresses].sort((a, b) => {
+                            if (a.isPrimary && !b.isPrimary) return -1;
+                            if (!a.isPrimary && b.isPrimary) return 1;
+                            return 0;
+                          }).map((address) => (
+                            <div
+                              key={address.id}
+                              className="border rounded-lg p-4 space-y-2"
+                              data-testid={`address-card-${address.id}`}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  {address.label && (
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <span className="font-semibold">{address.label}</span>
+                                      {address.isPrimary && (
+                                        <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded">
+                                          Primary
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                  <p className="text-sm">{address.street}</p>
+                                  <p className="text-sm">
+                                    {address.postalCode} {address.city}
+                                    {address.canton && `, ${address.canton}`}
+                                  </p>
+                                </div>
+                                <div className="flex gap-2">
+                                  {!address.isPrimary && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => updateAddressMutation.mutate({ id: address.id, data: { isPrimary: true } })}
+                                      disabled={updateAddressMutation.isPending}
+                                      className="text-xs"
+                                    >
+                                      Set as Primary
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => startEditAddress(address)}
+                                    data-testid={`button-edit-address-${address.id}`}
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setAddressToDelete(address.id)}
+                                    className="text-destructive hover:text-destructive"
+                                    data-testid={`button-delete-address-${address.id}`}
+                                  >
+                                    <Trash className="w-4 h-4" />
+                                  </Button>
+                                </div>
                               </div>
-                            )}
-                            <p className="text-sm">{address.street}</p>
-                            <p className="text-sm">
-                              {address.postalCode} {address.city}
-                              {address.canton && `, ${address.canton}`}
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            {!address.isPrimary && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => updateAddressMutation.mutate({ id: address.id, data: { isPrimary: true } })}
-                                disabled={updateAddressMutation.isPending}
-                                className="text-xs"
-                              >
-                                Set as Primary
-                              </Button>
-                            )}
+                            </div>
+                          ))}
+
+                          {editingAddress ? (
+                            <form onSubmit={handleAddressSubmit} className="border rounded-lg p-4 space-y-4 bg-muted">
+                              <div>
+                                <Label htmlFor="label">Label</Label>
+                                <Input
+                                  id="label"
+                                  value={addressForm.label}
+                                  onChange={(e) => setAddressForm({ ...addressForm, label: e.target.value })}
+                                  placeholder="e.g., Home, Office"
+                                  data-testid="input-address-label"
+                                />
+                              </div>
+                              <div>
+                                <AddressAutocomplete
+                                  label="Street Address"
+                                  required
+                                  initialValue={addressForm.street}
+                                  onAddressSelect={(address) => {
+                                    if (address) {
+                                      setAddressForm({
+                                        ...addressForm,
+                                        street: address.street,
+                                        city: address.city,
+                                        postalCode: address.postalCode,
+                                        canton: address.canton,
+                                      });
+                                      setIsAddressValidated(true);
+                                    } else {
+                                      setIsAddressValidated(false);
+                                    }
+                                  }}
+                                />
+                              </div>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label htmlFor="postalCode">Postal Code</Label>
+                                  <Input
+                                    id="postalCode"
+                                    value={addressForm.postalCode}
+                                    onChange={(e) => setAddressForm({ ...addressForm, postalCode: e.target.value })}
+                                    placeholder="e.g., 8000"
+                                    data-testid="input-address-postalCode"
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="city">City</Label>
+                                  <Input
+                                    id="city"
+                                    value={addressForm.city}
+                                    onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
+                                    placeholder="e.g., Zurich"
+                                    data-testid="input-address-city"
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <Label htmlFor="canton">Canton</Label>
+                                <Input
+                                  id="canton"
+                                  value={addressForm.canton}
+                                  onChange={(e) => setAddressForm({ ...addressForm, canton: e.target.value })}
+                                  placeholder="e.g., Zurich"
+                                  data-testid="input-address-canton"
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  id="isPrimary"
+                                  type="checkbox"
+                                  checked={addressForm.isPrimary}
+                                  onChange={(e) => setAddressForm({ ...addressForm, isPrimary: e.target.checked })}
+                                  className="w-4 h-4"
+                                  data-testid="checkbox-address-isPrimary"
+                                />
+                                <Label htmlFor="isPrimary">Set as primary address</Label>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  type="submit"
+                                  disabled={!addressForm.street || !addressForm.city || updateAddressMutation.isPending}
+                                  data-testid="button-save-address"
+                                >
+                                  {updateAddressMutation.isPending ? "Saving..." : "Save Address"}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={cancelAddressForm}
+                                  data-testid="button-cancel-address"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </form>
+                          ) : showAddressForm ? (
+                            <form onSubmit={handleAddressSubmit} className="border rounded-lg p-4 space-y-4 bg-muted">
+                              <div>
+                                <Label htmlFor="label">Label</Label>
+                                <Input
+                                  id="label"
+                                  value={addressForm.label}
+                                  onChange={(e) => setAddressForm({ ...addressForm, label: e.target.value })}
+                                  placeholder="e.g., Home, Office"
+                                  data-testid="input-address-label"
+                                />
+                              </div>
+                              <div>
+                                <AddressAutocomplete
+                                  label="Street Address"
+                                  required
+                                  onAddressSelect={(address) => {
+                                    if (address) {
+                                      setAddressForm({
+                                        ...addressForm,
+                                        street: address.street,
+                                        city: address.city,
+                                        postalCode: address.postalCode,
+                                        canton: address.canton,
+                                      });
+                                      setIsAddressValidated(true);
+                                    } else {
+                                      setIsAddressValidated(false);
+                                    }
+                                  }}
+                                />
+                              </div>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label htmlFor="postalCode">Postal Code</Label>
+                                  <Input
+                                    id="postalCode"
+                                    value={addressForm.postalCode}
+                                    onChange={(e) => setAddressForm({ ...addressForm, postalCode: e.target.value })}
+                                    placeholder="e.g., 8000"
+                                    data-testid="input-address-postalCode"
+                                    disabled
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="city">City</Label>
+                                  <Input
+                                    id="city"
+                                    value={addressForm.city}
+                                    onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
+                                    placeholder="e.g., Zurich"
+                                    data-testid="input-address-city"
+                                    disabled
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <Label htmlFor="canton">Canton</Label>
+                                <Input
+                                  id="canton"
+                                  value={addressForm.canton}
+                                  onChange={(e) => setAddressForm({ ...addressForm, canton: e.target.value })}
+                                  placeholder="e.g., Zurich"
+                                  data-testid="input-address-canton"
+                                  disabled
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  id="isPrimary"
+                                  type="checkbox"
+                                  checked={addressForm.isPrimary}
+                                  onChange={(e) => setAddressForm({ ...addressForm, isPrimary: e.target.checked })}
+                                  className="w-4 h-4"
+                                  data-testid="checkbox-address-isPrimary"
+                                />
+                                <Label htmlFor="isPrimary">Set as primary address</Label>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  type="submit"
+                                  disabled={!isAddressValidated || createAddressMutation.isPending}
+                                  data-testid="button-save-address"
+                                >
+                                  {createAddressMutation.isPending ? "Saving..." : "Save Address"}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={cancelAddressForm}
+                                  data-testid="button-cancel-address"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </form>
+                          ) : (
                             <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => startEditAddress(address)}
-                              data-testid={`button-edit-address-${address.id}`}
+                              onClick={() => setShowAddressForm(true)}
+                              className="w-full"
+                              variant="outline"
+                              data-testid="button-add-address"
                             >
-                              <Edit className="w-4 h-4" />
+                              <Plus className="w-4 h-4 mr-2" />
+                              Add New Address
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setAddressToDelete(address.id)}
-                              className="text-destructive hover:text-destructive"
-                              data-testid={`button-delete-address-${address.id}`}
-                            >
-                              <Trash className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          )}
                         </div>
-                      </div>
-                    ))}
-
-                    {editingAddress ? (
-                      <form onSubmit={handleAddressSubmit} className="border rounded-lg p-4 space-y-4 bg-muted">
-                        <div>
-                          <Label htmlFor="label">Label</Label>
-                          <Input
-                            id="label"
-                            value={addressForm.label}
-                            onChange={(e) => setAddressForm({ ...addressForm, label: e.target.value })}
-                            placeholder="e.g., Home, Office"
-                            data-testid="input-address-label"
-                          />
-                        </div>
-                        <div>
-                          <AddressAutocomplete
-                            label="Street Address"
-                            required
-                            initialValue={addressForm.street}
-                            onAddressSelect={(address) => {
-                              if (address) {
-                                setAddressForm({
-                                  ...addressForm,
-                                  street: address.street,
-                                  city: address.city,
-                                  postalCode: address.postalCode,
-                                  canton: address.canton,
-                                });
-                                setIsAddressValidated(true);
-                              } else {
-                                setIsAddressValidated(false);
-                              }
-                            }}
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="postalCode">Postal Code</Label>
-                            <Input
-                              id="postalCode"
-                              value={addressForm.postalCode}
-                              onChange={(e) => setAddressForm({ ...addressForm, postalCode: e.target.value })}
-                              placeholder="e.g., 8000"
-                              data-testid="input-address-postalCode"
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="city">City</Label>
-                            <Input
-                              id="city"
-                              value={addressForm.city}
-                              onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
-                              placeholder="e.g., Zurich"
-                              data-testid="input-address-city"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <Label htmlFor="canton">Canton</Label>
-                          <Input
-                            id="canton"
-                            value={addressForm.canton}
-                            onChange={(e) => setAddressForm({ ...addressForm, canton: e.target.value })}
-                            placeholder="e.g., Zurich"
-                            data-testid="input-address-canton"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            id="isPrimary"
-                            type="checkbox"
-                            checked={addressForm.isPrimary}
-                            onChange={(e) => setAddressForm({ ...addressForm, isPrimary: e.target.checked })}
-                            className="w-4 h-4"
-                            data-testid="checkbox-address-isPrimary"
-                          />
-                          <Label htmlFor="isPrimary">Set as primary address</Label>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            type="submit"
-                            disabled={!addressForm.street || !addressForm.city || updateAddressMutation.isPending}
-                            data-testid="button-save-address"
-                          >
-                            {updateAddressMutation.isPending ? "Saving..." : "Save Address"}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={cancelAddressForm}
-                            data-testid="button-cancel-address"
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </form>
-                    ) : showAddressForm ? (
-                      <form onSubmit={handleAddressSubmit} className="border rounded-lg p-4 space-y-4 bg-muted">
-                        <div>
-                          <Label htmlFor="label">Label</Label>
-                          <Input
-                            id="label"
-                            value={addressForm.label}
-                            onChange={(e) => setAddressForm({ ...addressForm, label: e.target.value })}
-                            placeholder="e.g., Home, Office"
-                            data-testid="input-address-label"
-                          />
-                        </div>
-                        <div>
-                          <AddressAutocomplete
-                            label="Street Address"
-                            required
-                            onAddressSelect={(address) => {
-                              if (address) {
-                                setAddressForm({
-                                  ...addressForm,
-                                  street: address.street,
-                                  city: address.city,
-                                  postalCode: address.postalCode,
-                                  canton: address.canton,
-                                });
-                                setIsAddressValidated(true);
-                              } else {
-                                setIsAddressValidated(false);
-                              }
-                            }}
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="postalCode">Postal Code</Label>
-                            <Input
-                              id="postalCode"
-                              value={addressForm.postalCode}
-                              onChange={(e) => setAddressForm({ ...addressForm, postalCode: e.target.value })}
-                              placeholder="e.g., 8000"
-                              data-testid="input-address-postalCode"
-                              disabled
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="city">City</Label>
-                            <Input
-                              id="city"
-                              value={addressForm.city}
-                              onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
-                              placeholder="e.g., Zurich"
-                              data-testid="input-address-city"
-                              disabled
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <Label htmlFor="canton">Canton</Label>
-                          <Input
-                            id="canton"
-                            value={addressForm.canton}
-                            onChange={(e) => setAddressForm({ ...addressForm, canton: e.target.value })}
-                            placeholder="e.g., Zurich"
-                            data-testid="input-address-canton"
-                            disabled
-                          />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            id="isPrimary"
-                            type="checkbox"
-                            checked={addressForm.isPrimary}
-                            onChange={(e) => setAddressForm({ ...addressForm, isPrimary: e.target.checked })}
-                            className="w-4 h-4"
-                            data-testid="checkbox-address-isPrimary"
-                          />
-                          <Label htmlFor="isPrimary">Set as primary address</Label>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            type="submit"
-                            disabled={!isAddressValidated || createAddressMutation.isPending}
-                            data-testid="button-save-address"
-                          >
-                            {createAddressMutation.isPending ? "Saving..." : "Save Address"}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={cancelAddressForm}
-                            data-testid="button-cancel-address"
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </form>
-                    ) : (
-                      <Button
-                        onClick={() => setShowAddressForm(true)}
-                        className="w-full"
-                        variant="outline"
-                        data-testid="button-add-address"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add New Address
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Vendor Settings Card */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Settings className="w-5 h-5" />
-                    Vendor Settings
-                  </CardTitle>
-                  <CardDescription>
-                    Configure your payment and booking preferences for services you offer
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* Payment Methods */}
-                  <div className="space-y-4">
-                    <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                      Accepted Payment Methods
-                    </h4>
-
-                    <div className="grid gap-4">
-                      <div className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-blue-100 rounded-lg">
-                            <CreditCard className="w-5 h-5 text-blue-600" />
-                          </div>
-                          <div>
-                            <Label htmlFor="accept-card" className="font-medium">Card Payments</Label>
-                            <p className="text-sm text-muted-foreground">
-                              Accept Visa, Mastercard, AMEX with full escrow protection
-                            </p>
-                          </div>
-                        </div>
-                        <Switch
-                          id="accept-card"
-                          checked={user.acceptCardPayments ?? true}
-                          onCheckedChange={(checked) => {
-                            updateProfileMutation.mutate({ acceptCardPayments: checked });
-                          }}
-                          data-testid="switch-accept-card"
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-red-100 rounded-lg">
-                            <Smartphone className="w-5 h-5 text-red-600" />
-                          </div>
-                          <div>
-                            <Label htmlFor="accept-twint" className="font-medium">TWINT</Label>
-                            <p className="text-sm text-muted-foreground">
-                              Accept instant TWINT payments (popular in Switzerland)
-                            </p>
-                          </div>
-                        </div>
-                        <Switch
-                          id="accept-twint"
-                          checked={user.acceptTwintPayments ?? true}
-                          onCheckedChange={(checked) => {
-                            updateProfileMutation.mutate({ acceptTwintPayments: checked });
-                          }}
-                          data-testid="switch-accept-twint"
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-green-100 rounded-lg">
-                            <Banknote className="w-5 h-5 text-green-600" />
-                          </div>
-                          <div>
-                            <Label htmlFor="accept-cash" className="font-medium">Cash</Label>
-                            <p className="text-sm text-muted-foreground">
-                              Accept cash payments at service (no platform protection)
-                            </p>
-                          </div>
-                        </div>
-                        <Switch
-                          id="accept-cash"
-                          checked={user.acceptCashPayments ?? true}
-                          onCheckedChange={(checked) => {
-                            updateProfileMutation.mutate({ acceptCashPayments: checked });
-                          }}
-                          data-testid="switch-accept-cash"
-                        />
-                      </div>
-                    </div>
+                      </CardContent>
+                    </Card>
                   </div>
 
-                  {/* Booking Approval */}
-                  <div className="pt-4 border-t space-y-4">
-                    <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                      Booking Mode
-                    </h4>
+                  {/* Addresses Sidebar */}
+                  <div className="space-y-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">Quick Tips</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3 text-sm text-muted-foreground">
+                        <p>• Add multiple addresses for different service locations</p>
+                        <p>• Set your primary address to auto-fill during booking</p>
+                        <p>• Addresses help vendors calculate travel time</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              )}
 
-                    <div className="flex items-center justify-between p-4 border rounded-lg bg-muted">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-amber-100 rounded-lg">
-                          <Clock className="w-5 h-5 text-amber-600" />
+              {/* Settings Section - New Feature */}
+              {profileSubTab === 'settings' && (
+                <div className="space-y-6">
+                  {/* Vendor Settings Card (Moved) */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Settings className="w-5 h-5" />
+                        Vendor Settings
+                      </CardTitle>
+                      <CardDescription>
+                        Configure your payment and booking preferences for services you offer
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {/* Payment Methods */}
+                      <div className="space-y-4">
+                        <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                          Accepted Payment Methods
+                        </h4>
+
+                        <div className="grid gap-4">
+                          <div className="flex items-center justify-between p-4 border rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-blue-100 rounded-lg">
+                                <CreditCard className="w-5 h-5 text-blue-600" />
+                              </div>
+                              <div>
+                                <Label htmlFor="accept-card-settings" className="font-medium">Card Payments</Label>
+                                <p className="text-sm text-muted-foreground">
+                                  Accept Visa, Mastercard, AMEX with full escrow protection
+                                </p>
+                              </div>
+                            </div>
+                            <Switch
+                              id="accept-card-settings"
+                              checked={user.acceptCardPayments ?? true}
+                              onCheckedChange={(checked) => {
+                                updateProfileMutation.mutate({ acceptCardPayments: checked });
+                              }}
+                              data-testid="switch-accept-card"
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between p-4 border rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-red-100 rounded-lg">
+                                <Smartphone className="w-5 h-5 text-red-600" />
+                              </div>
+                              <div>
+                                <Label htmlFor="accept-twint-settings" className="font-medium">TWINT</Label>
+                                <p className="text-sm text-muted-foreground">
+                                  Accept instant TWINT payments (popular in Switzerland)
+                                </p>
+                              </div>
+                            </div>
+                            <Switch
+                              id="accept-twint-settings"
+                              checked={user.acceptTwintPayments ?? true}
+                              onCheckedChange={(checked) => {
+                                updateProfileMutation.mutate({ acceptTwintPayments: checked });
+                              }}
+                              data-testid="switch-accept-twint"
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between p-4 border rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-green-100 rounded-lg">
+                                <Banknote className="w-5 h-5 text-green-600" />
+                              </div>
+                              <div>
+                                <Label htmlFor="accept-cash-settings" className="font-medium">Cash</Label>
+                                <p className="text-sm text-muted-foreground">
+                                  Accept cash payments at service (no platform protection)
+                                </p>
+                              </div>
+                            </div>
+                            <Switch
+                              id="accept-cash-settings"
+                              checked={user.acceptCashPayments ?? true}
+                              onCheckedChange={(checked) => {
+                                updateProfileMutation.mutate({ acceptCashPayments: checked });
+                              }}
+                              data-testid="switch-accept-cash"
+                            />
+                          </div>
                         </div>
+                      </div>
+
+                      {/* Booking Approval */}
+                      <div className="pt-4 border-t space-y-4">
+                        <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                          Booking Mode
+                        </h4>
+
+                        <div className="flex items-center justify-between p-4 border rounded-lg bg-muted">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-amber-100 rounded-lg">
+                              <Clock className="w-5 h-5 text-amber-600" />
+                            </div>
+                            <div>
+                              <Label htmlFor="require-approval-settings" className="font-medium">Require Booking Approval</Label>
+                              <p className="text-sm text-muted-foreground">
+                                {user.requireBookingApproval
+                                  ? "You must manually approve each booking request"
+                                  : "Always automatically book without confirmation"
+                                }
+                              </p>
+                            </div>
+                          </div>
+                          <Switch
+                            id="require-approval-settings"
+                            checked={user.requireBookingApproval ?? false}
+                            onCheckedChange={(checked) => {
+                              updateProfileMutation.mutate({ requireBookingApproval: checked });
+                            }}
+                            data-testid="switch-require-approval"
+                          />
+                        </div>
+
+                        <p className="text-xs text-muted-foreground">
+                          💡 Tip: If you maintain your calendar availability, instant booking provides a better customer experience.
+                          Enable approval only if you need to review each request before accepting.
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Danger Zone Card (Moved) */}
+                  <Card className="border-destructive/50">
+                    <CardHeader>
+                      <CardTitle className="text-base text-destructive flex items-center gap-2">
+                        <AlertTriangle className="h-5 w-5" />
+                        Danger Zone
+                      </CardTitle>
+                      <CardDescription>Irreversible account actions</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center justify-between p-4 border border-destructive/20 rounded-lg bg-destructive/5">
                         <div>
-                          <Label htmlFor="require-approval" className="font-medium">Require Booking Approval</Label>
+                          <h4 className="font-medium text-destructive">Deactivate Account</h4>
                           <p className="text-sm text-muted-foreground">
-                            {user.requireBookingApproval
-                              ? "You must manually approve each booking request"
-                              : "Bookings are confirmed instantly when slots are available"
-                            }
+                            Temporarily hide your profile and services. You can reactivate anytime.
                           </p>
                         </div>
+                        <Button
+                          variant="outline"
+                          className="border-destructive/50 text-destructive hover:bg-destructive/10"
+                          onClick={() => {
+                            confirm({
+                              title: "Deactivate Account?",
+                              description: "Your profile and services will be hidden from other users. You can reactivate your account anytime by logging in.",
+                              confirmText: "Deactivate",
+                              variant: "warning",
+                            }).then((confirmed) => {
+                              if (confirmed) {
+                                // Call deactivation API
+                                fetch('/api/users/me/deactivate', { method: 'POST' })
+                                  .then(async (res) => {
+                                    if (res.ok) {
+                                      toast({
+                                        title: "Account Deactivated",
+                                        description: "You have been logged out. See you soon!",
+                                      });
+                                      window.location.reload();
+                                    } else {
+                                      const data = await res.json();
+                                      throw new Error(data.message);
+                                    }
+                                  })
+                                  .catch((err) => {
+                                    toast({
+                                      title: "Error",
+                                      description: err.message || "Failed to deactivate account",
+                                      variant: "destructive",
+                                    });
+                                  });
+                              }
+                            });
+                          }}
+                        >
+                          Deactivate
+                        </Button>
                       </div>
-                      <Switch
-                        id="require-approval"
-                        checked={user.requireBookingApproval ?? false}
-                        onCheckedChange={(checked) => {
-                          updateProfileMutation.mutate({ requireBookingApproval: checked });
-                        }}
-                        data-testid="switch-require-approval"
-                      />
-                    </div>
 
-                    <p className="text-xs text-muted-foreground">
-                      💡 Tip: If you maintain your calendar availability, instant booking provides a better customer experience.
-                      Enable approval only if you need to review each request before accepting.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+                      <div className="flex items-center justify-between p-4 border border-destructive/20 rounded-lg bg-destructive/5">
+                        <div>
+                          <h4 className="font-medium text-destructive">Delete Account</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Permanently delete your account and all associated data. This action cannot be undone.
+                          </p>
+                        </div>
+                        <Button
+                          variant="destructive"
+                          onClick={() => {
+                            confirm({
+                              title: "Delete your account?",
+                              description: "This action is permanent and cannot be undone. All your data will be deleted.",
+                              confirmText: "Delete Forever",
+                              variant: "destructive",
+                            }).then((confirmed) => {
+                              if (confirmed) {
+                                deleteUserMutation.mutate();
+                              }
+                            });
+                          }}
+                          disabled={deleteUserMutation.isPending}
+                        >
+                          {deleteUserMutation.isPending ? "Deleting..." : "Delete Account"}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+
             </TabsContent>
 
             <TabsContent value="services" data-testid="panel-my-services" className="space-y-6">
@@ -3468,49 +3896,76 @@ export default function Profile() {
       <Dialog open={showChangePasswordDialog} onOpenChange={setShowChangePasswordDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Change Password</DialogTitle>
+            <DialogTitle>{!user?.passwordHash ? "Set Password" : "Change Password"}</DialogTitle>
             <DialogDescription>
-              Enter your current password and choose a new password.
+              {!user?.passwordHash
+                ? "Set a password to enable email/password login for your account."
+                : "Enter your current password and choose a new password."}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleChangePassword} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="currentPassword">Current Password</Label>
-              <Input
-                id="currentPassword"
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="Enter your current password"
-                required
-                data-testid="input-current-password"
-              />
-            </div>
+            {user?.passwordHash && (
+              <div className="space-y-2">
+                <Label htmlFor="currentPassword">Current Password</Label>
+                <Input
+                  id="currentPassword"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Enter your current password"
+                  required
+                  data-testid="input-current-password"
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="newPassword">New Password</Label>
-              <Input
-                id="newPassword"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter your new password"
-                minLength={8}
-                required
-                data-testid="input-new-password"
-              />
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  id="newPassword"
+                  type={showNewPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter your new password"
+                  className="pl-10 pr-10"
+                  minLength={8}
+                  required
+                  data-testid="input-new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <PasswordStrengthIndicator password={newPassword} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm New Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm your new password"
-                minLength={8}
-                required
-                data-testid="input-confirm-password"
-              />
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm your new password"
+                  className="pl-10 pr-10"
+                  minLength={8}
+                  required
+                  data-testid="input-confirm-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <DialogFooter>
               <Button
@@ -3521,6 +3976,8 @@ export default function Profile() {
                   setCurrentPassword("");
                   setNewPassword("");
                   setConfirmPassword("");
+                  setShowNewPassword(false);
+                  setShowConfirmPassword(false);
                 }}
                 data-testid="button-cancel-change-password"
               >
@@ -3531,12 +3988,205 @@ export default function Profile() {
                 disabled={changePasswordMutation.isPending}
                 data-testid="button-submit-change-password"
               >
-                {changePasswordMutation.isPending ? "Changing..." : "Change Password"}
+                {changePasswordMutation.isPending ? "Processing..." : (!user?.passwordHash ? "Set Password" : "Change Password")}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Deactivate Account Confirmation Dialog */}
+      <Dialog open={showDeactivateDialog} onOpenChange={setShowDeactivateDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <Power className="h-5 w-5" />
+              Deactivate Account
+            </DialogTitle>
+            <DialogDescription>
+              Your account will be temporarily deactivated. All your listings will be archived and you will be logged out.
+              You can reactivate your account anytime by logging back in.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+              <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-2">
+                <li className="flex items-start gap-2">
+                  <Check className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  All active listings will be archived
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  You will be logged out immediately
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  You can reactivate anytime by logging in
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowDeactivateDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="default"
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+              onClick={async () => {
+                try {
+                  await apiRequest('/api/users/me/deactivate', { method: 'POST' });
+                  toast({ title: 'Account Deactivated', description: 'Your account has been deactivated. You can reactivate anytime by logging in.' });
+                  setShowDeactivateDialog(false);
+                  logout();
+                } catch (error: any) {
+                  toast({ title: 'Error', description: error.message || 'Failed to deactivate account', variant: 'destructive' });
+                }
+              }}
+            >
+              Deactivate Account
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Account Confirmation Dialog - Double Confirmation */}
+      <Dialog open={showDeleteDialog} onOpenChange={(open) => {
+        setShowDeleteDialog(open);
+        if (!open) setDeleteConfirmEmail("");
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Delete Account Permanently
+            </DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. All your data, listings, reviews, and bookings will be permanently deleted.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4 space-y-4">
+            <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4">
+              <div className="flex gap-2">
+                <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0" />
+                <div className="text-sm text-destructive">
+                  <p className="font-medium mb-1">This is permanent!</p>
+                  <p>All services, reviews, bookings, and account data will be permanently deleted.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="deleteConfirmEmail">Type your email to confirm: <strong>{user?.email}</strong></Label>
+              <Input
+                id="deleteConfirmEmail"
+                type="email"
+                placeholder="Enter your email"
+                value={deleteConfirmEmail}
+                onChange={(e) => setDeleteConfirmEmail(e.target.value)}
+                className="border-destructive/30 focus:border-destructive"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => {
+              setShowDeleteDialog(false);
+              setDeleteConfirmEmail("");
+            }}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteConfirmEmail !== user?.email}
+              onClick={async () => {
+                try {
+                  await apiRequest('/api/users/me', { method: 'DELETE' });
+                  toast({ title: 'Account Deleted', description: 'Your account has been permanently deleted.' });
+                  setShowDeleteDialog(false);
+                  logout();
+                } catch (error: any) {
+                  toast({ title: 'Error', description: error.message || 'Failed to delete account', variant: 'destructive' });
+                }
+              }}
+            >
+              Delete Account Forever
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* OAuth Disconnect Confirmation Dialog */}
+      <Dialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5 text-primary" />
+              Disconnect {user?.authProvider ? user.authProvider.charAt(0).toUpperCase() + user.authProvider.slice(1) : 'Account'}
+            </DialogTitle>
+            <DialogDescription>
+              {user?.passwordHash ? (
+                "You can disconnect this account. You will still be able to log in using your email and password."
+              ) : (
+                "Warning: You don't have a platform password set. Disconnecting this account will log you out and you won't be able to log back in until you set a password."
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            {!user?.passwordHash && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                <div className="flex gap-2">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+                  <div className="text-sm text-amber-800">
+                    <p className="font-medium mb-1">Set a password first</p>
+                    <p>Before disconnecting, we recommend setting a platform password so you can still access your account.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowDisconnectDialog(false)}
+            >
+              Cancel
+            </Button>
+            {!user?.passwordHash ? (
+              <Button
+                onClick={() => {
+                  setShowDisconnectDialog(false);
+                  setShowChangePasswordDialog(true);
+                }}
+              >
+                Set Password First
+              </Button>
+            ) : (
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  try {
+                    await apiRequest('/api/user/disconnect-oauth', { method: 'POST' });
+                    toast({ title: 'Account disconnected', description: 'Social login has been removed from your account.' });
+                    setShowDisconnectDialog(false);
+                    queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+                  } catch (error: any) {
+                    toast({ title: 'Error', description: error.message || 'Failed to disconnect account', variant: 'destructive' });
+                  }
+                }}
+              >
+                Disconnect
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       {/* Review Modal - handles both service reviews and customer reviews */}
       <Dialog open={showReviewBackModal} onOpenChange={(open) => {
@@ -4417,21 +5067,6 @@ function ReferralDashboard() {
           </Link>
         </div>
       </div>
-      <BookingDetailDialog
-        booking={selectedBooking}
-        open={!!selectedBooking}
-        onOpenChange={(open) => {
-          if (!open) {
-            setSelectedBooking(null);
-            // Optionally remove booking param from URL
-            const url = new URL(window.location.href);
-            url.searchParams.delete('booking');
-            window.history.pushState({}, '', url.toString());
-          }
-        }}
-        onBookingUpdate={() => setSelectedBooking(null)}
-      />
-      {/* Ensure Layout is closed if it was opened */}
     </>
   );
 }

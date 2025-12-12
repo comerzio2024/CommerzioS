@@ -9,8 +9,8 @@
  */
 
 import { db } from './db';
-import { 
-  chatConversations, 
+import {
+  chatConversations,
   chatMessages,
   users,
   userBlocks,
@@ -65,7 +65,7 @@ export function filterProfanity(text: string): { filtered: string; wasFiltered: 
   if (!hasMatch) {
     return { filtered: text, wasFiltered: false };
   }
-  
+
   const filtered = text.replace(profanityRegex, (match) => '*'.repeat(match.length));
   return { filtered, wasFiltered: true };
 }
@@ -87,14 +87,14 @@ const CONTACT_PATTERNS = {
     /\b[0-9]{3}[\s.-]?[0-9]{3}[\s.-]?[0-9]{4}\b/gi,                                // US format
     /\b[0-9]{7,14}\b/gi,                                                           // Consecutive digits (7+ catches most phone numbers)
   ],
-  
+
   // Email addresses
   email: [
     /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi,
     /[a-zA-Z0-9._%+-]+\s*[[(]?at[\])]?\s*[a-zA-Z0-9.-]+\s*[[(]?dot[\])]?\s*[a-zA-Z]{2,}/gi, // "at" and "dot" variants
     /[a-zA-Z0-9._%+-]+\s*@\s*[a-zA-Z0-9.-]+\s*\.\s*[a-zA-Z]{2,}/gi, // Spaced variants
   ],
-  
+
   // Social media handles and URLs
   social: [
     /(?:instagram|ig|insta)\s*[:@-]?\s*[a-zA-Z0-9._]+/gi,
@@ -106,7 +106,7 @@ const CONTACT_PATTERNS = {
     /(?:tiktok|tt)\s*[:@-]?\s*[a-zA-Z0-9._]+/gi,
     /(?:linkedin)\s*[:@/-]?\s*[a-zA-Z0-9._-]+/gi,
   ],
-  
+
   // URLs
   url: [
     /https?:\/\/[^\s<>"[\]{}|\\^`]+/gi,
@@ -125,7 +125,7 @@ export function containsContactInfo(text: string): {
 } {
   const foundTypes: string[] = [];
   const foundMatches: string[] = [];
-  
+
   for (const [type, patterns] of Object.entries(CONTACT_PATTERNS)) {
     for (const pattern of patterns) {
       const matches = text.match(pattern);
@@ -135,7 +135,7 @@ export function containsContactInfo(text: string): {
       }
     }
   }
-  
+
   return {
     hasContactInfo: foundTypes.length > 0,
     types: [...new Set(foundTypes)],
@@ -153,7 +153,7 @@ export function filterContactInfo(text: string): {
 } {
   let filtered = text;
   const blockedItems: string[] = [];
-  
+
   for (const patterns of Object.values(CONTACT_PATTERNS)) {
     for (const pattern of patterns) {
       const matches = filtered.match(pattern);
@@ -163,7 +163,7 @@ export function filterContactInfo(text: string): {
       }
     }
   }
-  
+
   return {
     filtered,
     wasFiltered: blockedItems.length > 0,
@@ -190,7 +190,7 @@ export function moderateMessage(content: string): ModerationResult {
   const filterReasons: ('profanity' | 'contact_info')[] = [];
   const blockedItems: string[] = [];
   let filteredContent = content;
-  
+
   // Check and filter profanity
   const profanityCheck = containsProfanity(content);
   if (profanityCheck.hasProfanity) {
@@ -199,7 +199,7 @@ export function moderateMessage(content: string): ModerationResult {
     const profanityFilter = filterProfanity(filteredContent);
     filteredContent = profanityFilter.filtered;
   }
-  
+
   // Check and filter contact info
   const contactCheck = containsContactInfo(filteredContent);
   if (contactCheck.hasContactInfo) {
@@ -208,9 +208,9 @@ export function moderateMessage(content: string): ModerationResult {
     const contactFilter = filterContactInfo(filteredContent);
     filteredContent = contactFilter.filtered;
   }
-  
+
   const wasFiltered = filterReasons.length > 0;
-  
+
   return {
     isClean: !wasFiltered,
     filteredContent,
@@ -241,7 +241,7 @@ export async function getOrCreateConversation(params: {
     eq(chatConversations.vendorId, params.vendorId),
     sql`${chatConversations.status} != 'archived'`, // Exclude archived/deleted conversations
   ];
-  
+
   // If serviceId is provided, ONLY match conversations with the EXACT same serviceId
   // This ensures each service gets its own conversation, even if there are existing
   // conversations with the same vendor but different/no serviceId
@@ -254,14 +254,14 @@ export async function getOrCreateConversation(params: {
     // This is for general inquiries not tied to a specific service
     conditions.push(sql`${chatConversations.serviceId} IS NULL`);
   }
-  
+
   if (params.bookingId) {
     conditions.push(eq(chatConversations.bookingId, params.bookingId));
   }
   if (params.orderId) {
     conditions.push(eq(chatConversations.orderId, params.orderId));
   }
-  
+
   console.log(`[getOrCreateConversation] Searching for existing conversation:`, {
     customerId: params.customerId,
     vendorId: params.vendorId,
@@ -269,12 +269,12 @@ export async function getOrCreateConversation(params: {
     bookingId: params.bookingId,
     orderId: params.orderId,
   });
-  
+
   const [existing] = await db.select()
     .from(chatConversations)
     .where(and(...conditions))
     .limit(1);
-  
+
   if (existing) {
     console.log(`[getOrCreateConversation] Found existing conversation:`, {
       id: existing.id,
@@ -283,7 +283,7 @@ export async function getOrCreateConversation(params: {
       status: existing.status,
       matches: existing.serviceId === params.serviceId,
     });
-    
+
     // CRITICAL CHECK: If serviceId was provided, ensure the existing conversation has the SAME serviceId
     // If not, this is a different service and we need a new conversation
     if (params.serviceId && existing.serviceId !== params.serviceId) {
@@ -300,14 +300,14 @@ export async function getOrCreateConversation(params: {
   } else {
     console.log(`[getOrCreateConversation] No existing conversation found for serviceId ${params.serviceId || 'NULL'}, will create new one`);
   }
-  
+
   // Create new conversation (either no existing one, or existing one is blocked/archived)
   console.log(`[getOrCreateConversation] Creating new conversation:`, {
     customerId: params.customerId,
     vendorId: params.vendorId,
     serviceId: params.serviceId,
   });
-  
+
   try {
     const [conversation] = await db.insert(chatConversations)
       .values({
@@ -319,14 +319,14 @@ export async function getOrCreateConversation(params: {
         status: 'active',
       })
       .returning();
-    
+
     console.log(`[getOrCreateConversation] Created conversation:`, {
       id: conversation.id,
       customerId: conversation.customerId,
       vendorId: conversation.vendorId,
       status: conversation.status,
     });
-    
+
     // Fetch relations for the new conversation
     const fullConversation = await getConversationById(conversation.id, params.customerId) as typeof chatConversations.$inferSelect;
     console.log(`[getOrCreateConversation] Returning conversation with relations:`, {
@@ -335,30 +335,30 @@ export async function getOrCreateConversation(params: {
       hasCustomer: !!fullConversation?.customerId,
       hasService: !!fullConversation?.serviceId,
     });
-    
+
     return fullConversation;
   } catch (error: any) {
     // Handle unique constraint violation (race condition - another request created it first)
     if (error.code === '23505' || error.message?.includes('unique_active_conversation')) {
       console.log(`[getOrCreateConversation] Unique constraint violation - conversation was created by concurrent request, fetching it`);
-      
+
       // Re-fetch the existing conversation that was created by another request
       const [existingConversation] = await db.select()
         .from(chatConversations)
         .where(and(
           eq(chatConversations.customerId, params.customerId),
           eq(chatConversations.vendorId, params.vendorId),
-          params.serviceId 
+          params.serviceId
             ? eq(chatConversations.serviceId, params.serviceId)
             : sql`${chatConversations.serviceId} IS NULL`
         ))
         .limit(1);
-      
+
       if (existingConversation) {
         return await getConversationById(existingConversation.id, params.customerId) as typeof chatConversations.$inferSelect;
       }
     }
-    
+
     // Re-throw other errors
     throw error;
   }
@@ -378,7 +378,7 @@ export async function getUserConversations(
   }
 ) {
   let condition;
-  
+
   if (role === 'customer') {
     condition = eq(chatConversations.customerId, userId);
   } else if (role === 'vendor') {
@@ -421,25 +421,25 @@ export async function getUserConversations(
       .from(favorites)
       .where(eq(favorites.userId, userId));
     savedServiceIds = saved.map(s => s.serviceId).filter(Boolean); // Filter out any null/undefined
-    
+
     console.log(`[getUserConversations] Saved only mode: found ${savedServiceIds.length} saved services`);
-    
+
     if (savedServiceIds.length === 0) {
       // No saved services, return empty array immediately
       console.log(`[getUserConversations] No saved services found, returning empty array`);
       return [];
     }
   }
-  
+
   // Debug: Log the condition being used
   console.log(`[getUserConversations] Querying conversations for user ${userId} with role ${role}`, {
     status: options?.status,
     savedOnly: options?.savedOnly,
     savedServiceCount: savedServiceIds.length,
   });
-  
+
   const whereConditions = [condition, statusCondition];
-  
+
   // Exclude conversations with blocked users (unless viewing archived or 'all')
   // 'All' tab should show everything including archived conversations with blocked users
   if (blockedUserIds.length > 0 && options?.status !== 'archived' && options?.status !== 'all') {
@@ -463,7 +463,7 @@ export async function getUserConversations(
   if (options?.savedOnly && savedServiceIds.length > 0) {
     whereConditions.push(inArray(chatConversations.serviceId, savedServiceIds));
   }
-  
+
   const conversations = await db.query.chatConversations.findMany({
     where: and(...whereConditions),
     orderBy: [
@@ -479,7 +479,7 @@ export async function getUserConversations(
       service: true,
     }
   });
-  
+
   // Filter expired conversations if requested
   let filteredConversations = conversations;
   if (options?.status === 'expired') {
@@ -497,7 +497,7 @@ export async function getUserConversations(
     status: options?.status,
     savedOnly: options?.savedOnly,
   });
-  
+
   return filteredConversations;
 }
 
@@ -522,7 +522,7 @@ export async function getConversationById(
       service: true,
     }
   });
-  
+
   return conversation || null;
 }
 
@@ -542,21 +542,87 @@ export async function sendMessage(params: {
 }): Promise<typeof chatMessages.$inferSelect> {
   // Verify sender has access to conversation
   const conversation = await getConversationById(params.conversationId, params.senderId);
-  
+
   if (!conversation) {
     throw new Error('Conversation not found or access denied');
   }
-  
+
   if (conversation.status === 'blocked' || conversation.status === 'closed') {
     throw new Error('Cannot send messages in this conversation');
   }
-  
-  // Determine sender role
+
+  // Determine sender role and recipient
   const senderRole = conversation.customerId === params.senderId ? 'customer' : 'vendor';
-  
+  const recipientId = conversation.customerId === params.senderId
+    ? conversation.vendorId
+    : conversation.customerId;
+
+  // Check if recipient is deactivated
+  const [recipient] = await db.select({ status: users.status, firstName: users.firstName, id: users.id })
+    .from(users)
+    .where(eq(users.id, recipientId))
+    .limit(1);
+
+  // ONLY block if recipient is explicitly 'inactive' - not for any other status
+  if (recipient && recipient.status === 'inactive') {
+    // Check if we already sent a deactivation notice for this conversation
+    const [existingNotice] = await db.select()
+      .from(chatMessages)
+      .where(and(
+        eq(chatMessages.conversationId, params.conversationId),
+        eq(chatMessages.messageType, 'system'),
+        sql`${chatMessages.content} LIKE '%temporarily deactivated%'`
+      ))
+      .limit(1);
+
+    if (!existingNotice) {
+      // Send system message to inform the sender
+      await db.insert(chatMessages)
+        .values({
+          conversationId: params.conversationId,
+          senderId: recipientId, // Attribute to the deactivated user
+          senderRole: 'system',
+          content: "⚠️ This user's account is temporarily deactivated. They will receive your message when they reactivate their account.",
+          messageType: 'system',
+          wasFiltered: false,
+        });
+
+      // Lock the conversation for this sender
+      const existingMetadata = (conversation as any).metadata
+        ? JSON.parse((conversation as any).metadata)
+        : {};
+
+      await db.update(chatConversations)
+        .set({
+          metadata: JSON.stringify({
+            ...existingMetadata,
+            lockedDueToDeactivation: true,
+            lockedForUserId: params.senderId,
+            deactivatedUserId: recipientId,
+            lockedAt: new Date().toISOString()
+          }),
+          updatedAt: new Date(),
+        })
+        .where(eq(chatConversations.id, params.conversationId));
+    }
+
+    // Don't send the actual message - return the system message instead
+    const [systemMsg] = await db.select()
+      .from(chatMessages)
+      .where(and(
+        eq(chatMessages.conversationId, params.conversationId),
+        eq(chatMessages.messageType, 'system'),
+        sql`${chatMessages.content} LIKE '%temporarily deactivated%'`
+      ))
+      .orderBy(desc(chatMessages.createdAt))
+      .limit(1);
+
+    return systemMsg;
+  }
+
   // Moderate the message
   const moderation = moderateMessage(params.content);
-  
+
   // Create message
   const [message] = await db.insert(chatMessages)
     .values({
@@ -572,13 +638,13 @@ export async function sendMessage(params: {
       blockedContent: moderation.blockedContent,
     })
     .returning();
-  
+
   // Update conversation
   const preview = moderation.filteredContent.substring(0, 100);
-  const unreadField = senderRole === 'customer' 
+  const unreadField = senderRole === 'customer'
     ? { vendorUnreadCount: sql`${chatConversations.vendorUnreadCount} + 1` }
     : { customerUnreadCount: sql`${chatConversations.customerUnreadCount} + 1` };
-  
+
   await db.update(chatConversations)
     .set({
       lastMessageAt: new Date(),
@@ -590,7 +656,7 @@ export async function sendMessage(params: {
       flagReason: !moderation.isClean ? `${moderation.filterReasons.join(', ')}: ${moderation.blockedContent}` : undefined,
     })
     .where(eq(chatConversations.id, params.conversationId));
-  
+
   return message;
 }
 
@@ -605,30 +671,30 @@ export async function getMessages(
 ) {
   // Verify access
   const conversation = await getConversationById(conversationId, userId);
-  
+
   if (!conversation) {
     throw new Error('Conversation not found or access denied');
   }
-  
+
   const conditions = [eq(chatMessages.conversationId, conversationId)];
-  
+
   if (beforeMessageId) {
     const [beforeMessage] = await db.select()
       .from(chatMessages)
       .where(eq(chatMessages.id, beforeMessageId))
       .limit(1);
-    
+
     if (beforeMessage) {
       conditions.push(sql`${chatMessages.createdAt} < ${beforeMessage.createdAt}`);
     }
   }
-  
+
   const messages = await db.select()
     .from(chatMessages)
     .where(and(...conditions))
     .orderBy(desc(chatMessages.createdAt))
     .limit(limit);
-  
+
   // Return in chronological order
   return messages.reverse();
 }
@@ -641,13 +707,13 @@ export async function markMessagesAsRead(
   userId: string
 ) {
   const conversation = await getConversationById(conversationId, userId);
-  
+
   if (!conversation) {
     throw new Error('Conversation not found');
   }
-  
+
   const isCustomer = conversation.customerId === userId;
-  
+
   // Mark all unread messages from the other party as read
   await db.update(chatMessages)
     .set({ readAt: new Date() })
@@ -658,12 +724,12 @@ export async function markMessagesAsRead(
         isNull(chatMessages.readAt)
       )
     );
-  
+
   // Reset unread count
   const updateField = isCustomer
     ? { customerUnreadCount: 0 }
     : { vendorUnreadCount: 0 };
-  
+
   await db.update(chatConversations)
     .set(updateField)
     .where(eq(chatConversations.id, conversationId));
@@ -684,14 +750,14 @@ export async function getUnreadCount(userId: string): Promise<number> {
       )
     `
   })
-  .from(chatConversations)
-  .where(
-    or(
-      eq(chatConversations.customerId, userId),
-      eq(chatConversations.vendorId, userId)
-    )
-  );
-  
+    .from(chatConversations)
+    .where(
+      or(
+        eq(chatConversations.customerId, userId),
+        eq(chatConversations.vendorId, userId)
+      )
+    );
+
   return result[0]?.total || 0;
 }
 
@@ -711,11 +777,13 @@ export async function sendSystemMessage(
     .from(chatConversations)
     .where(eq(chatConversations.id, conversationId))
     .limit(1);
-  
+
   if (!conversation) {
     throw new Error('Conversation not found');
   }
-  
+
+  const recipientId = conversation.customerId; // System messages are typically for the customer
+
   const [message] = await db.insert(chatMessages)
     .values({
       conversationId,
@@ -726,7 +794,7 @@ export async function sendSystemMessage(
       wasFiltered: false,
     })
     .returning();
-  
+
   // Update conversation
   await db.update(chatConversations)
     .set({
@@ -737,7 +805,7 @@ export async function sendSystemMessage(
       updatedAt: new Date(),
     })
     .where(eq(chatConversations.id, conversationId));
-  
+
   return message;
 }
 
@@ -754,24 +822,24 @@ export async function deleteConversation(
 ): Promise<boolean> {
   // First verify the conversation exists and user has access
   const conversation = await getConversationById(conversationId, userId);
-  
+
   if (!conversation) {
     throw new Error('Conversation not found or access denied');
   }
-  
+
   // Hard delete: Delete all messages first (cascade will handle this, but explicit for clarity)
   await db.delete(chatMessages)
     .where(eq(chatMessages.conversationId, conversationId));
-  
+
   // Hard delete the conversation itself
   const result = await db.delete(chatConversations)
     .where(eq(chatConversations.id, conversationId))
     .returning();
-  
+
   if (!result || result.length === 0) {
     throw new Error('Failed to delete conversation');
   }
-  
+
   return true;
 }
 
@@ -939,14 +1007,14 @@ export async function blockConversation(
   reason?: string
 ) {
   const conversation = await getConversationById(conversationId, userId);
-  
+
   if (!conversation) {
     throw new Error('Conversation not found or access denied');
   }
 
   // Get the other party's ID
-  const otherPartyId = conversation.customerId === userId 
-    ? conversation.vendorId 
+  const otherPartyId = conversation.customerId === userId
+    ? conversation.vendorId
     : conversation.customerId;
 
   // Use the new blockUser function to block the user and archive all conversations
@@ -961,14 +1029,14 @@ export async function unblockConversation(
   userId: string
 ) {
   const conversation = await getConversationById(conversationId, userId);
-  
+
   if (!conversation) {
     throw new Error('Conversation not found or access denied');
   }
 
   // Get the other party's ID
-  const otherPartyId = conversation.customerId === userId 
-    ? conversation.vendorId 
+  const otherPartyId = conversation.customerId === userId
+    ? conversation.vendorId
     : conversation.customerId;
 
   // Use the new unblockUser function to unblock the user and restore all conversations
@@ -1012,11 +1080,11 @@ export async function deleteMessage(
     .from(chatMessages)
     .where(eq(chatMessages.id, messageId))
     .limit(1);
-  
+
   if (!message || message.senderId !== userId) {
     return false;
   }
-  
+
   // Soft delete
   await db.update(chatMessages)
     .set({
@@ -1025,7 +1093,7 @@ export async function deleteMessage(
       content: '[Message deleted]',
     })
     .where(eq(chatMessages.id, messageId));
-  
+
   return true;
 }
 
@@ -1042,20 +1110,20 @@ export async function editMessage(
     .from(chatMessages)
     .where(eq(chatMessages.id, messageId))
     .limit(1);
-  
+
   if (!message || message.senderId !== userId || message.isDeleted) {
     return null;
   }
-  
+
   // Check if edit is within time limit (e.g., 15 minutes)
   const editTimeLimit = 15 * 60 * 1000; // 15 minutes
   if (Date.now() - message.createdAt.getTime() > editTimeLimit) {
     throw new Error('Message can no longer be edited');
   }
-  
+
   // Moderate the new content
   const moderation = moderateMessage(newContent);
-  
+
   const [updated] = await db.update(chatMessages)
     .set({
       content: moderation.filteredContent,
@@ -1067,7 +1135,120 @@ export async function editMessage(
     })
     .where(eq(chatMessages.id, messageId))
     .returning();
-  
+
   return updated;
 }
 
+// ===========================================
+// USER REACTIVATION HANDLER
+// ===========================================
+
+/**
+ * Handle user reactivation - unlock chats and notify about missed contacts
+ * Called when a user reactivates their account
+ */
+export async function handleUserReactivation(userId: string): Promise<{
+  unlockedConversations: number;
+  missedContacts: Array<{ senderId: string; senderName: string; serviceId?: string; attemptedAt: string }>;
+}> {
+  const missedContacts: Array<{ senderId: string; senderName: string; serviceId?: string; attemptedAt: string }> = [];
+
+  // Find conversations locked due to this user's deactivation
+  const lockedConversations = await db.select()
+    .from(chatConversations)
+    .where(
+      or(
+        eq(chatConversations.customerId, userId),
+        eq(chatConversations.vendorId, userId)
+      )
+    );
+
+  let unlockedCount = 0;
+
+  for (const conv of lockedConversations) {
+    // Check if conversation was locked due to this user's deactivation
+    let metadata: any = {};
+    try {
+      metadata = conv.metadata ? JSON.parse(conv.metadata as string) : {};
+    } catch (e) {
+      metadata = {};
+    }
+
+    if (metadata.lockedDueToDeactivation && metadata.deactivatedUserId === userId) {
+      // Unlock the conversation
+      const updatedMetadata = { ...metadata };
+      delete updatedMetadata.lockedDueToDeactivation;
+      delete updatedMetadata.lockedForUserId;
+      delete updatedMetadata.deactivatedUserId;
+      delete updatedMetadata.lockedAt;
+
+      await db.update(chatConversations)
+        .set({
+          metadata: Object.keys(updatedMetadata).length > 0 ? JSON.stringify(updatedMetadata) : null,
+          updatedAt: new Date(),
+        })
+        .where(eq(chatConversations.id, conv.id));
+
+      // Delete the old deactivation system message to avoid confusion
+      await db.delete(chatMessages)
+        .where(and(
+          eq(chatMessages.conversationId, conv.id),
+          eq(chatMessages.messageType, 'system'),
+          sql`${chatMessages.content} LIKE '%temporarily deactivated%'`
+        ));
+
+      // Send reactivation system message
+      await sendSystemMessage(
+        conv.id,
+        `✅ This user's account has been reactivated. You can now continue your conversation.`,
+        'system'
+      );
+
+      unlockedCount++;
+    }
+
+    // Find pending messages sent during deactivation
+    const pendingMessages = await db.select()
+      .from(chatMessages)
+      .where(eq(chatMessages.conversationId, conv.id));
+
+    for (const msg of pendingMessages) {
+      if (msg.metadata) {
+        try {
+          const msgMeta = JSON.parse(msg.metadata as string);
+          if (msgMeta.pendingForDeactivatedUser && msgMeta.recipientId === userId) {
+            // Get sender info
+            const [sender] = await db.select({ firstName: users.firstName, lastName: users.lastName })
+              .from(users)
+              .where(eq(users.id, msg.senderId))
+              .limit(1);
+
+            missedContacts.push({
+              senderId: msg.senderId,
+              senderName: sender ? `${sender.firstName || ''} ${sender.lastName || ''}`.trim() || 'A user' : 'A user',
+              serviceId: msgMeta.serviceId,
+              attemptedAt: msgMeta.attemptedAt,
+            });
+
+            // Clear the pending flag from the message
+            const updatedMsgMeta = { ...msgMeta };
+            delete updatedMsgMeta.pendingForDeactivatedUser;
+
+            await db.update(chatMessages)
+              .set({
+                metadata: Object.keys(updatedMsgMeta).length > 0 ? JSON.stringify(updatedMsgMeta) : null,
+              })
+              .where(eq(chatMessages.id, msg.id));
+          }
+        } catch (e) {
+          // Skip invalid metadata
+        }
+      }
+    }
+  }
+
+  return {
+    unlockedConversations: unlockedCount,
+    missedContacts,
+  };
+}

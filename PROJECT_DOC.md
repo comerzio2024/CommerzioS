@@ -20,7 +20,7 @@
 
 ## Project Overview
 
-**CommerzioS** (also known as ServeMKT) is a comprehensive service marketplace platform designed specifically for the Swiss market. It connects service providers (vendors) with customers seeking various services, from home maintenance to professional consultations.
+**CommerzioS** is a comprehensive service marketplace platform designed specifically for the Swiss market. It connects service providers (vendors) with customers seeking various services, from home maintenance to professional consultations.
 
 ### Core Value Proposition
 - **For Vendors**: Platform to showcase services, manage bookings, receive payments securely via escrow
@@ -491,7 +491,7 @@ VAPID_PRIVATE_KEY=...
 GOOGLE_MAPS_API_KEY=...
 
 # Admin
-ADMIN_USERNAME=admin@servemkt.ch
+ADMIN_USERNAME=admin@commerzio.online
 ADMIN_PASSWORD=...
 ```
 

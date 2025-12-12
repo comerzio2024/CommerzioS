@@ -211,7 +211,7 @@ describe('E2E API Tests', () => {
       // Login as admin to see disputes
       const { response: loginRes } = await apiRequest('POST', '/api/auth/login', {
         body: {
-          email: 'admin@servemkt.ch',
+          email: 'admin@commerzio.online',
           password: 'admin123'
         }
       });
@@ -233,7 +233,7 @@ describe('E2E API Tests', () => {
       // Login as admin
       const { response: loginRes } = await apiRequest('POST', '/api/auth/login', {
         body: {
-          email: 'admin@servemkt.ch',
+          email: 'admin@commerzio.online',
           password: 'admin123'
         }
       });
@@ -298,7 +298,7 @@ describe('E2E API Tests', () => {
       // Login as admin
       const { response: loginRes } = await apiRequest('POST', '/api/auth/login', {
         body: {
-          email: 'admin@servemkt.ch',
+          email: 'admin@commerzio.online',
           password: 'admin123'
         }
       });
@@ -329,7 +329,7 @@ describe('E2E API Tests', () => {
       // Login as admin
       const { response: loginRes } = await apiRequest('POST', '/api/auth/login', {
         body: {
-          email: 'admin@servemkt.ch',
+          email: 'admin@commerzio.online',
           password: 'admin123'
         }
       });
@@ -454,7 +454,7 @@ describe('E2E API Tests', () => {
       // Login as admin (who is also a vendor)
       const { response } = await apiRequest('POST', '/api/auth/login', {
         body: {
-          email: 'admin@servemkt.ch',
+          email: 'admin@commerzio.online',
           password: 'admin123'
         }
       });
@@ -533,7 +533,7 @@ describe('E2E API Tests', () => {
       // Login as admin
       const { response } = await apiRequest('POST', '/api/auth/login', {
         body: {
-          email: 'admin@servemkt.ch',
+          email: 'admin@commerzio.online',
           password: 'admin123'
         }
       });
@@ -600,7 +600,7 @@ describe('E2E API Tests', () => {
     beforeAll(async () => {
       const { response } = await apiRequest('POST', '/api/auth/login', {
         body: {
-          email: 'admin@servemkt.ch',
+          email: 'admin@commerzio.online',
           password: 'admin123'
         }
       });

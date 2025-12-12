@@ -103,8 +103,8 @@ export default function TrustSafety() {
                   <p className="text-sm font-medium text-foreground mb-2">How to Report:</p>
                   <p className="text-sm">
                     Click the "Report" button on any listing or user profile, or contact our safety team directly at{" "}
-                    <a href="mailto:safety@servemkt.ch" className="text-primary hover:underline" data-testid="link-safety-email">
-                      safety@servemkt.ch
+                    <a href="mailto:safety@commerzio.online" className="text-primary hover:underline" data-testid="link-safety-email">
+                      safety@commerzio.online
                     </a>
                   </p>
                 </div>
@@ -241,11 +241,11 @@ export default function TrustSafety() {
                 <p className="text-muted-foreground">
                   Email:{" "}
                   <a 
-                    href="mailto:safety@servemkt.ch" 
+                    href="mailto:safety@commerzio.online" 
                     className="text-primary font-medium hover:underline"
                     data-testid="link-safety-contact"
                   >
-                    safety@servemkt.ch
+                    safety@commerzio.online
                   </a>
                 </p>
                 <p className="text-sm text-muted-foreground mt-4">

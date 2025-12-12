@@ -21,6 +21,7 @@ import {
   Users,
 } from "lucide-react"
 import Link from "next/link"
+import { ListingQASection } from "@/components/listing-qa-section"
 
 export default function ServiceDetailPage() {
   const reviews = [
@@ -147,6 +148,7 @@ export default function ServiceDetailPage() {
                   <TabsTrigger value="description">Description</TabsTrigger>
                   <TabsTrigger value="pricing">Pricing</TabsTrigger>
                   <TabsTrigger value="reviews">Reviews</TabsTrigger>
+                  <TabsTrigger value="questions">Q&A</TabsTrigger>
                   <TabsTrigger value="about">About Vendor</TabsTrigger>
                 </TabsList>
 
@@ -336,6 +338,10 @@ export default function ServiceDetailPage() {
                   </div>
                 </TabsContent>
 
+                <TabsContent value="questions" className="mt-6">
+                  <ListingQASection listingId="1" vendorName="Swiss Clean Pro" isVendor={false} />
+                </TabsContent>
+
                 <TabsContent value="about" className="space-y-6 mt-6">
                   <Card>
                     <CardContent className="p-6">
@@ -382,7 +388,7 @@ export default function ServiceDetailPage() {
                 </div>
 
                 <Button size="lg" className="w-full mb-3" asChild>
-                  <Link href="/booking/new?service=1">
+                  <Link href={`/services/${1}/book`}>
                     <Calendar className="mr-2 h-5 w-5" />
                     Book Now
                   </Link>

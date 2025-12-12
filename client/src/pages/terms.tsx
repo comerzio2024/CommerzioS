@@ -211,7 +211,7 @@ export default function Terms() {
                 
                 <h3 className="text-xl font-semibold text-foreground mb-3">10.1 By You</h3>
                 <p className="mb-4">
-                  You may terminate your account at any time by contacting us at info@servemkt.ch.
+                  You may terminate your account at any time by contacting us at info@commerzio.online.
                 </p>
 
                 <h3 className="text-xl font-semibold text-foreground mb-3">10.2 By Us</h3>
@@ -253,7 +253,7 @@ export default function Terms() {
                 <p className="mb-2">Before initiating legal proceedings, parties agree to:</p>
                 <ol className="list-decimal list-inside space-y-2 ml-4">
                   <li>Attempt to resolve disputes through good faith negotiations</li>
-                  <li>Contact our support team at support@servemkt.ch for mediation assistance</li>
+                  <li>Contact our support team at support@commerzio.online for mediation assistance</li>
                   <li>Allow 30 days for resolution attempts before pursuing legal action</li>
                 </ol>
               </section>
@@ -296,14 +296,14 @@ export default function Terms() {
                   <p>Switzerland</p>
                   <p className="mt-4">
                     Email:{" "}
-                    <a href="mailto:info@servemkt.ch" className="text-primary hover:underline" data-testid="link-info-email">
-                      info@servemkt.ch
+                    <a href="mailto:info@commerzio.online" className="text-primary hover:underline" data-testid="link-info-email">
+                      info@commerzio.online
                     </a>
                   </p>
                   <p>
                     Support:{" "}
-                    <a href="mailto:support@servemkt.ch" className="text-primary hover:underline" data-testid="link-support-email">
-                      support@servemkt.ch
+                    <a href="mailto:support@commerzio.online" className="text-primary hover:underline" data-testid="link-support-email">
+                      support@commerzio.online
                     </a>
                   </p>
                 </div>

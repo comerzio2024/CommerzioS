@@ -11,7 +11,7 @@ Use this prompt to give a new AI assistant full context to continue working on t
 I'm working on **CommerzioS**, a Swiss service marketplace platform. Here's the complete context you need to continue development:
 
 ### Project Overview
-CommerzioS (ServeMKT) is a full-stack service marketplace connecting vendors with customers in Switzerland. It features:
+CommerzioS is a full-stack service marketplace connecting vendors with customers in Switzerland. It features:
 - Service listings with images, pricing, and availability
 - Booking system with escrow payments (Stripe + TWINT)
 - Real-time chat between users
@@ -201,5 +201,5 @@ See `client/src/components/ui/` for shadcn components
 See `client/src/components/` for custom components
 
 ### Test Credentials (Dev Only)
-- Admin: `admin@servemkt.ch` / (check ADMIN_PASSWORD env var)
+- Admin: `admin@commerzio.online` / (check ADMIN_PASSWORD env var)
 - Test users: `xxx@email.ch` / `TestPass123!`

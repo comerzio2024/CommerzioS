@@ -48,8 +48,8 @@ export default function Privacy() {
                   <p>Switzerland</p>
                   <p className="mt-4">
                     Data Protection Contact:{" "}
-                    <a href="mailto:privacy@servemkt.ch" className="text-primary hover:underline" data-testid="link-privacy-email">
-                      privacy@servemkt.ch
+                    <a href="mailto:privacy@commerzio.online" className="text-primary hover:underline" data-testid="link-privacy-email">
+                      privacy@commerzio.online
                     </a>
                   </p>
                 </div>
@@ -251,8 +251,8 @@ export default function Privacy() {
                 <h3 className="text-xl font-semibold text-foreground mb-3">7.6 How to Exercise Your Rights</h3>
                 <p className="mb-2">
                   To exercise any of these rights, contact us at:{" "}
-                  <a href="mailto:privacy@servemkt.ch" className="text-primary hover:underline" data-testid="link-privacy-contact">
-                    privacy@servemkt.ch
+                  <a href="mailto:privacy@commerzio.online" className="text-primary hover:underline" data-testid="link-privacy-contact">
+                    privacy@commerzio.online
                   </a>
                 </p>
                 <p className="text-sm">
@@ -399,8 +399,8 @@ export default function Privacy() {
                   <p>Switzerland</p>
                   <p className="mt-4">
                     Email:{" "}
-                    <a href="mailto:privacy@servemkt.ch" className="text-primary hover:underline" data-testid="link-dpo-email">
-                      privacy@servemkt.ch
+                    <a href="mailto:privacy@commerzio.online" className="text-primary hover:underline" data-testid="link-dpo-email">
+                      privacy@commerzio.online
                     </a>
                   </p>
                 </div>

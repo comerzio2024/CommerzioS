@@ -271,6 +271,56 @@ export async function sendPasswordChangedEmail(
 }
 
 /**
+ * Send account deactivation confirmation email
+ */
+export async function sendDeactivationEmail(
+  email: string,
+  firstName: string
+): Promise<boolean> {
+  const content = `
+    <h2>Account Deactivated</h2>
+    <p>Hi ${firstName},</p>
+    <p>Your account has been successfully deactivated as requested.</p>
+    <p>We're sorry to see you go! If you change your mind, you can reactivate your account at any time by logging in with your credentials.</p>
+    <p>Your profile and services are no longer visible to other users.</p>
+    <div class="warning">
+      <strong>Note:</strong> If you did not request this deactivation, please contact our support team immediately.
+    </div>
+  `;
+
+  return sendEmail({
+    to: email,
+    subject: `Your ${appName} account has been deactivated`,
+    html: wrapEmailTemplate(content),
+  });
+}
+
+/**
+ * Send account reactivation welcome back email
+ */
+export async function sendReactivationEmail(
+  email: string,
+  firstName: string
+): Promise<boolean> {
+  const content = `
+    <h2>Welcome Back! 👋</h2>
+    <p>Hi ${firstName},</p>
+    <p>Your account has been successfully reactivated.</p>
+    <p>All your services, reviews, and settings have been restored and are now visible again.</p>
+    <p style="text-align: center;">
+      <a href="${appUrl}/dashboard" class="button">Go to Dashboard</a>
+    </p>
+    <p>We're glad to have you back with us!</p>
+  `;
+
+  return sendEmail({
+    to: email,
+    subject: `Welcome back to ${appName}!`,
+    html: wrapEmailTemplate(content),
+  });
+}
+
+/**
  * Verify SMTP connection on startup
  */
 export async function verifyEmailConnection(): Promise<boolean> {

@@ -102,7 +102,7 @@ export const users = pgTable("users", {
   emailVerified: boolean("email_verified").default(false).notNull(),
   phoneVerified: boolean("phone_verified").default(false).notNull(),
   isAdmin: boolean("is_admin").default(false).notNull(),
-  status: varchar("status", { enum: ["active", "warned", "suspended", "banned", "kicked"] }).default("active").notNull(),
+  status: varchar("status", { enum: ["active", "inactive", "warned", "suspended", "banned", "kicked"] }).default("active").notNull(),
   statusReason: text("status_reason"),
   planId: varchar("plan_id").references(() => plans.id),
   marketingPackage: varchar("marketing_package", { enum: ["basic", "pro", "premium", "enterprise"] }).default("basic"),
@@ -1105,7 +1105,7 @@ export const resetPasswordSchema = z.object({
 });
 
 export const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1, "Current password is required"),
+  currentPassword: z.string().optional(),
   newPassword: z.string()
     .min(8, "Password must be at least 8 characters")
     .regex(/[A-Z]/, "Password must contain at least one uppercase letter")

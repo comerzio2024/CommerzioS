@@ -58,6 +58,14 @@ app.use((req, res, next) => {
   const path = req.path;
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
+  // GLOBAL DEBUG LOGGING
+  if (path.startsWith('/api/chat')) {
+    try {
+      const fs = require('fs');
+      fs.appendFileSync('chat-debug.log', `\n[${new Date().toISOString()}] GLOBAL HIT: ${req.method} ${path}\n`);
+    } catch (e) { /* ignore */ }
+  }
+
   const originalResJson = res.json;
   res.json = function (bodyJson, ...args) {
     capturedJsonResponse = bodyJson;

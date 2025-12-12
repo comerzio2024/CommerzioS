@@ -1,8 +1,13 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
 import { Footer } from "@/components/footer"
 import { StickyCategoryNav } from "@/components/sticky-category-nav"
+import { FeaturedCarousel } from "@/components/featured-carousel"
+import { ServiceMap } from "@/components/service-map"
+import { OnboardingTutorial } from "@/components/onboarding-tutorial"
+import { QuickActionsBar } from "@/components/quick-actions-bar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -11,8 +16,38 @@ import { Search, Shield, Clock, Star, MapPin, Sparkles, Award, Lock, CheckCircle
 import Link from "next/link"
 
 export default function HomePage() {
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false)
+
+  useEffect(() => {
+    // Check if user has seen the onboarding before
+    const hasSeenOnboarding = localStorage.getItem("commerzio-onboarding-complete")
+    if (!hasSeenOnboarding) {
+      // Small delay to let the page render first
+      const timer = setTimeout(() => {
+        setShowOnboarding(true)
+      }, 500)
+      return () => clearTimeout(timer)
+    }
+    setHasCheckedOnboarding(true)
+  }, [])
+
+  const handleOnboardingComplete = () => {
+    localStorage.setItem("commerzio-onboarding-complete", "true")
+    setShowOnboarding(false)
+    setHasCheckedOnboarding(true)
+  }
+
+  const handleOnboardingSkip = () => {
+    localStorage.setItem("commerzio-onboarding-complete", "true")
+    setShowOnboarding(false)
+    setHasCheckedOnboarding(true)
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
+      {showOnboarding && <OnboardingTutorial onComplete={handleOnboardingComplete} onSkip={handleOnboardingSkip} />}
+
       <Navigation />
 
       {/* Hero Section */}
@@ -117,6 +152,12 @@ export default function HomePage() {
 
       {/* Sticky Category Navigation Component */}
       <StickyCategoryNav />
+
+      {/* Featured Carousel Section */}
+      <FeaturedCarousel />
+
+      {/* Service Map Section */}
+      <ServiceMap />
 
       {/* How It Works Section */}
       <section className="py-16 md:py-24 bg-gradient-to-br from-accent/5 via-muted/20 to-success/5">
@@ -287,6 +328,9 @@ export default function HomePage() {
       </section>
 
       <Footer />
+      
+      {/* Quick Actions Floating Button */}
+      <QuickActionsBar />
     </div>
   )
 }

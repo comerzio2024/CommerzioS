@@ -19,18 +19,19 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MessageInput } from './MessageInput';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
-import { 
-  MessageSquare, 
-  AlertTriangle, 
-  Shield, 
-  X, 
+import {
+  MessageSquare,
+  AlertTriangle,
+  Shield,
+  X,
   MoreVertical,
   Trash2,
   Check,
   CheckCheck,
   Package,
   Ban,
-  Unlock
+  Unlock,
+  Lock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -139,6 +140,11 @@ export function ChatWindow({
   // Check if the other party is blocked
   const isUserBlocked = otherPartyId && blockedUsers.some((u: any) => u.id === otherPartyId);
 
+  // Check if conversation is locked due to deactivation
+  const conversationMetadata = conversationData?.metadata ? JSON.parse(conversationData.metadata) : {};
+  const isLockedDueToDeactivation = conversationMetadata.lockedDueToDeactivation &&
+    conversationMetadata.lockedForUserId === currentUserId;
+
   // Fetch messages
   const { data: messages = [], isLoading } = useQuery<Message[]>({
     queryKey: ['messages', conversationId],
@@ -167,15 +173,18 @@ export function ChatWindow({
   // Send message mutation
   const sendMutation = useMutation({
     mutationFn: async (content: string) => {
-      const res = await fetchApi(`/api/chat/conversations/${conversationId}/messages`, {
+      const url = `/api/chat/conversations/${conversationId}/messages`;
+      const res = await fetchApi(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content }),
       });
+
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || 'Failed to send message');
+        const data = await res.json().catch(() => ({ message: 'Failed to send message' }));
+        throw new Error(data.message || 'Failed to send message');
       }
+
       return res.json();
     },
     onSuccess: () => {
@@ -312,9 +321,9 @@ export function ChatWindow({
     if (scrollAreaRef.current) {
       // Try multiple possible selectors for Radix ScrollArea viewport
       const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement ||
-                      scrollAreaRef.current.querySelector('[style*="overflow"]') as HTMLElement ||
-                      scrollAreaRef.current.querySelector('div[class*="viewport"]') as HTMLElement;
-      
+        scrollAreaRef.current.querySelector('[style*="overflow"]') as HTMLElement ||
+        scrollAreaRef.current.querySelector('div[class*="viewport"]') as HTMLElement;
+
       if (viewport) {
         viewport.scrollTo({
           top: viewport.scrollHeight,
@@ -322,7 +331,7 @@ export function ChatWindow({
         });
         return;
       }
-      
+
       // If no viewport found, try scrolling the root element
       const root = scrollAreaRef.current as HTMLElement;
       if (root) {
@@ -332,7 +341,7 @@ export function ChatWindow({
         });
       }
     }
-    
+
     // Fallback: scroll the marker div's parent
     if (scrollRef.current && scrollRef.current.parentElement) {
       scrollRef.current.parentElement.scrollTo({
@@ -420,10 +429,10 @@ export function ChatWindow({
 
   // Determine the profile link based on role - use fetched data or fallback to props
   const displayService = conversationData?.service || service;
-  const displayOtherParty = conversationData 
+  const displayOtherParty = conversationData
     ? (currentUserRole === 'customer' ? conversationData.vendor : conversationData.customer)
     : null;
-  const displayName = displayOtherParty 
+  const displayName = displayOtherParty
     ? `${displayOtherParty.firstName || ''} ${displayOtherParty.lastName || ''}`.trim()
     : otherPartyName || 'Chat';
   const displayImage = displayOtherParty?.profileImageUrl || otherPartyImage;
@@ -448,21 +457,21 @@ export function ChatWindow({
             {/* Online indicator - Mocked for now, can be real if socket connected */}
             <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-background rounded-full" />
           </Link>
-          
+
           <div className="flex flex-col min-w-0">
             {/* Header Info: [Name] • [Service] • [Price] */}
             <div className="flex items-center gap-1.5 text-sm font-semibold truncate">
-              <Link 
+              <Link
                 href={profileLink}
                 className="hover:text-primary transition-colors truncate"
               >
                 {displayName}
               </Link>
-              
+
               {displayService && (
                 <>
                   <span className="text-muted-foreground/40 mx-0.5">•</span>
-                  <Link 
+                  <Link
                     href={`/service/${displayService.id}`}
                     className="hover:text-primary transition-colors truncate font-medium"
                   >
@@ -479,7 +488,7 @@ export function ChatWindow({
                 </>
               )}
             </div>
-            
+
             {/* Online Status */}
             <div className="flex items-center text-xs text-muted-foreground gap-1.5">
               <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
@@ -487,16 +496,16 @@ export function ChatWindow({
             </div>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-1 flex-shrink-0">
           {displayService && (
-             <Button asChild variant="ghost" size="icon" className="h-9 w-9 hidden sm:flex text-muted-foreground hover:text-primary">
-               <Link href={`/service/${displayService.id}`} title="View Service">
-                 <Package className="w-5 h-5" />
-               </Link>
-             </Button>
+            <Button asChild variant="ghost" size="icon" className="h-9 w-9 hidden sm:flex text-muted-foreground hover:text-primary">
+              <Link href={`/service/${displayService.id}`} title="View Service">
+                <Package className="w-5 h-5" />
+              </Link>
+            </Button>
           )}
-          
+
           {/* Delete Conversation */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -506,7 +515,7 @@ export function ChatWindow({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {isUserBlocked ? (
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={() => unblockUserMutation.mutate()}
                   disabled={unblockUserMutation.isPending}
                 >
@@ -514,7 +523,7 @@ export function ChatWindow({
                   Unblock User
                 </DropdownMenuItem>
               ) : (
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={() => setShowBlockDialog(true)}
                   disabled={blockUserMutation.isPending}
                 >
@@ -522,7 +531,7 @@ export function ChatWindow({
                   Block User
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={() => setShowDeleteDialog(true)}
                 className="text-destructive focus:text-destructive"
                 disabled={deleteConversationMutation.isPending}
@@ -532,7 +541,7 @@ export function ChatWindow({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          
+
           {onClose && (
             <Button size="icon" variant="ghost" onClick={onClose} className="h-9 w-9 text-muted-foreground hover:text-destructive">
               <X className="w-5 h-5" />
@@ -602,7 +611,7 @@ export function ChatWindow({
                             ) : <div className="w-8" />}
                           </div>
                         )}
-                        
+
                         <div className={cn(
                           "flex flex-col max-w-[85%] sm:max-w-[70%] lg:max-w-[60%]",
                           isOwn ? "items-end" : "items-start"
@@ -616,8 +625,8 @@ export function ChatWindow({
 
                           <div className={cn(
                             "relative px-4 py-2.5 shadow-sm text-sm whitespace-pre-wrap break-words",
-                            isOwn 
-                              ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-sm" 
+                            isOwn
+                              ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-sm"
                               : "bg-white dark:bg-slate-800 border border-border/50 rounded-2xl rounded-tl-sm",
                             message.isDeleted && "italic opacity-70 bg-muted text-muted-foreground border-dashed"
                           )}>
@@ -630,9 +639,9 @@ export function ChatWindow({
                                 <span>Filtered for safety</span>
                               </div>
                             )}
-                            
+
                             {message.content}
-                            
+
                             {/* Timestamp & Status inside bubble */}
                             <div className={cn(
                               "flex items-center justify-end gap-1 mt-1 text-[10px] select-none",
@@ -645,7 +654,7 @@ export function ChatWindow({
                                   "flex items-center gap-0.5",
                                   message.readAt ? "text-white" : "text-white/50"
                                 )}>
-                                  {message.readAt 
+                                  {message.readAt
                                     ? (
                                       <>
                                         <CheckCheck className="w-3 h-3" />
@@ -661,7 +670,7 @@ export function ChatWindow({
 
                           {/* Mobile-only message actions trigger could go here */}
                         </div>
-                        
+
                         {/* Desktop Actions */}
                         {isOwn && !message.isDeleted && (
                           <div className="opacity-0 group-hover:opacity-100 transition-opacity self-center hidden sm:block">
@@ -672,7 +681,7 @@ export function ChatWindow({
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem 
+                                <DropdownMenuItem
                                   onClick={() => deleteMessageMutation.mutate(message.id)}
                                   className="text-destructive focus:text-destructive"
                                 >
@@ -690,18 +699,25 @@ export function ChatWindow({
               })
             )}
             {/* Invisible element to scroll to */}
-            <div ref={scrollRef} /> 
+            <div ref={scrollRef} />
           </div>
         </ScrollArea>
       </div>
 
       {/* Input */}
       <div className="border-t bg-background p-3 md:p-4">
-        <MessageInput
-          onSend={(content) => sendMutation.mutate(content)}
-          isLoading={sendMutation.isPending}
-          placeholder="Type a message..."
-        />
+        {isLockedDueToDeactivation ? (
+          <div className="flex items-center justify-center gap-2 text-muted-foreground py-2">
+            <Lock className="w-4 h-4" />
+            <span className="text-sm">This conversation is locked because the user is temporarily deactivated.</span>
+          </div>
+        ) : (
+          <MessageInput
+            onSend={(content) => sendMutation.mutate(content)}
+            isLoading={sendMutation.isPending}
+            placeholder="Type a message..."
+          />
+        )}
       </div>
 
       {/* Delete Confirmation Dialog */}
@@ -710,7 +726,7 @@ export function ChatWindow({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Conversation?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this conversation? This action cannot be undone. 
+              Are you sure you want to delete this conversation? This action cannot be undone.
               All messages in this conversation will be permanently removed. You can start a new conversation with this person later.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -733,7 +749,7 @@ export function ChatWindow({
           <AlertDialogHeader>
             <AlertDialogTitle>Block User?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to block this user? All conversations with this user will be archived. 
+              Are you sure you want to block this user? All conversations with this user will be archived.
               You won't be able to send or receive messages from them. You can unblock them later if you change your mind.
             </AlertDialogDescription>
           </AlertDialogHeader>
