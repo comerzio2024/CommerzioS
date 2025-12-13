@@ -152,8 +152,7 @@ export async function setupAuth(app: Express) {
           if (!result.success) {
             return done(null, false, {
               message: result.message,
-              isDeactivated: (result as any).isDeactivated || false
-            });
+            } as any);
           }
 
           return done(null, result.user);

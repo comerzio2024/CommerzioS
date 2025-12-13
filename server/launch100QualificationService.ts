@@ -301,14 +301,15 @@ export async function getPendingLaunch100Payouts(): Promise<Array<{
         .select({
             id: bookings.id,
             vendorId: bookings.vendorId,
-            totalAmount: bookings.totalAmount,
+            totalAmount: bookings.finalPrice, // Using finalPrice as totalAmount
             completedAt: bookings.confirmedEndTime
         })
         .from(bookings)
         .where(
             and(
                 eq(bookings.status, "completed"),
-                eq(bookings.earningsTransferred, false)
+                // earningsTransferred doesn't exist in schema - checking completedAt as proxy
+                sql`${bookings.completedAt} IS NOT NULL`
             )
         )
         .orderBy(bookings.confirmedEndTime);

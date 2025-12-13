@@ -367,7 +367,7 @@ async function verifyFirstReview(userId: string): Promise<VerificationResult> {
         const [review] = await db
             .select({ id: reviews.id })
             .from(reviews)
-            .where(eq(reviews.reviewerId, userId))
+            .where(eq(reviews.userId, userId))
             .limit(1);
 
         if (review) {

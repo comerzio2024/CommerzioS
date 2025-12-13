@@ -281,7 +281,7 @@ export async function seedAdminIfNeeded(): Promise<void> {
         const targetEmail = adminEmail.toLowerCase();
 
         // If admin email differs, check if target email already exists as a different user
-        if (existingAdmin.email.toLowerCase() !== targetEmail) {
+        if ((existingAdmin.email || "").toLowerCase() !== targetEmail) {
           const [conflictUser] = await db
             .select()
             .from(users)

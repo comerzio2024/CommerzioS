@@ -697,7 +697,7 @@ export async function reactivateUser(userId: string): Promise<{ success: boolean
   // Send welcome back email
   try {
     const { sendReactivationEmail } = await import("./emailService");
-    await sendReactivationEmail(user.email, user.firstName || "User");
+    await sendReactivationEmail(user.email || "", user.firstName || "User");
   } catch (emailError) {
     console.error("[reactivateUser] Error sending reactivation email:", emailError);
   }

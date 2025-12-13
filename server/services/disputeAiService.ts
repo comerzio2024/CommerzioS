@@ -93,11 +93,11 @@ async function getDisputeHistoryStats(userId: string) {
     if (!d.dispute_ai_decisions) continue;
 
     // If they were customer
-    if (d.bookings?.customerId === userId) {
+    if ((d as any).bookings?.customerId === userId) {
       if (d.dispute_ai_decisions.customerRefundPercent > 50) wins++;
     }
     // If they were vendor
-    else if (d.bookings?.vendorId === userId) {
+    else if ((d as any).bookings?.vendorId === userId) {
       if (d.dispute_ai_decisions.vendorPaymentPercent > 50) wins++;
     }
   }
