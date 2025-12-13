@@ -11,18 +11,18 @@
 
 import OpenAI from "openai";
 import { db } from "../db";
-import { eq, and, desc } from "drizzle-orm";
-import { 
-  escrowDisputes, 
-  escrowTransactions, 
-  users, 
-  bookings, 
+import { eq, and, desc, or } from "drizzle-orm";
+import {
+  escrowDisputes,
+  escrowTransactions,
+  users,
+  bookings,
   services,
   chatConversations,
   chatMessages
 } from "../../shared/schema";
-import { 
-  disputeAiAnalysis, 
+import {
+  disputeAiAnalysis,
   disputeAiOptions,
   disputeAiDecisions,
   disputeResponses,
@@ -79,8 +79,8 @@ async function getDisputeHistoryStats(userId: string) {
     .leftJoin(escrowDisputes, eq(disputeAiDecisions.disputeId, escrowDisputes.id))
     .where(
       or(
-        eq(escrowDisputes.customerId, userId), 
-        eq(escrowDisputes.vendorId, userId)
+        eq(bookings.customerId, userId),
+        eq(bookings.vendorId, userId)
       )
     );
 
@@ -91,13 +91,13 @@ async function getDisputeHistoryStats(userId: string) {
   let wins = 0;
   for (const d of disputes) {
     if (!d.dispute_ai_decisions) continue;
-    
+
     // If they were customer
-    if (d.escrow_disputes?.customerId === userId) {
+    if (d.bookings?.customerId === userId) {
       if (d.dispute_ai_decisions.customerRefundPercent > 50) wins++;
-    } 
+    }
     // If they were vendor
-    else if (d.escrow_disputes?.vendorId === userId) {
+    else if (d.bookings?.vendorId === userId) {
       if (d.dispute_ai_decisions.vendorPaymentPercent > 50) wins++;
     }
   }
@@ -148,7 +148,7 @@ async function gatherDisputeContext(disputeId: string): Promise<DisputeContext &
   const escrowAmount = escrow ? escrow.amount : "0";
 
   // Get service
-  const [service] = booking?.serviceId 
+  const [service] = booking?.serviceId
     ? await db.select().from(services).where(eq(services.id, booking.serviceId)).limit(1)
     : [null];
 
@@ -183,7 +183,7 @@ async function gatherDisputeContext(disputeId: string): Promise<DisputeContext &
       .from(chatMessages)
       .where(eq(chatMessages.conversationId, conversation.id))
       .orderBy(desc(chatMessages.createdAt));
-    
+
     // Reverse to chronological order for AI context
     chatHistory = messages.reverse().map(m => ({
       sender: m.senderId === customer.id ? "Customer" : "Vendor",
@@ -203,24 +203,24 @@ async function gatherDisputeContext(disputeId: string): Promise<DisputeContext &
   // Risk Metrics Calculation
   const customerStats = await getDisputeHistoryStats(customer.id);
   const vendorStats = await getDisputeHistoryStats(vendor.id);
-  
+
   // Calculate message latencies (average response time in hours)
   const calculateLatency = (senderId: string) => {
-    const senderMessages = chatHistory.filter(m => 
+    const senderMessages = chatHistory.filter(m =>
       (senderId === customer.id && m.sender === "Customer") ||
       (senderId === vendor.id && m.sender === "Vendor")
     );
     if (senderMessages.length < 2) return 0;
-    
+
     let totalLatency = 0;
     let count = 0;
     for (let i = 1; i < chatHistory.length; i++) {
       const prev = chatHistory[i - 1];
       const curr = chatHistory[i];
       // Only count if this message was a response (different sender)
-      if (prev.sender !== curr.sender && 
-          ((senderId === customer.id && curr.sender === "Customer") ||
-           (senderId === vendor.id && curr.sender === "Vendor"))) {
+      if (prev.sender !== curr.sender &&
+        ((senderId === customer.id && curr.sender === "Customer") ||
+          (senderId === vendor.id && curr.sender === "Vendor"))) {
         const diff = new Date(curr.timestamp).getTime() - new Date(prev.timestamp).getTime();
         totalLatency += diff / (1000 * 60 * 60); // Convert to hours
         count++;
@@ -228,11 +228,11 @@ async function gatherDisputeContext(disputeId: string): Promise<DisputeContext &
     }
     return count > 0 ? parseFloat((totalLatency / count).toFixed(1)) : 0;
   };
-  
+
   // Scan for chargeback/threat keywords
   const chargebackKeywords = ['chargeback', 'bank', 'lawyer', 'sue', 'legal', 'police', 'fraud', 'scam'];
   const detectChargebackThreats = (senderId: string) => {
-    const senderMessages = chatHistory.filter(m => 
+    const senderMessages = chatHistory.filter(m =>
       (senderId === customer.id && m.sender === "Customer") ||
       (senderId === vendor.id && m.sender === "Vendor")
     );
@@ -244,15 +244,15 @@ async function gatherDisputeContext(disputeId: string): Promise<DisputeContext &
     }
     return false;
   };
-  
+
   return {
-    dispute: { 
-      ...dispute, 
+    dispute: {
+      ...dispute,
       customerId: booking.customerId,
       vendorId: booking.vendorId,
       escrowAmount: escrowAmount,
       customerDescription: dispute.description,
-      vendorResponse: null, 
+      vendorResponse: null,
     },
     booking,
     service,
@@ -551,7 +551,7 @@ export async function generateFinalDecision(disputeId: string): Promise<DisputeA
   // Store the decision in the decisions table (Consensus service only logs it, doesn't create the official decision record until here - actually wait, consensus service return format suggests it just returns data)
   // Let's check consensus service: runConsensusPhase3 returns { decision: {...}, consensusLogId }
   // We need to insert it into disputeAiDecisions here.
-  
+
   const escrowAmount = parseFloat(context.dispute.escrowAmount);
   const customerAmount = Math.round(escrowAmount * result.decision.customerRefundPercent / 100 * 100) / 100;
   const vendorAmount = Math.round(escrowAmount * result.decision.vendorPaymentPercent / 100 * 100) / 100;
@@ -582,7 +582,7 @@ function buildDecisionPrompt(
   options: DisputeAiOption[],
   responses: any[]
 ): string {
-  const behavior =  analysis?.behaviorAnalysis as any;
+  const behavior = analysis?.behaviorAnalysis as any;
   const riskContext = analysis ? `
 ## AI Risk Assessment
 - Customer Scam Risk: ${behavior?.customer?.scamRiskScore || "N/A"}
