@@ -230,6 +230,9 @@ export const users = pgTable("users", {
   // AI Concierge credits (for premium AI booking assistance)
   conciergeCredits: integer("concierge_credits").default(0).notNull(),
 
+  // COM Points balance (gamified rewards system)
+  comPointsBalance: integer("com_points_balance").default(0).notNull(),
+
   // First 1000 users flag (for early bird benefits)
   isEarlyBird: boolean("is_early_bird").default(false).notNull(),
 
@@ -1273,6 +1276,244 @@ export const disputesRelations = relations(disputes, ({ one }) => ({
   }),
 }));
 
+// ===========================================
+// COM POINTS GAMIFIED REWARDS SYSTEM
+// ===========================================
+
+/**
+ * Mission Category - Types of missions users can complete
+ */
+export const missionCategoryEnum = pgEnum("mission_category", [
+  "referral",
+  "social_media",
+  "engagement",
+  "milestone"
+]);
+
+/**
+ * Mission Status - Progress states for user missions
+ */
+export const missionStatusEnum = pgEnum("mission_status", [
+  "available",
+  "in_progress",
+  "completed",
+  "claimed",
+  "expired"
+]);
+
+/**
+ * Redemption Item Type - Types of items in the redemption shop
+ */
+export const redemptionItemTypeEnum = pgEnum("redemption_item_type", [
+  "commission_discount",
+  "listing_slot",
+  "featured_listing",
+  "inquiry_credits",
+  "platform_credits"
+]);
+
+/**
+ * COM Points Ledger - Tracks all point transactions
+ */
+export const comPointsLedger = pgTable("com_points_ledger", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+
+  amount: integer("amount").notNull(), // positive = earn, negative = spend
+  balanceAfter: integer("balance_after").notNull(),
+
+  sourceType: varchar("source_type", {
+    enum: ["mission", "redemption", "referral", "admin", "system"]
+  }).notNull(),
+  sourceId: varchar("source_id"), // mission_id, redemption_id, etc.
+  description: text("description"),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_com_points_user").on(table.userId),
+  index("idx_com_points_created").on(table.createdAt),
+]);
+
+export const comPointsLedgerRelations = relations(comPointsLedger, ({ one }) => ({
+  user: one(users, {
+    fields: [comPointsLedger.userId],
+    references: [users.id],
+  }),
+}));
+
+/**
+ * Missions - Defines available missions for earning COM Points
+ */
+export const missions = pgTable("missions", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  category: missionCategoryEnum("category").notNull(),
+
+  rewardPoints: integer("reward_points").notNull(),
+
+  // Verification settings
+  verificationType: varchar("verification_type", {
+    enum: ["oauth", "database_trigger", "api_webhook", "manual"]
+  }).notNull(),
+  verificationConfig: jsonb("verification_config"), // { platform: "twitter", action: "follow" }
+
+  // Tiered missions (e.g., invite 1, 10, 25, 50 friends)
+  tier: integer("tier").default(1), // For tiered missions
+  targetCount: integer("target_count").default(1), // Number needed to complete
+
+  // Availability
+  isActive: boolean("is_active").default(true).notNull(),
+  isRepeatable: boolean("is_repeatable").default(false).notNull(),
+  expiresAt: timestamp("expires_at"),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_missions_category").on(table.category),
+  index("idx_missions_active").on(table.isActive),
+]);
+
+/**
+ * User Missions - Tracks user progress on missions
+ */
+export const userMissions = pgTable("user_missions", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  missionId: varchar("mission_id").notNull().references(() => missions.id, { onDelete: "cascade" }),
+
+  status: missionStatusEnum("status").default("in_progress").notNull(),
+
+  progress: integer("progress").default(0).notNull(), // Current count
+  targetCount: integer("target_count").default(1).notNull(), // From mission
+
+  completedAt: timestamp("completed_at"),
+  claimedAt: timestamp("claimed_at"),
+  expiresAt: timestamp("expires_at"),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_user_missions_user").on(table.userId),
+  index("idx_user_missions_status").on(table.status),
+  unique("unq_user_mission").on(table.userId, table.missionId),
+]);
+
+export const userMissionsRelations = relations(userMissions, ({ one }) => ({
+  user: one(users, {
+    fields: [userMissions.userId],
+    references: [users.id],
+  }),
+  mission: one(missions, {
+    fields: [userMissions.missionId],
+    references: [missions.id],
+  }),
+}));
+
+/**
+ * Redemption Items - Items available in the redemption shop
+ */
+export const redemptionItems = pgTable("redemption_items", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+
+  costPoints: integer("cost_points").notNull(),
+  itemType: redemptionItemTypeEnum("item_type").notNull(),
+
+  // Value config depends on item type
+  // commission_discount: { discount_percent: 5, max_value_cents: 20000 }
+  // listing_slot: { slots: 1 }
+  // featured_listing: { days: 7 }
+  // inquiry_credits: { credits: 50 }
+  // platform_credits: { amount_cents: 1000 }
+  valueConfig: jsonb("value_config").notNull(),
+
+  // Availability
+  isActive: boolean("is_active").default(true).notNull(),
+  stock: integer("stock"), // null = unlimited
+  maxPerUser: integer("max_per_user"), // null = unlimited
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_redemption_items_type").on(table.itemType),
+  index("idx_redemption_items_active").on(table.isActive),
+]);
+
+/**
+ * Redemptions - User redemption transactions
+ */
+export const redemptions = pgTable("redemptions", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  itemId: varchar("item_id").notNull().references(() => redemptionItems.id, { onDelete: "cascade" }),
+
+  pointsSpent: integer("points_spent").notNull(),
+
+  status: varchar("status", {
+    enum: ["pending", "applied", "expired", "cancelled"]
+  }).default("pending").notNull(),
+
+  // For commission discounts - which booking it was applied to
+  appliedToBookingId: varchar("applied_to_booking_id"),
+  appliedAt: timestamp("applied_at"),
+  expiresAt: timestamp("expires_at"),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_redemptions_user").on(table.userId),
+  index("idx_redemptions_status").on(table.status),
+]);
+
+export const redemptionsRelations = relations(redemptions, ({ one }) => ({
+  user: one(users, {
+    fields: [redemptions.userId],
+    references: [users.id],
+  }),
+  item: one(redemptionItems, {
+    fields: [redemptions.itemId],
+    references: [redemptionItems.id],
+  }),
+}));
+
+/**
+ * Social Connections - OAuth tokens for social media verification
+ */
+export const socialConnections = pgTable("social_connections", {
+  id: varchar("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+
+  platform: varchar("platform", {
+    enum: ["twitter", "instagram", "facebook", "tiktok"]
+  }).notNull(),
+
+  platformUserId: varchar("platform_user_id"),
+  platformUsername: varchar("platform_username"),
+  accessToken: text("access_token"), // Encrypted in practice
+  refreshToken: text("refresh_token"),
+  tokenExpiresAt: timestamp("token_expires_at"),
+
+  isConnected: boolean("is_connected").default(true).notNull(),
+  lastVerifiedAt: timestamp("last_verified_at"),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_social_connections_user").on(table.userId),
+  unique("unq_social_platform").on(table.userId, table.platform),
+]);
+
+export const socialConnectionsRelations = relations(socialConnections, ({ one }) => ({
+  user: one(users, {
+    fields: [socialConnections.userId],
+    references: [users.id],
+  }),
+}));
+
 // Types
 export type Plan = typeof plans.$inferSelect;
 export type InsertPlan = typeof plans.$inferInsert;
@@ -1340,6 +1581,26 @@ export type InsertVendorQuote = typeof vendorQuotes.$inferInsert;
 export type Dispute = typeof disputes.$inferSelect;
 export type InsertDispute = typeof disputes.$inferInsert;
 
+// ===========================================
+// COM POINTS TYPES
+// ===========================================
+export type ComPointsLedger = typeof comPointsLedger.$inferSelect;
+export type InsertComPointsLedger = typeof comPointsLedger.$inferInsert;
+
+export type Mission = typeof missions.$inferSelect;
+export type InsertMission = typeof missions.$inferInsert;
+
+export type UserMission = typeof userMissions.$inferSelect;
+export type InsertUserMission = typeof userMissions.$inferInsert;
+
+export type RedemptionItem = typeof redemptionItems.$inferSelect;
+export type InsertRedemptionItem = typeof redemptionItems.$inferInsert;
+
+export type Redemption = typeof redemptions.$inferSelect;
+export type InsertRedemption = typeof redemptions.$inferInsert;
+
+export type SocialConnection = typeof socialConnections.$inferSelect;
+export type InsertSocialConnection = typeof socialConnections.$inferInsert;
 
 export const insertServiceSchema = createInsertSchema(services, {
   title: z.string().min(5, "Title must be at least 5 characters").max(200),
