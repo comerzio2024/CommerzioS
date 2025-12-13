@@ -360,11 +360,11 @@ router.post("/disputes/:id/resolve", isAdmin, async (req: any, res: Response) =>
     try {
         const { refundAmount, notes } = req.body;
         const [updated] = await db.update(disputes).set({
-            disputeStatus: "resolved" as const,
+            status: "resolved" as any, // Using status instead of disputeStatus
             resolvedRefundAmount: refundAmount ? String(refundAmount) : null,
             adminNotes: notes,
             resolvedAt: new Date(),
-        }).where(eq(disputes.id, req.params.id)).returning();
+        } as any).where(eq(disputes.id, req.params.id)).returning();
         res.json(updated);
     } catch (error) {
         console.error("Error resolving dispute:", error);

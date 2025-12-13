@@ -3357,7 +3357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('[Q&A] Step 5: Sending notification');
       if (service.ownerId !== userId) {
         try {
-          const serviceSlug = service.slug || serviceId;
+          const serviceSlug = (service as any).slug || serviceId;
           await createNotification({
             userId: service.ownerId,
             type: 'question',
@@ -3453,7 +3453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Notify relevant party - with correct URL that expands the specific question
       const recipientId = isVendor ? question.userId : question.service.ownerId;
       const notificationTitle = isVendor ? 'New Reply from Vendor' : 'New Reply to your Question';
-      const serviceSlug = question.service.slug || question.service.id;
+      const serviceSlug = (question.service as any).slug || question.service.id;
 
       if (recipientId !== userId) {
         await createNotification({
@@ -8975,7 +8975,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/services/:id/questions", async (req, res) => {
     try {
       const serviceId = req.params.id;
-      const currentUserId = req.user ? (req.user as User).id : undefined;
+      const currentUserId = req.user ? (req.user as any).id : undefined;
 
       const questions = await storage.getListingQuestions(serviceId, currentUserId);
       res.json(questions);

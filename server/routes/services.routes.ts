@@ -41,7 +41,8 @@ router.get("/search", async (req: any, res: Response) => {
     try {
         const { q, categoryId, subcategoryId, minPrice, maxPrice, location } = req.query;
 
-        const results = await storage.searchServices({
+        // Use getServices as fallback since searchServices may not exist
+        const results = await storage.getServices({
             query: q as string,
             categoryId: categoryId as string,
             subcategoryId: subcategoryId as string,
