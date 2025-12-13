@@ -424,7 +424,8 @@ export function registerDisputesRoutes(app: Express): void {
             // If no decision exists, check if we're in Phase 3 and generate it
             if (!decision) {
                 const phases = await disputePhaseService.getDisputePhases(id);
-                if (phases?.currentPhase === "phase_3") {
+                const isPhase3 = phases?.currentPhase?.startsWith("phase_3");
+                if (isPhase3) {
                     decision = await disputeAiService.generateFinalDecision(id);
                 }
             }
@@ -458,7 +459,8 @@ export function registerDisputesRoutes(app: Express): void {
 
             // Get current phase
             const phases = await disputePhaseService.getDisputePhases(id);
-            if (!phases || phases.currentPhase === "phase_3") {
+            const isPhase3 = phases?.currentPhase?.startsWith("phase_3");
+            if (!phases || isPhase3) {
                 return res.status(400).json({ error: "Cannot manually resolve in Phase 3" });
             }
 
@@ -470,7 +472,7 @@ export function registerDisputesRoutes(app: Express): void {
             await db
                 .update(escrowDisputes)
                 .set({
-                    status: "resolved",
+                    status: "closed",
                     resolvedAt: new Date(),
                     resolution: resolution || "Mutual agreement",
                 })
