@@ -41,14 +41,11 @@ router.get("/search", async (req: any, res: Response) => {
     try {
         const { q, categoryId, subcategoryId, minPrice, maxPrice, location } = req.query;
 
-        // Use getServices as fallback since searchServices may not exist
+        // Use getServices with supported parameters
         const results = await storage.getServices({
-            query: q as string,
             categoryId: categoryId as string,
             subcategoryId: subcategoryId as string,
-            minPrice: minPrice ? parseFloat(minPrice as string) : undefined,
-            maxPrice: maxPrice ? parseFloat(maxPrice as string) : undefined,
-            location: location as string,
+            search: q as string, // Using q as search parameter
         });
 
         res.json(results);
