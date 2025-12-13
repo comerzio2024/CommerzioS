@@ -223,7 +223,7 @@ export default function Profile() {
   const [listingsSubTab, setListingsSubTab] = useState<'all' | 'active' | 'drafts' | 'toRenew' | 'expired' | 'archived'>('active');
   const [paymentsSubTab, setPaymentsSubTab] = useState<'overview' | 'escrow' | 'methods'>('overview');
   const [paymentHistoryTab, setPaymentHistoryTab] = useState<'all' | 'purchases' | 'sales' | 'commission' | 'promotional'>('all');
-  const [profileSubTab, setProfileSubTab] = useState<'personal' | 'account' | 'addresses'>('personal');
+  const [profileSubTab, setProfileSubTab] = useState<'personal' | 'account' | 'addresses' | 'settings'>('personal');
   const [showPassword, setShowPassword] = useState(false);
 
   // Multi-criteria ratings for comprehensive reviews
@@ -2124,36 +2124,29 @@ export default function Profile() {
                           variant="outline"
                           className="border-destructive/50 text-destructive hover:bg-destructive/10"
                           onClick={() => {
-                            confirm({
-                              title: "Deactivate Account?",
-                              description: "Your profile and services will be hidden from other users. You can reactivate your account anytime by logging in.",
-                              confirmText: "Deactivate",
-                              variant: "warning",
-                            }).then((confirmed) => {
-                              if (confirmed) {
-                                // Call deactivation API
-                                fetch('/api/users/me/deactivate', { method: 'POST' })
-                                  .then(async (res) => {
-                                    if (res.ok) {
-                                      toast({
-                                        title: "Account Deactivated",
-                                        description: "You have been logged out. See you soon!",
-                                      });
-                                      window.location.reload();
-                                    } else {
-                                      const data = await res.json();
-                                      throw new Error(data.message);
-                                    }
-                                  })
-                                  .catch((err) => {
+                            if (window.confirm("Deactivate your account? Your profile and services will be hidden from other users. You can reactivate anytime by logging in.")) {
+                              // Call deactivation API
+                              fetch('/api/users/me/deactivate', { method: 'POST' })
+                                .then(async (res) => {
+                                  if (res.ok) {
                                     toast({
-                                      title: "Error",
-                                      description: err.message || "Failed to deactivate account",
-                                      variant: "destructive",
+                                      title: "Account Deactivated",
+                                      description: "You have been logged out. See you soon!",
                                     });
+                                    window.location.reload();
+                                  } else {
+                                    const data = await res.json();
+                                    throw new Error(data.message);
+                                  }
+                                })
+                                .catch((err) => {
+                                  toast({
+                                    title: "Error",
+                                    description: err.message || "Failed to deactivate account",
+                                    variant: "destructive",
                                   });
-                              }
-                            });
+                                });
+                            }
                           }}
                         >
                           Deactivate
@@ -2170,16 +2163,9 @@ export default function Profile() {
                         <Button
                           variant="destructive"
                           onClick={() => {
-                            confirm({
-                              title: "Delete your account?",
-                              description: "This action is permanent and cannot be undone. All your data will be deleted.",
-                              confirmText: "Delete Forever",
-                              variant: "destructive",
-                            }).then((confirmed) => {
-                              if (confirmed) {
-                                deleteUserMutation.mutate();
-                              }
-                            });
+                            if (window.confirm("Delete your account permanently? This action cannot be undone. All your data will be deleted.")) {
+                              deleteUserMutation.mutate();
+                            }
                           }}
                           disabled={deleteUserMutation.isPending}
                         >
@@ -2463,7 +2449,7 @@ export default function Profile() {
                                         disabled={updateServiceMutation.isPending}
                                         data-testid={`button-pause-service-${service.id}`}
                                       >
-                                        Pause
+                                        Deactivate
                                       </Button>
                                     ) : (
                                       <Button
@@ -2599,7 +2585,42 @@ export default function Profile() {
                                 <p className="text-sm text-muted-foreground line-clamp-1">{service.description || 'No description'}</p>
                               </div>
                               <div className="flex md:flex-col gap-2 justify-center shrink-0">
-                                <Button variant="outline" size="sm" onClick={() => setEditingService(service)}>Edit</Button>
+                                {expired ? (
+                                  <Button size="sm" onClick={() => handleRenew(service.id)} disabled={renewServiceMutation.isPending}>
+                                    <RefreshCw className="w-3 h-3 mr-2" />
+                                    Renew
+                                  </Button>
+                                ) : (
+                                  <>
+                                    <Button variant="outline" size="sm" onClick={() => setEditingService(service)}>Edit</Button>
+
+                                    {service.status === 'active' && service.status !== 'draft' && (
+                                      <Button variant="secondary" size="sm" onClick={() => handlePause(service.id)} disabled={updateServiceMutation.isPending}>
+                                        Deactivate
+                                      </Button>
+                                    )}
+
+                                    {service.status === 'paused' && (
+                                      <>
+                                        <Button variant="default" size="sm" onClick={() => handleStatusChange(service.id, 'active')} disabled={updateServiceMutation.isPending}>
+                                          Activate
+                                        </Button>
+                                        <Button variant="outline" size="sm" onClick={() => handleStatusChange(service.id, 'archived')} disabled={updateServiceMutation.isPending}>
+                                          Archive
+                                        </Button>
+                                      </>
+                                    )}
+
+                                    {service.status === 'archived' && (
+                                      <Button variant="outline" size="sm" onClick={() => handleStatusChange(service.id, 'active')} disabled={updateServiceMutation.isPending}>
+                                        Restore
+                                      </Button>
+                                    )}
+                                  </>
+                                )}
+                                <Button variant="destructive" size="sm" onClick={() => handleDelete(service.id)} disabled={deleteServiceMutation.isPending}>
+                                  Delete
+                                </Button>
                               </div>
                             </div>
                           );
@@ -4737,6 +4758,83 @@ export default function Profile() {
         }}
         onBookingUpdate={() => setSelectedBooking(null)}
       />
+      {/* Dialogs for Service Actions */}
+      <AlertDialog open={!!serviceToPause} onOpenChange={(open) => !open && setServiceToPause(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deactivate Service?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will deactivate your service "{(allServices.find(s => s.id === serviceToPause)?.title || "Unknown")}".
+              It will no longer be visible to customers, but you can reactivate it anytime.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (serviceToPause) {
+                updateServiceMutation.mutate({ id: serviceToPause, data: { status: 'paused' } });
+                setServiceToPause(null);
+              }
+            }}>
+              Deactivate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!serviceToActivate} onOpenChange={(open) => !open && setServiceToActivate(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reactivate Service</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to reactivate "{(allServices.find(s => s.id === serviceToActivate)?.title || "Unknown")}".
+              Would you like to review or edit the details first?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button variant="outline" onClick={() => {
+              const s = allServices.find(srv => srv.id === serviceToActivate);
+              if (s) {
+                setEditingService(s);
+                setServiceToActivate(null);
+              }
+            }}>
+              Edit First
+            </Button>
+            <AlertDialogAction onClick={() => {
+              if (serviceToActivate) {
+                updateServiceMutation.mutate({ id: serviceToActivate, data: { status: 'active' } });
+                setServiceToActivate(null);
+              }
+            }}>
+              Reactivate Now
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!serviceToDelete} onOpenChange={(open) => !open && setServiceToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Service?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this service? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => {
+              if (serviceToDelete) {
+                deleteServiceMutation.mutate(serviceToDelete);
+                setServiceToDelete(null);
+              }
+            }}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 }

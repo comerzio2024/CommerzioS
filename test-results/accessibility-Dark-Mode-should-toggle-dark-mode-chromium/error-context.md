@@ -1,0 +1,1359 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - region "Notifications (F8)":
+    - list
+  - generic [ref=e3]:
+    - link "Skip to main content" [ref=e4] [cursor=pointer]:
+      - /url: "#main-content"
+    - banner [ref=e5]:
+      - generic [ref=e6]:
+        - link "C Commerzio" [ref=e7] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e8]:
+            - generic [ref=e10]: C
+            - generic [ref=e12]: Commerzio
+        - generic [ref=e15]:
+          - img [ref=e16]
+          - textbox "Search services..." [ref=e19]
+        - generic [ref=e20]:
+          - navigation [ref=e21]:
+            - link "Explore" [ref=e22] [cursor=pointer]:
+              - /url: /
+              - generic [ref=e23]: Explore
+            - link "How it Works" [ref=e24] [cursor=pointer]:
+              - /url: /how-it-works
+              - generic [ref=e25]: How it Works
+          - generic [ref=e28]:
+            - button "Switch to dark mode" [ref=e29]:
+              - img
+              - generic [ref=e30]: Toggle theme
+            - link "Log in" [ref=e31] [cursor=pointer]:
+              - /url: /login
+              - button "Log in" [ref=e32]
+            - link "Get Started" [ref=e33] [cursor=pointer]:
+              - /url: /register
+              - button "Get Started" [ref=e34]
+    - main [ref=e35]:
+      - generic [ref=e37]:
+        - generic [ref=e38]:
+          - img [ref=e39]
+          - generic [ref=e42]: Enable location services for the best local experience.
+        - generic [ref=e43]:
+          - button "Check Permission" [ref=e44]
+          - paragraph [ref=e45]: (You may need to update browser settings)
+      - generic [ref=e54]:
+        - generic [ref=e55]:
+          - img
+          - text: Trusted by 50,000+ Swiss Customers
+        - heading "The complete platform to discover local services" [level=1] [ref=e56]
+        - paragraph [ref=e57]: Connect with verified service providers across Switzerland. Book with confidence using our secure escrow payment system.
+        - generic [ref=e59]:
+          - generic [ref=e60]:
+            - img [ref=e61]
+            - textbox "What service are you looking for?" [ref=e64]
+          - generic [ref=e66]:
+            - img [ref=e67]
+            - textbox "Location" [ref=e70]
+          - button "Search" [ref=e71]
+        - generic [ref=e72]:
+          - generic [ref=e73]: "Popular:"
+          - button "Plumber" [ref=e74]
+          - generic [ref=e75]: •
+          - button "Electrician" [ref=e76]
+          - generic [ref=e77]: •
+          - button "Cleaning" [ref=e78]
+          - generic [ref=e79]: •
+          - button "Tutoring" [ref=e80]
+        - button "Use My Location" [ref=e82]:
+          - img
+          - text: Use My Location
+      - generic [ref=e84]:
+        - generic [ref=e85]:
+          - generic [ref=e86]: 50K+
+          - generic [ref=e87]: Active Customers
+        - generic [ref=e88]:
+          - generic [ref=e89]: 5,000+
+          - generic [ref=e90]: Verified Vendors
+        - generic [ref=e91]:
+          - generic [ref=e92]: 98%
+          - generic [ref=e93]: Satisfaction Rate
+        - generic [ref=e94]:
+          - generic [ref=e95]: 24h
+          - generic [ref=e96]: Avg Response Time
+      - generic [ref=e100]:
+        - generic:
+          - button "Scroll left":
+            - img
+        - generic [ref=e101]:
+          - button "All Services 43" [ref=e102]:
+            - img [ref=e103]
+            - generic [ref=e106]: All Services
+            - generic [ref=e107]: "43"
+          - button "Home Services" [ref=e108]:
+            - img [ref=e109]
+            - generic [ref=e112]: Home Services
+            - img [ref=e113]
+          - button "Design & Creative" [ref=e115]:
+            - img [ref=e116]
+            - generic [ref=e122]: Design & Creative
+            - img [ref=e123]
+          - button "Education & Tutoring" [ref=e125]:
+            - img [ref=e126]
+            - generic [ref=e129]: Education & Tutoring
+            - img [ref=e130]
+          - button "Wellness & Fitness" [ref=e132]:
+            - img [ref=e133]
+            - generic [ref=e136]: Wellness & Fitness
+            - img [ref=e137]
+          - button "Business Support" [ref=e139]:
+            - img [ref=e140]
+            - generic [ref=e143]: Business Support
+            - img [ref=e144]
+          - button "Automotive Services" [ref=e146]:
+            - img [ref=e147]
+            - generic [ref=e151]: Automotive Services
+            - img [ref=e152]
+          - button "Pet Care & Animals" [ref=e154]:
+            - img [ref=e155]
+            - generic [ref=e160]: Pet Care & Animals
+            - img [ref=e161]
+          - button "Events & Entertainment" [ref=e163]:
+            - img [ref=e164]
+            - generic [ref=e170]: Events & Entertainment
+            - img [ref=e171]
+          - button "Legal & Financial" [ref=e173]:
+            - img [ref=e174]
+            - generic [ref=e178]: Legal & Financial
+            - img [ref=e179]
+          - button "Technology & IT" [ref=e181]:
+            - img [ref=e182]
+            - generic [ref=e185]: Technology & IT
+            - img [ref=e186]
+        - generic:
+          - button "Scroll right":
+            - img
+      - generic [ref=e189]:
+        - generic [ref=e191]:
+          - heading "Explore Services Map Open Map" [level=2] [ref=e193]:
+            - img [ref=e194]
+            - generic [ref=e197]: Explore Services Map
+            - button "Open Map" [ref=e198]:
+              - img
+              - text: Open Map
+          - paragraph [ref=e199]: Browse services across Switzerland
+        - generic [ref=e200]:
+          - button "Expand to Grid" [ref=e202]
+          - region [ref=e203]:
+            - generic [ref=e205]:
+              - group [ref=e206]:
+                - 'article "Service: Laptop repair services" [ref=e208]':
+                  - link "Laptop repair services - Image 1 Laptop repair services - Image 2 Laptop repair services - Image 3 Laptop repair services - Image 4 Previous image Next image Laptop repair services Derron Spyner 0 (0) Zürich From CHF 100 View Details" [ref=e209] [cursor=pointer]:
+                    - /url: /service/712a4ae9-0dd1-4eda-ac0b-6d30024281cb
+                    - generic [ref=e210]:
+                      - generic [ref=e212]:
+                        - img "Laptop repair services - Image 1" [ref=e214]
+                        - img "Laptop repair services - Image 2" [ref=e216]
+                        - img "Laptop repair services - Image 3" [ref=e218]
+                        - img "Laptop repair services - Image 4" [ref=e220]
+                      - button "Previous image" [ref=e221]:
+                        - img [ref=e222]
+                      - button "Next image" [ref=e224]:
+                        - img [ref=e225]
+                      - button [ref=e232]:
+                        - img
+                    - generic [ref=e233]:
+                      - heading "Laptop repair services" [level=3] [ref=e234]
+                      - generic [ref=e236]: Derron Spyner
+                      - generic [ref=e237]:
+                        - generic [ref=e238]:
+                          - img [ref=e239]
+                          - generic [ref=e241]: "0"
+                          - generic [ref=e242]: (0)
+                        - generic [ref=e243]:
+                          - img [ref=e244]
+                          - generic [ref=e247]: Zürich
+                      - generic [ref=e248]:
+                        - generic [ref=e250]: From CHF 100
+                        - button "View Details" [ref=e251]
+              - group [ref=e252]:
+                - 'article "Service: Custom Software Development" [ref=e254]':
+                  - link "Custom Software Development - Image 1 Custom Software Development Anna Meier 4.5 (2) Zürich CHF 120.00/hour View Details" [ref=e255] [cursor=pointer]:
+                    - /url: /service/demo-service-45
+                    - generic [ref=e256]:
+                      - img "Custom Software Development - Image 1" [ref=e260]
+                      - button [ref=e261]:
+                        - img
+                    - generic [ref=e262]:
+                      - heading "Custom Software Development" [level=3] [ref=e263]
+                      - generic [ref=e264]:
+                        - generic [ref=e265]: Anna Meier
+                        - img [ref=e266]
+                      - generic [ref=e269]:
+                        - generic [ref=e270]:
+                          - img [ref=e271]
+                          - generic [ref=e273]: "4.5"
+                          - generic [ref=e274]: (2)
+                        - generic [ref=e275]:
+                          - img [ref=e276]
+                          - generic [ref=e279]: Zürich
+                      - generic [ref=e280]:
+                        - generic [ref=e282]: CHF 120.00/hour
+                        - button "View Details" [ref=e283]
+              - group [ref=e284]:
+                - 'article "Service: Network Setup & Cybersecurity" [ref=e286]':
+                  - link "Network Setup & Cybersecurity - Image 1 Network Setup & Cybersecurity Luca Rossi 5.0 (1) Geneva See Listing View Details" [ref=e287] [cursor=pointer]:
+                    - /url: /service/demo-service-44
+                    - generic [ref=e288]:
+                      - img "Network Setup & Cybersecurity - Image 1" [ref=e292]
+                      - button [ref=e293]:
+                        - img
+                    - generic [ref=e294]:
+                      - heading "Network Setup & Cybersecurity" [level=3] [ref=e295]
+                      - generic [ref=e297]: Luca Rossi
+                      - generic [ref=e298]:
+                        - generic [ref=e299]:
+                          - img [ref=e300]
+                          - generic [ref=e302]: "5.0"
+                          - generic [ref=e303]: (1)
+                        - generic [ref=e304]:
+                          - img [ref=e305]
+                          - generic [ref=e308]: Geneva
+                      - generic [ref=e309]:
+                        - generic [ref=e310]: See Listing
+                        - button "View Details" [ref=e311]
+              - group [ref=e312]:
+                - 'article "Service: Computer Repair & IT Support" [ref=e314]':
+                  - link "Computer Repair & IT Support - Image 1 Computer Repair & IT Support Petra Fischer 5.0 (2) Zürich CHF 85.00/hour View Details" [ref=e315] [cursor=pointer]:
+                    - /url: /service/demo-service-43
+                    - generic [ref=e316]:
+                      - img "Computer Repair & IT Support - Image 1" [ref=e320]
+                      - button [ref=e321]:
+                        - img
+                    - generic [ref=e322]:
+                      - heading "Computer Repair & IT Support" [level=3] [ref=e323]
+                      - generic [ref=e324]:
+                        - generic [ref=e325]: Petra Fischer
+                        - img [ref=e326]
+                      - generic [ref=e329]:
+                        - generic [ref=e330]:
+                          - img [ref=e331]
+                          - generic [ref=e333]: "5.0"
+                          - generic [ref=e334]: (2)
+                        - generic [ref=e335]:
+                          - img [ref=e336]
+                          - generic [ref=e339]: Zürich
+                      - generic [ref=e340]:
+                        - generic [ref=e342]: CHF 85.00/hour
+                        - button "View Details" [ref=e343]
+              - group [ref=e344]:
+                - 'article "Service: Debt Collection & Recovery" [ref=e346]':
+                  - link "Debt Collection & Recovery - Image 1 Debt Collection & Recovery Marco Gentile 0 (0) Basel See Listing View Details" [ref=e347] [cursor=pointer]:
+                    - /url: /service/demo-service-42
+                    - generic [ref=e348]:
+                      - img "Debt Collection & Recovery - Image 1" [ref=e352]
+                      - button [ref=e353]:
+                        - img
+                    - generic [ref=e354]:
+                      - heading "Debt Collection & Recovery" [level=3] [ref=e355]
+                      - generic [ref=e356]:
+                        - generic [ref=e357]: Marco Gentile
+                        - img [ref=e358]
+                      - generic [ref=e361]:
+                        - generic [ref=e362]:
+                          - img [ref=e363]
+                          - generic [ref=e365]: "0"
+                          - generic [ref=e366]: (0)
+                        - generic [ref=e367]:
+                          - img [ref=e368]
+                          - generic [ref=e371]: Basel
+                      - generic [ref=e372]:
+                        - generic [ref=e373]: See Listing
+                        - button "View Details" [ref=e374]
+              - group [ref=e375]:
+                - 'article "Service: Notary Public Services" [ref=e377]':
+                  - link "Notary Public Services - Image 1 Notary Public Services Anna Meier 0 (0) Bern See Listing View Details" [ref=e378] [cursor=pointer]:
+                    - /url: /service/demo-service-41
+                    - generic [ref=e379]:
+                      - img "Notary Public Services - Image 1" [ref=e383]
+                      - button [ref=e384]:
+                        - img
+                    - generic [ref=e385]:
+                      - heading "Notary Public Services" [level=3] [ref=e386]
+                      - generic [ref=e387]:
+                        - generic [ref=e388]: Anna Meier
+                        - img [ref=e389]
+                      - generic [ref=e392]:
+                        - generic [ref=e393]:
+                          - img [ref=e394]
+                          - generic [ref=e396]: "0"
+                          - generic [ref=e397]: (0)
+                        - generic [ref=e398]:
+                          - img [ref=e399]
+                          - generic [ref=e402]: Bern
+                      - generic [ref=e403]:
+                        - generic [ref=e404]: See Listing
+                        - button "View Details" [ref=e405]
+              - group [ref=e406]:
+                - 'article "Service: Financial Planning & Investment Advisory" [ref=e408]':
+                  - link "Financial Planning & Investment Advisory - Image 1 Financial Planning & Investment Advisory Luca Rossi 4.5 (2) Zürich CHF 200.00/consultation View Details" [ref=e409] [cursor=pointer]:
+                    - /url: /service/demo-service-40
+                    - generic [ref=e410]:
+                      - img "Financial Planning & Investment Advisory - Image 1" [ref=e414]
+                      - button [ref=e415]:
+                        - img
+                    - generic [ref=e416]:
+                      - heading "Financial Planning & Investment Advisory" [level=3] [ref=e417]
+                      - generic [ref=e419]: Luca Rossi
+                      - generic [ref=e420]:
+                        - generic [ref=e421]:
+                          - img [ref=e422]
+                          - generic [ref=e424]: "4.5"
+                          - generic [ref=e425]: (2)
+                        - generic [ref=e426]:
+                          - img [ref=e427]
+                          - generic [ref=e430]: Zürich
+                      - generic [ref=e431]:
+                        - generic [ref=e433]: CHF 200.00/consultation
+                        - button "View Details" [ref=e434]
+              - group [ref=e435]:
+                - 'article "Service: Immigration & Work Permit Lawyer" [ref=e437]':
+                  - link "Immigration & Work Permit Lawyer - Image 1 Immigration & Work Permit Lawyer Petra Fischer 5.0 (2) Zürich CHF 250.00/hour View Details" [ref=e438] [cursor=pointer]:
+                    - /url: /service/demo-service-39
+                    - generic [ref=e439]:
+                      - img "Immigration & Work Permit Lawyer - Image 1" [ref=e443]
+                      - button [ref=e444]:
+                        - img
+                    - generic [ref=e445]:
+                      - heading "Immigration & Work Permit Lawyer" [level=3] [ref=e446]
+                      - generic [ref=e447]:
+                        - generic [ref=e448]: Petra Fischer
+                        - img [ref=e449]
+                      - generic [ref=e452]:
+                        - generic [ref=e453]:
+                          - img [ref=e454]
+                          - generic [ref=e456]: "5.0"
+                          - generic [ref=e457]: (2)
+                        - generic [ref=e458]:
+                          - img [ref=e459]
+                          - generic [ref=e462]: Zürich
+                      - generic [ref=e463]:
+                        - generic [ref=e465]: CHF 250.00/hour
+                        - button "View Details" [ref=e466]
+              - group [ref=e467]:
+                - 'article "Service: Event Catering Service" [ref=e469]':
+                  - link "Event Catering Service - Image 1 Event Catering Service Anna Meier 5.0 (2) Basel See Listing View Details" [ref=e470] [cursor=pointer]:
+                    - /url: /service/demo-service-37
+                    - generic [ref=e471]:
+                      - img "Event Catering Service - Image 1" [ref=e475]
+                      - button [ref=e476]:
+                        - img
+                    - generic [ref=e477]:
+                      - heading "Event Catering Service" [level=3] [ref=e478]
+                      - generic [ref=e479]:
+                        - generic [ref=e480]: Anna Meier
+                        - img [ref=e481]
+                      - generic [ref=e484]:
+                        - generic [ref=e485]:
+                          - img [ref=e486]
+                          - generic [ref=e488]: "5.0"
+                          - generic [ref=e489]: (2)
+                        - generic [ref=e490]:
+                          - img [ref=e491]
+                          - generic [ref=e494]: Basel
+                      - generic [ref=e495]:
+                        - generic [ref=e496]: See Listing
+                        - button "View Details" [ref=e497]
+              - group [ref=e498]:
+                - 'article "Service: DJ & Sound System Rental" [ref=e500]':
+                  - link "DJ & Sound System Rental - Image 1 DJ & Sound System Rental Luca Rossi 4.0 (1) Geneva CHF 500.00/job View Details" [ref=e501] [cursor=pointer]:
+                    - /url: /service/demo-service-36
+                    - generic [ref=e502]:
+                      - img "DJ & Sound System Rental - Image 1" [ref=e506]
+                      - button [ref=e507]:
+                        - img
+                    - generic [ref=e508]:
+                      - heading "DJ & Sound System Rental" [level=3] [ref=e509]
+                      - generic [ref=e511]: Luca Rossi
+                      - generic [ref=e512]:
+                        - generic [ref=e513]:
+                          - img [ref=e514]
+                          - generic [ref=e516]: "4.0"
+                          - generic [ref=e517]: (1)
+                        - generic [ref=e518]:
+                          - img [ref=e519]
+                          - generic [ref=e522]: Geneva
+                      - generic [ref=e523]:
+                        - generic [ref=e525]: CHF 500.00/job
+                        - button "View Details" [ref=e526]
+              - group [ref=e527]:
+                - 'article "Service: Wedding Photography & Videography" [ref=e529]':
+                  - link "Wedding Photography & Videography - Image 1 Wedding Photography & Videography Petra Fischer 5.0 (2) Zürich See Listing View Details" [ref=e530] [cursor=pointer]:
+                    - /url: /service/demo-service-35
+                    - generic [ref=e531]:
+                      - img "Wedding Photography & Videography - Image 1" [ref=e535]
+                      - button [ref=e536]:
+                        - img
+                    - generic [ref=e537]:
+                      - heading "Wedding Photography & Videography" [level=3] [ref=e538]
+                      - generic [ref=e539]:
+                        - generic [ref=e540]: Petra Fischer
+                        - img [ref=e541]
+                      - generic [ref=e544]:
+                        - generic [ref=e545]:
+                          - img [ref=e546]
+                          - generic [ref=e548]: "5.0"
+                          - generic [ref=e549]: (2)
+                        - generic [ref=e550]:
+                          - img [ref=e551]
+                          - generic [ref=e554]: Zürich
+                      - generic [ref=e555]:
+                        - generic [ref=e556]: See Listing
+                        - button "View Details" [ref=e557]
+              - group [ref=e558]:
+                - 'article "Service: Pet Sitting & Boarding" [ref=e560]':
+                  - link "Pet Sitting & Boarding - Image 1 Pet Sitting & Boarding Marco Gentile 5.0 (1) Lucerne CHF 35.00/day View Details" [ref=e561] [cursor=pointer]:
+                    - /url: /service/demo-service-34
+                    - generic [ref=e562]:
+                      - img "Pet Sitting & Boarding - Image 1" [ref=e566]
+                      - button [ref=e567]:
+                        - img
+                    - generic [ref=e568]:
+                      - heading "Pet Sitting & Boarding" [level=3] [ref=e569]
+                      - generic [ref=e570]:
+                        - generic [ref=e571]: Marco Gentile
+                        - img [ref=e572]
+                      - generic [ref=e575]:
+                        - generic [ref=e576]:
+                          - img [ref=e577]
+                          - generic [ref=e579]: "5.0"
+                          - generic [ref=e580]: (1)
+                        - generic [ref=e581]:
+                          - img [ref=e582]
+                          - generic [ref=e585]: Lucerne
+                      - generic [ref=e586]:
+                        - generic [ref=e588]: CHF 35.00/day
+                        - button "View Details" [ref=e589]
+              - group [ref=e590]:
+                - 'article "Service: Veterinary Home Visits" [ref=e592]':
+                  - link "Veterinary Home Visits - Image 1 Veterinary Home Visits Anna Meier 0 (0) Bern CHF 120.00/hour View Details" [ref=e593] [cursor=pointer]:
+                    - /url: /service/demo-service-33
+                    - generic [ref=e594]:
+                      - img "Veterinary Home Visits - Image 1" [ref=e598]
+                      - button [ref=e599]:
+                        - img
+                    - generic [ref=e600]:
+                      - heading "Veterinary Home Visits" [level=3] [ref=e601]
+                      - generic [ref=e602]:
+                        - generic [ref=e603]: Anna Meier
+                        - img [ref=e604]
+                      - generic [ref=e607]:
+                        - generic [ref=e608]:
+                          - img [ref=e609]
+                          - generic [ref=e611]: "0"
+                          - generic [ref=e612]: (0)
+                        - generic [ref=e613]:
+                          - img [ref=e614]
+                          - generic [ref=e617]: Bern
+                      - generic [ref=e618]:
+                        - generic [ref=e620]: CHF 120.00/hour
+                        - button "View Details" [ref=e621]
+              - group [ref=e622]:
+                - 'article "Service: Mobile Pet Grooming" [ref=e624]':
+                  - link "Mobile Pet Grooming - Image 1 Mobile Pet Grooming Luca Rossi 5.0 (1) Basel See Listing View Details" [ref=e625] [cursor=pointer]:
+                    - /url: /service/demo-service-32
+                    - generic [ref=e626]:
+                      - img "Mobile Pet Grooming - Image 1" [ref=e630]
+                      - button [ref=e631]:
+                        - img
+                    - generic [ref=e632]:
+                      - heading "Mobile Pet Grooming" [level=3] [ref=e633]
+                      - generic [ref=e635]: Luca Rossi
+                      - generic [ref=e636]:
+                        - generic [ref=e637]:
+                          - img [ref=e638]
+                          - generic [ref=e640]: "5.0"
+                          - generic [ref=e641]: (1)
+                        - generic [ref=e642]:
+                          - img [ref=e643]
+                          - generic [ref=e646]: Basel
+                      - generic [ref=e647]:
+                        - generic [ref=e648]: See Listing
+                        - button "View Details" [ref=e649]
+              - group [ref=e650]:
+                - 'article "Service: Professional Dog Walking Service" [ref=e652]':
+                  - link "Professional Dog Walking Service - Image 1 Professional Dog Walking Service Petra Fischer 4.7 (3) Zürich CHF 25.00/hour View Details" [ref=e653] [cursor=pointer]:
+                    - /url: /service/demo-service-31
+                    - generic [ref=e654]:
+                      - img "Professional Dog Walking Service - Image 1" [ref=e658]
+                      - button [ref=e659]:
+                        - img
+                    - generic [ref=e660]:
+                      - heading "Professional Dog Walking Service" [level=3] [ref=e661]
+                      - generic [ref=e662]:
+                        - generic [ref=e663]: Petra Fischer
+                        - img [ref=e664]
+                      - generic [ref=e667]:
+                        - generic [ref=e668]:
+                          - img [ref=e669]
+                          - generic [ref=e671]: "4.7"
+                          - generic [ref=e672]: (3)
+                        - generic [ref=e673]:
+                          - img [ref=e674]
+                          - generic [ref=e677]: Zürich
+                      - generic [ref=e678]:
+                        - generic [ref=e680]: CHF 25.00/hour
+                        - button "View Details" [ref=e681]
+              - group [ref=e682]:
+                - 'article "Service: Tire Service & Seasonal Storage" [ref=e684]':
+                  - link "Tire Service & Seasonal Storage - Image 1 Tire Service & Seasonal Storage Anna Meier 0 (0) Bern CHF 65.00/job View Details" [ref=e685] [cursor=pointer]:
+                    - /url: /service/demo-service-29
+                    - generic [ref=e686]:
+                      - img "Tire Service & Seasonal Storage - Image 1" [ref=e690]
+                      - button [ref=e691]:
+                        - img
+                    - generic [ref=e692]:
+                      - heading "Tire Service & Seasonal Storage" [level=3] [ref=e693]
+                      - generic [ref=e694]:
+                        - generic [ref=e695]: Anna Meier
+                        - img [ref=e696]
+                      - generic [ref=e699]:
+                        - generic [ref=e700]:
+                          - img [ref=e701]
+                          - generic [ref=e703]: "0"
+                          - generic [ref=e704]: (0)
+                        - generic [ref=e705]:
+                          - img [ref=e706]
+                          - generic [ref=e709]: Bern
+                      - generic [ref=e710]:
+                        - generic [ref=e712]: CHF 65.00/job
+                        - button "View Details" [ref=e713]
+              - group [ref=e714]:
+                - 'article "Service: Car Detailing & Professional Cleaning" [ref=e716]':
+                  - link "Car Detailing & Professional Cleaning - Image 1 Car Detailing & Professional Cleaning Luca Rossi 5.0 (1) Basel See Listing View Details" [ref=e717] [cursor=pointer]:
+                    - /url: /service/demo-service-28
+                    - generic [ref=e718]:
+                      - img "Car Detailing & Professional Cleaning - Image 1" [ref=e722]
+                      - button [ref=e723]:
+                        - img
+                    - generic [ref=e724]:
+                      - heading "Car Detailing & Professional Cleaning" [level=3] [ref=e725]
+                      - generic [ref=e727]: Luca Rossi
+                      - generic [ref=e728]:
+                        - generic [ref=e729]:
+                          - img [ref=e730]
+                          - generic [ref=e732]: "5.0"
+                          - generic [ref=e733]: (1)
+                        - generic [ref=e734]:
+                          - img [ref=e735]
+                          - generic [ref=e738]: Basel
+                      - generic [ref=e739]:
+                        - generic [ref=e740]: See Listing
+                        - button "View Details" [ref=e741]
+              - group [ref=e742]:
+                - 'article "Service: Mobile Auto Repair & Maintenance" [ref=e744]':
+                  - link "Mobile Auto Repair & Maintenance - Image 1 Mobile Auto Repair & Maintenance Petra Fischer 4.5 (2) Zürich CHF 95.00/hour View Details" [ref=e745] [cursor=pointer]:
+                    - /url: /service/demo-service-27
+                    - generic [ref=e746]:
+                      - img "Mobile Auto Repair & Maintenance - Image 1" [ref=e750]
+                      - button [ref=e751]:
+                        - img
+                    - generic [ref=e752]:
+                      - heading "Mobile Auto Repair & Maintenance" [level=3] [ref=e753]
+                      - generic [ref=e754]:
+                        - generic [ref=e755]: Petra Fischer
+                        - img [ref=e756]
+                      - generic [ref=e759]:
+                        - generic [ref=e760]:
+                          - img [ref=e761]
+                          - generic [ref=e763]: "4.5"
+                          - generic [ref=e764]: (2)
+                        - generic [ref=e765]:
+                          - img [ref=e766]
+                          - generic [ref=e769]: Zürich
+                      - generic [ref=e770]:
+                        - generic [ref=e772]: CHF 95.00/hour
+                        - button "View Details" [ref=e773]
+              - group [ref=e774]:
+                - 'article "Service: German Language Courses" [ref=e776]':
+                  - link "German Language Courses - Image 1 German Language Courses Petra Fischer 4.0 (1) St. Gallen CHF 48.00/hour View Details" [ref=e777] [cursor=pointer]:
+                    - /url: /service/demo-service-26
+                    - generic [ref=e778]:
+                      - img "German Language Courses - Image 1" [ref=e782]
+                      - button [ref=e783]:
+                        - img
+                    - generic [ref=e784]:
+                      - heading "German Language Courses" [level=3] [ref=e785]
+                      - generic [ref=e786]:
+                        - generic [ref=e787]: Petra Fischer
+                        - img [ref=e788]
+                      - generic [ref=e791]:
+                        - generic [ref=e792]:
+                          - img [ref=e793]
+                          - generic [ref=e795]: "4.0"
+                          - generic [ref=e796]: (1)
+                        - generic [ref=e797]:
+                          - img [ref=e798]
+                          - generic [ref=e801]: St. Gallen
+                      - generic [ref=e802]:
+                        - generic [ref=e804]: CHF 48.00/hour
+                        - button "View Details" [ref=e805]
+              - group [ref=e806]:
+                - 'article "Service: HR Consulting & Recruitment" [ref=e808]':
+                  - link "HR Consulting & Recruitment - Image 1 HR Consulting & Recruitment Maria Müller 0 (0) Lausanne See Listing View Details" [ref=e809] [cursor=pointer]:
+                    - /url: /service/demo-service-25
+                    - generic [ref=e810]:
+                      - img "HR Consulting & Recruitment - Image 1" [ref=e814]
+                      - button [ref=e815]:
+                        - img
+                    - generic [ref=e816]:
+                      - heading "HR Consulting & Recruitment" [level=3] [ref=e817]
+                      - generic [ref=e818]:
+                        - generic [ref=e819]: Maria Müller
+                        - img [ref=e820]
+                      - generic [ref=e823]:
+                        - generic [ref=e824]:
+                          - img [ref=e825]
+                          - generic [ref=e827]: "0"
+                          - generic [ref=e828]: (0)
+                        - generic [ref=e829]:
+                          - img [ref=e830]
+                          - generic [ref=e833]: Lausanne
+                      - generic [ref=e834]:
+                        - generic [ref=e835]: See Listing
+                        - button "View Details" [ref=e836]
+              - group [ref=e837]:
+                - 'article "Service: Digital Marketing & SEO" [ref=e839]':
+                  - link "Digital Marketing & SEO - Image 1 Digital Marketing & SEO Thomas Schneider 5.0 (2) Basel See Listing View Details" [ref=e840] [cursor=pointer]:
+                    - /url: /service/demo-service-24
+                    - generic [ref=e841]:
+                      - img "Digital Marketing & SEO - Image 1" [ref=e845]
+                      - button [ref=e846]:
+                        - img
+                    - generic [ref=e847]:
+                      - heading "Digital Marketing & SEO" [level=3] [ref=e848]
+                      - generic [ref=e849]:
+                        - generic [ref=e850]: Thomas Schneider
+                        - img [ref=e851]
+                      - generic [ref=e854]:
+                        - generic [ref=e855]:
+                          - img [ref=e856]
+                          - generic [ref=e858]: "5.0"
+                          - generic [ref=e859]: (2)
+                        - generic [ref=e860]:
+                          - img [ref=e861]
+                          - generic [ref=e864]: Basel
+                      - generic [ref=e865]:
+                        - generic [ref=e866]: See Listing
+                        - button "View Details" [ref=e867]
+              - group [ref=e868]:
+                - 'article "Service: Business Translation Services" [ref=e870]':
+                  - link "Business Translation Services - Image 1 Business Translation Services Sophie Martin 0 (0) Bern CHF 0.25/hour View Details" [ref=e871] [cursor=pointer]:
+                    - /url: /service/demo-service-23
+                    - generic [ref=e872]:
+                      - img "Business Translation Services - Image 1" [ref=e876]
+                      - button [ref=e877]:
+                        - img
+                    - generic [ref=e878]:
+                      - heading "Business Translation Services" [level=3] [ref=e879]
+                      - generic [ref=e881]: Sophie Martin
+                      - generic [ref=e882]:
+                        - generic [ref=e883]:
+                          - img [ref=e884]
+                          - generic [ref=e886]: "0"
+                          - generic [ref=e887]: (0)
+                        - generic [ref=e888]:
+                          - img [ref=e889]
+                          - generic [ref=e892]: Bern
+                      - generic [ref=e893]:
+                        - generic [ref=e895]: CHF 0.25/hour
+                        - button "View Details" [ref=e896]
+              - group [ref=e897]:
+                - 'article "Service: Business Consulting & Strategy" [ref=e899]':
+                  - link "Business Consulting & Strategy - Image 1 Business Consulting & Strategy Hans Weber 4.0 (1) Zürich CHF 150.00/hour View Details" [ref=e900] [cursor=pointer]:
+                    - /url: /service/demo-service-22
+                    - generic [ref=e901]:
+                      - img "Business Consulting & Strategy - Image 1" [ref=e905]
+                      - button [ref=e906]:
+                        - img
+                    - generic [ref=e907]:
+                      - heading "Business Consulting & Strategy" [level=3] [ref=e908]
+                      - generic [ref=e909]:
+                        - generic [ref=e910]: Hans Weber
+                        - img [ref=e911]
+                      - generic [ref=e914]:
+                        - generic [ref=e915]:
+                          - img [ref=e916]
+                          - generic [ref=e918]: "4.0"
+                          - generic [ref=e919]: (1)
+                        - generic [ref=e920]:
+                          - img [ref=e921]
+                          - generic [ref=e924]: Zürich
+                      - generic [ref=e925]:
+                        - generic [ref=e927]: CHF 150.00/hour
+                        - button "View Details" [ref=e928]
+              - group [ref=e929]:
+                - 'article "Service: Bookkeeping & Tax Preparation" [ref=e931]':
+                  - link "Bookkeeping & Tax Preparation - Image 1 Bookkeeping & Tax Preparation Maria Müller 0 (0) Zürich CHF 120.00/consultation View Details" [ref=e932] [cursor=pointer]:
+                    - /url: /service/demo-service-5
+                    - generic [ref=e933]:
+                      - img "Bookkeeping & Tax Preparation - Image 1" [ref=e937]
+                      - button [ref=e938]:
+                        - img
+                    - generic [ref=e939]:
+                      - heading "Bookkeeping & Tax Preparation" [level=3] [ref=e940]
+                      - generic [ref=e941]:
+                        - generic [ref=e942]: Maria Müller
+                        - img [ref=e943]
+                      - generic [ref=e946]:
+                        - generic [ref=e947]:
+                          - img [ref=e948]
+                          - generic [ref=e950]: "0"
+                          - generic [ref=e951]: (0)
+                        - generic [ref=e952]:
+                          - img [ref=e953]
+                          - generic [ref=e956]: Zürich
+                      - generic [ref=e957]:
+                        - generic [ref=e959]: CHF 120.00/consultation
+                        - button "View Details" [ref=e960]
+              - group [ref=e961]:
+                - 'article "Service: Mental Health Coaching" [ref=e963]':
+                  - link "Mental Health Coaching - Image 1 Mental Health Coaching Thomas Schneider 0 (0) Lausanne CHF 75.00/hour View Details" [ref=e964] [cursor=pointer]:
+                    - /url: /service/demo-service-21
+                    - generic [ref=e965]:
+                      - img "Mental Health Coaching - Image 1" [ref=e969]
+                      - button [ref=e970]:
+                        - img
+                    - generic [ref=e971]:
+                      - heading "Mental Health Coaching" [level=3] [ref=e972]
+                      - generic [ref=e973]:
+                        - generic [ref=e974]: Thomas Schneider
+                        - img [ref=e975]
+                      - generic [ref=e978]:
+                        - generic [ref=e979]:
+                          - img [ref=e980]
+                          - generic [ref=e982]: "0"
+                          - generic [ref=e983]: (0)
+                        - generic [ref=e984]:
+                          - img [ref=e985]
+                          - generic [ref=e988]: Lausanne
+                      - generic [ref=e989]:
+                        - generic [ref=e991]: CHF 75.00/hour
+                        - button "View Details" [ref=e992]
+              - group [ref=e993]:
+                - 'article "Service: Nutrition Consulting & Meal Planning" [ref=e995]':
+                  - link "Nutrition Consulting & Meal Planning - Image 1 Nutrition Consulting & Meal Planning Hans Weber 5.0 (1) Bern CHF 85.00/consultation View Details" [ref=e996] [cursor=pointer]:
+                    - /url: /service/demo-service-20
+                    - generic [ref=e997]:
+                      - img "Nutrition Consulting & Meal Planning - Image 1" [ref=e1001]
+                      - button [ref=e1002]:
+                        - img
+                    - generic [ref=e1003]:
+                      - heading "Nutrition Consulting & Meal Planning" [level=3] [ref=e1004]
+                      - generic [ref=e1005]:
+                        - generic [ref=e1006]: Hans Weber
+                        - img [ref=e1007]
+                      - generic [ref=e1010]:
+                        - generic [ref=e1011]:
+                          - img [ref=e1012]
+                          - generic [ref=e1014]: "5.0"
+                          - generic [ref=e1015]: (1)
+                        - generic [ref=e1016]:
+                          - img [ref=e1017]
+                          - generic [ref=e1020]: Bern
+                      - generic [ref=e1021]:
+                        - generic [ref=e1023]: CHF 85.00/consultation
+                        - button "View Details" [ref=e1024]
+              - group [ref=e1025]:
+                - 'article "Service: Massage Therapy & Wellness" [ref=e1027]':
+                  - link "Massage Therapy & Wellness - Image 1 Massage Therapy & Wellness Maria Müller 5.0 (1) Geneva CHF 90.00/hour View Details" [ref=e1028] [cursor=pointer]:
+                    - /url: /service/demo-service-19
+                    - generic [ref=e1029]:
+                      - img "Massage Therapy & Wellness - Image 1" [ref=e1033]
+                      - button [ref=e1034]:
+                        - img
+                    - generic [ref=e1035]:
+                      - heading "Massage Therapy & Wellness" [level=3] [ref=e1036]
+                      - generic [ref=e1037]:
+                        - generic [ref=e1038]: Maria Müller
+                        - img [ref=e1039]
+                      - generic [ref=e1042]:
+                        - generic [ref=e1043]:
+                          - img [ref=e1044]
+                          - generic [ref=e1046]: "5.0"
+                          - generic [ref=e1047]: (1)
+                        - generic [ref=e1048]:
+                          - img [ref=e1049]
+                          - generic [ref=e1052]: Geneva
+                      - generic [ref=e1053]:
+                        - generic [ref=e1055]: CHF 90.00/hour
+                        - button "View Details" [ref=e1056]
+              - group [ref=e1057]:
+                - 'article "Service: Yoga Classes & Private Sessions" [ref=e1059]':
+                  - link "Yoga Classes & Private Sessions - Image 1 Yoga Classes & Private Sessions Sophie Martin 5.0 (2) Zürich CHF 45.00/hour View Details" [ref=e1060] [cursor=pointer]:
+                    - /url: /service/demo-service-18
+                    - generic [ref=e1061]:
+                      - img "Yoga Classes & Private Sessions - Image 1" [ref=e1065]
+                      - button [ref=e1066]:
+                        - img
+                    - generic [ref=e1067]:
+                      - heading "Yoga Classes & Private Sessions" [level=3] [ref=e1068]
+                      - generic [ref=e1070]: Sophie Martin
+                      - generic [ref=e1071]:
+                        - generic [ref=e1072]:
+                          - img [ref=e1073]
+                          - generic [ref=e1075]: "5.0"
+                          - generic [ref=e1076]: (2)
+                        - generic [ref=e1077]:
+                          - img [ref=e1078]
+                          - generic [ref=e1081]: Zürich
+                      - generic [ref=e1082]:
+                        - generic [ref=e1084]: CHF 45.00/hour
+                        - button "View Details" [ref=e1085]
+              - group [ref=e1086]:
+                - 'article "Service: Personal Fitness Training" [ref=e1088]':
+                  - link "Personal Fitness Training - Image 1 Personal Fitness Training - Image 2 Personal Fitness Training - Image 3 Personal Fitness Training - Image 4 Previous image Next image Personal Fitness Training Thomas Schneider 5.0 (2) Basel CHF 80.00/hour View Details" [ref=e1089] [cursor=pointer]:
+                    - /url: /service/demo-service-4
+                    - generic [ref=e1090]:
+                      - generic [ref=e1092]:
+                        - img "Personal Fitness Training - Image 1" [ref=e1094]
+                        - img "Personal Fitness Training - Image 2" [ref=e1096]
+                        - img "Personal Fitness Training - Image 3" [ref=e1098]
+                        - img "Personal Fitness Training - Image 4" [ref=e1100]
+                      - button "Previous image" [ref=e1101]:
+                        - img [ref=e1102]
+                      - button "Next image" [ref=e1104]:
+                        - img [ref=e1105]
+                      - button [ref=e1112]:
+                        - img
+                    - generic [ref=e1113]:
+                      - heading "Personal Fitness Training" [level=3] [ref=e1114]
+                      - generic [ref=e1115]:
+                        - generic [ref=e1116]: Thomas Schneider
+                        - img [ref=e1117]
+                      - generic [ref=e1120]:
+                        - generic [ref=e1121]:
+                          - img [ref=e1122]
+                          - generic [ref=e1124]: "5.0"
+                          - generic [ref=e1125]: (2)
+                        - generic [ref=e1126]:
+                          - img [ref=e1127]
+                          - generic [ref=e1130]: Basel
+                      - generic [ref=e1131]:
+                        - generic [ref=e1133]: CHF 80.00/hour
+                        - button "View Details" [ref=e1134]
+              - group [ref=e1135]:
+                - 'article "Service: Piano & Music Lessons" [ref=e1137]':
+                  - link "Piano & Music Lessons - Image 1 Piano & Music Lessons Thomas Schneider 5.0 (1) Lausanne CHF 60.00/hour View Details" [ref=e1138] [cursor=pointer]:
+                    - /url: /service/demo-service-17
+                    - generic [ref=e1139]:
+                      - img "Piano & Music Lessons - Image 1" [ref=e1143]
+                      - button [ref=e1144]:
+                        - img
+                    - generic [ref=e1145]:
+                      - heading "Piano & Music Lessons" [level=3] [ref=e1146]
+                      - generic [ref=e1147]:
+                        - generic [ref=e1148]: Thomas Schneider
+                        - img [ref=e1149]
+                      - generic [ref=e1152]:
+                        - generic [ref=e1153]:
+                          - img [ref=e1154]
+                          - generic [ref=e1156]: "5.0"
+                          - generic [ref=e1157]: (1)
+                        - generic [ref=e1158]:
+                          - img [ref=e1159]
+                          - generic [ref=e1162]: Lausanne
+                      - generic [ref=e1163]:
+                        - generic [ref=e1165]: CHF 60.00/hour
+                        - button "View Details" [ref=e1166]
+              - group [ref=e1167]:
+                - 'article "Service: French Language Lessons" [ref=e1169]':
+                  - link "French Language Lessons - Image 1 French Language Lessons Hans Weber 0 (0) Bern CHF 52.00/hour View Details" [ref=e1170] [cursor=pointer]:
+                    - /url: /service/demo-service-16
+                    - generic [ref=e1171]:
+                      - img "French Language Lessons - Image 1" [ref=e1175]
+                      - button [ref=e1176]:
+                        - img
+                    - generic [ref=e1177]:
+                      - heading "French Language Lessons" [level=3] [ref=e1178]
+                      - generic [ref=e1179]:
+                        - generic [ref=e1180]: Hans Weber
+                        - img [ref=e1181]
+                      - generic [ref=e1184]:
+                        - generic [ref=e1185]:
+                          - img [ref=e1186]
+                          - generic [ref=e1188]: "0"
+                          - generic [ref=e1189]: (0)
+                        - generic [ref=e1190]:
+                          - img [ref=e1191]
+                          - generic [ref=e1194]: Bern
+                      - generic [ref=e1195]:
+                        - generic [ref=e1197]: CHF 52.00/hour
+                        - button "View Details" [ref=e1198]
+              - group [ref=e1199]:
+                - 'article "Service: Mathematics Tutoring - Primary to Secondary" [ref=e1201]':
+                  - link "Mathematics Tutoring - Primary to Secondary - Image 1 Mathematics Tutoring - Primary to Secondary Maria Müller 4.5 (2) Zürich CHF 50.00/hour View Details" [ref=e1202] [cursor=pointer]:
+                    - /url: /service/demo-service-15
+                    - generic [ref=e1203]:
+                      - img "Mathematics Tutoring - Primary to Secondary - Image 1" [ref=e1207]
+                      - button [ref=e1208]:
+                        - img
+                    - generic [ref=e1209]:
+                      - heading "Mathematics Tutoring - Primary to Secondary" [level=3] [ref=e1210]
+                      - generic [ref=e1211]:
+                        - generic [ref=e1212]: Maria Müller
+                        - img [ref=e1213]
+                      - generic [ref=e1216]:
+                        - generic [ref=e1217]:
+                          - img [ref=e1218]
+                          - generic [ref=e1220]: "4.5"
+                          - generic [ref=e1221]: (2)
+                        - generic [ref=e1222]:
+                          - img [ref=e1223]
+                          - generic [ref=e1226]: Zürich
+                      - generic [ref=e1227]:
+                        - generic [ref=e1229]: CHF 50.00/hour
+                        - button "View Details" [ref=e1230]
+              - group [ref=e1231]:
+                - 'article "Service: English Tutoring - All Levels" [ref=e1233]':
+                  - link "English Tutoring - All Levels - Image 1 English Tutoring - All Levels Sophie Martin 0 (0) Geneva CHF 55.00/hour View Details" [ref=e1234] [cursor=pointer]:
+                    - /url: /service/demo-service-3
+                    - generic [ref=e1235]:
+                      - img "English Tutoring - All Levels - Image 1" [ref=e1239]
+                      - button [ref=e1240]:
+                        - img
+                    - generic [ref=e1241]:
+                      - heading "English Tutoring - All Levels" [level=3] [ref=e1242]
+                      - generic [ref=e1244]: Sophie Martin
+                      - generic [ref=e1245]:
+                        - generic [ref=e1246]:
+                          - img [ref=e1247]
+                          - generic [ref=e1249]: "0"
+                          - generic [ref=e1250]: (0)
+                        - generic [ref=e1251]:
+                          - img [ref=e1252]
+                          - generic [ref=e1255]: Geneva
+                      - generic [ref=e1256]:
+                        - generic [ref=e1258]: CHF 55.00/hour
+                        - button "View Details" [ref=e1259]
+              - group [ref=e1260]:
+                - 'article "Service: Video Production & Editing" [ref=e1262]':
+                  - link "Video Production & Editing - Image 1 Video Production & Editing Thomas Schneider 0 (0) Bern See Listing View Details" [ref=e1263] [cursor=pointer]:
+                    - /url: /service/demo-service-14
+                    - generic [ref=e1264]:
+                      - img "Video Production & Editing - Image 1" [ref=e1268]
+                      - button [ref=e1269]:
+                        - img
+                    - generic [ref=e1270]:
+                      - heading "Video Production & Editing" [level=3] [ref=e1271]
+                      - generic [ref=e1272]:
+                        - generic [ref=e1273]: Thomas Schneider
+                        - img [ref=e1274]
+                      - generic [ref=e1277]:
+                        - generic [ref=e1278]:
+                          - img [ref=e1279]
+                          - generic [ref=e1281]: "0"
+                          - generic [ref=e1282]: (0)
+                        - generic [ref=e1283]:
+                          - img [ref=e1284]
+                          - generic [ref=e1287]: Bern
+                      - generic [ref=e1288]:
+                        - generic [ref=e1289]: See Listing
+                        - button "View Details" [ref=e1290]
+              - group [ref=e1291]:
+                - 'article "Service: Professional Photography" [ref=e1293]':
+                  - link "Professional Photography - Image 1 Professional Photography - Image 2 Professional Photography - Image 3 Previous image Next image Professional Photography Sophie Martin 5.0 (1) Basel CHF 120.00/hour View Details" [ref=e1294] [cursor=pointer]:
+                    - /url: /service/demo-service-13
+                    - generic [ref=e1295]:
+                      - generic [ref=e1297]:
+                        - img "Professional Photography - Image 1" [ref=e1299]
+                        - img "Professional Photography - Image 2" [ref=e1301]
+                        - img "Professional Photography - Image 3" [ref=e1303]
+                      - button "Previous image" [ref=e1304]:
+                        - img [ref=e1305]
+                      - button "Next image" [ref=e1307]:
+                        - img [ref=e1308]
+                      - button [ref=e1314]:
+                        - img
+                    - generic [ref=e1315]:
+                      - heading "Professional Photography" [level=3] [ref=e1316]
+                      - generic [ref=e1318]: Sophie Martin
+                      - generic [ref=e1319]:
+                        - generic [ref=e1320]:
+                          - img [ref=e1321]
+                          - generic [ref=e1323]: "5.0"
+                          - generic [ref=e1324]: (1)
+                        - generic [ref=e1325]:
+                          - img [ref=e1326]
+                          - generic [ref=e1329]: Basel
+                      - generic [ref=e1330]:
+                        - generic [ref=e1332]: CHF 120.00/hour
+                        - button "View Details" [ref=e1333]
+              - group [ref=e1334]:
+                - 'article "Service: Graphic Design Services" [ref=e1336]':
+                  - link "Graphic Design Services - Image 1 Graphic Design Services Maria Müller 5.0 (1) Geneva CHF 75.00/hour View Details" [ref=e1337] [cursor=pointer]:
+                    - /url: /service/demo-service-12
+                    - generic [ref=e1338]:
+                      - img "Graphic Design Services - Image 1" [ref=e1342]
+                      - button [ref=e1343]:
+                        - img
+                    - generic [ref=e1344]:
+                      - heading "Graphic Design Services" [level=3] [ref=e1345]
+                      - generic [ref=e1346]:
+                        - generic [ref=e1347]: Maria Müller
+                        - img [ref=e1348]
+                      - generic [ref=e1351]:
+                        - generic [ref=e1352]:
+                          - img [ref=e1353]
+                          - generic [ref=e1355]: "5.0"
+                          - generic [ref=e1356]: (1)
+                        - generic [ref=e1357]:
+                          - img [ref=e1358]
+                          - generic [ref=e1361]: Geneva
+                      - generic [ref=e1362]:
+                        - generic [ref=e1364]: CHF 75.00/hour
+                        - button "View Details" [ref=e1365]
+              - group [ref=e1366]:
+                - 'article "Service: Web Design & Development" [ref=e1368]':
+                  - link "Web Design & Development - Image 1 Web Design & Development - Image 2 Web Design & Development - Image 3 Previous image Next image Web Design & Development Hans Weber 5.0 (2) Zürich See Listing View Details" [ref=e1369] [cursor=pointer]:
+                    - /url: /service/demo-service-11
+                    - generic [ref=e1370]:
+                      - generic [ref=e1372]:
+                        - img "Web Design & Development - Image 1" [ref=e1374]
+                        - img "Web Design & Development - Image 2" [ref=e1376]
+                        - img "Web Design & Development - Image 3" [ref=e1378]
+                      - button "Previous image" [ref=e1379]:
+                        - img [ref=e1380]
+                      - button "Next image" [ref=e1382]:
+                        - img [ref=e1383]
+                      - button [ref=e1389]:
+                        - img
+                    - generic [ref=e1390]:
+                      - heading "Web Design & Development" [level=3] [ref=e1391]
+                      - generic [ref=e1392]:
+                        - generic [ref=e1393]: Hans Weber
+                        - img [ref=e1394]
+                      - generic [ref=e1397]:
+                        - generic [ref=e1398]:
+                          - img [ref=e1399]
+                          - generic [ref=e1401]: "5.0"
+                          - generic [ref=e1402]: (2)
+                        - generic [ref=e1403]:
+                          - img [ref=e1404]
+                          - generic [ref=e1407]: Zürich
+                      - generic [ref=e1408]:
+                        - generic [ref=e1409]: See Listing
+                        - button "View Details" [ref=e1410]
+              - group [ref=e1411]:
+                - 'article "Service: Modern Logo Design" [ref=e1413]':
+                  - link "Modern Logo Design - Image 1 Modern Logo Design Hans Weber 4.0 (1) Bern CHF 350.00/job View Details" [ref=e1414] [cursor=pointer]:
+                    - /url: /service/demo-service-2
+                    - generic [ref=e1415]:
+                      - img "Modern Logo Design - Image 1" [ref=e1419]
+                      - button [ref=e1420]:
+                        - img
+                    - generic [ref=e1421]:
+                      - heading "Modern Logo Design" [level=3] [ref=e1422]
+                      - generic [ref=e1423]:
+                        - generic [ref=e1424]: Hans Weber
+                        - img [ref=e1425]
+                      - generic [ref=e1428]:
+                        - generic [ref=e1429]:
+                          - img [ref=e1430]
+                          - generic [ref=e1432]: "4.0"
+                          - generic [ref=e1433]: (1)
+                        - generic [ref=e1434]:
+                          - img [ref=e1435]
+                          - generic [ref=e1438]: Bern
+                      - generic [ref=e1439]:
+                        - generic [ref=e1441]: CHF 350.00/job
+                        - button "View Details" [ref=e1442]
+              - group [ref=e1443]:
+                - 'article "Service: Garden Maintenance Service" [ref=e1445]':
+                  - link "Garden Maintenance Service - Image 1 Garden Maintenance Service - Image 2 Previous image Next image Garden Maintenance Service Thomas Schneider 5.0 (1) Bern CHF 60.00/hour View Details" [ref=e1446] [cursor=pointer]:
+                    - /url: /service/demo-service-10
+                    - generic [ref=e1447]:
+                      - generic [ref=e1449]:
+                        - img "Garden Maintenance Service - Image 1" [ref=e1451]
+                        - img "Garden Maintenance Service - Image 2" [ref=e1453]
+                      - button "Previous image" [ref=e1454]:
+                        - img [ref=e1455]
+                      - button "Next image" [ref=e1457]:
+                        - img [ref=e1458]
+                      - button [ref=e1463]:
+                        - img
+                    - generic [ref=e1464]:
+                      - heading "Garden Maintenance Service" [level=3] [ref=e1465]
+                      - generic [ref=e1466]:
+                        - generic [ref=e1467]: Thomas Schneider
+                        - img [ref=e1468]
+                      - generic [ref=e1471]:
+                        - generic [ref=e1472]:
+                          - img [ref=e1473]
+                          - generic [ref=e1475]: "5.0"
+                          - generic [ref=e1476]: (1)
+                        - generic [ref=e1477]:
+                          - img [ref=e1478]
+                          - generic [ref=e1481]: Bern
+                      - generic [ref=e1482]:
+                        - generic [ref=e1484]: CHF 60.00/hour
+                        - button "View Details" [ref=e1485]
+              - group [ref=e1486]:
+                - 'article "Service: Electrical Installation & Repair" [ref=e1488]':
+                  - link "Electrical Installation & Repair - Image 1 Electrical Installation & Repair Thomas Schneider 0 (0) Bern CHF 95.00/hour View Details" [ref=e1489] [cursor=pointer]:
+                    - /url: /service/demo-service-9
+                    - generic [ref=e1490]:
+                      - img "Electrical Installation & Repair - Image 1" [ref=e1494]
+                      - button [ref=e1495]:
+                        - img
+                    - generic [ref=e1496]:
+                      - heading "Electrical Installation & Repair" [level=3] [ref=e1497]
+                      - generic [ref=e1498]:
+                        - generic [ref=e1499]: Thomas Schneider
+                        - img [ref=e1500]
+                      - generic [ref=e1503]:
+                        - generic [ref=e1504]:
+                          - img [ref=e1505]
+                          - generic [ref=e1507]: "0"
+                          - generic [ref=e1508]: (0)
+                        - generic [ref=e1509]:
+                          - img [ref=e1510]
+                          - generic [ref=e1513]: Bern
+                      - generic [ref=e1514]:
+                        - generic [ref=e1516]: CHF 95.00/hour
+                        - button "View Details" [ref=e1517]
+              - group [ref=e1518]:
+                - 'article "Service: Plumbing & Installation Services" [ref=e1520]':
+                  - link "Plumbing & Installation Services - Image 1 Plumbing & Installation Services Hans Weber 4.5 (2) Basel CHF 85.00/hour View Details" [ref=e1521] [cursor=pointer]:
+                    - /url: /service/demo-service-8
+                    - generic [ref=e1522]:
+                      - img "Plumbing & Installation Services - Image 1" [ref=e1526]
+                      - button [ref=e1527]:
+                        - img
+                    - generic [ref=e1528]:
+                      - heading "Plumbing & Installation Services" [level=3] [ref=e1529]
+                      - generic [ref=e1530]:
+                        - generic [ref=e1531]: Hans Weber
+                        - img [ref=e1532]
+                      - generic [ref=e1535]:
+                        - generic [ref=e1536]:
+                          - img [ref=e1537]
+                          - generic [ref=e1539]: "4.5"
+                          - generic [ref=e1540]: (2)
+                        - generic [ref=e1541]:
+                          - img [ref=e1542]
+                          - generic [ref=e1545]: Basel
+                      - generic [ref=e1546]:
+                        - generic [ref=e1548]: CHF 85.00/hour
+                        - button "View Details" [ref=e1549]
+              - group [ref=e1550]:
+                - 'article "Service: Apartment Painting & Renovation" [ref=e1552]':
+                  - link "Apartment Painting & Renovation - Image 1 Apartment Painting & Renovation - Image 2 Previous image Next image Apartment Painting & Renovation Maria Müller 0 (0) Zürich See Listing View Details" [ref=e1553] [cursor=pointer]:
+                    - /url: /service/demo-service-7
+                    - generic [ref=e1554]:
+                      - generic [ref=e1556]:
+                        - img "Apartment Painting & Renovation - Image 1" [ref=e1558]
+                        - img "Apartment Painting & Renovation - Image 2" [ref=e1560]
+                      - button "Previous image" [ref=e1561]:
+                        - img [ref=e1562]
+                      - button "Next image" [ref=e1564]:
+                        - img [ref=e1565]
+                      - button [ref=e1570]:
+                        - img
+                    - generic [ref=e1571]:
+                      - heading "Apartment Painting & Renovation" [level=3] [ref=e1572]
+                      - generic [ref=e1573]:
+                        - generic [ref=e1574]: Maria Müller
+                        - img [ref=e1575]
+                      - generic [ref=e1578]:
+                        - generic [ref=e1579]:
+                          - img [ref=e1580]
+                          - generic [ref=e1582]: "0"
+                          - generic [ref=e1583]: (0)
+                        - generic [ref=e1584]:
+                          - img [ref=e1585]
+                          - generic [ref=e1588]: Zürich
+                      - generic [ref=e1589]:
+                        - generic [ref=e1590]: See Listing
+                        - button "View Details" [ref=e1591]
+              - group [ref=e1592]:
+                - 'article "Service: Professional House Cleaning" [ref=e1594]':
+                  - link "Professional House Cleaning - Image 1 Professional House Cleaning - Image 2 Previous image Next image Professional House Cleaning Maria Müller 5.0 (2) Zürich CHF 45.00/hour View Details" [ref=e1595] [cursor=pointer]:
+                    - /url: /service/demo-service-1
+                    - generic [ref=e1596]:
+                      - generic [ref=e1598]:
+                        - img "Professional House Cleaning - Image 1" [ref=e1600]
+                        - img "Professional House Cleaning - Image 2" [ref=e1602]
+                      - button "Previous image" [ref=e1603]:
+                        - img [ref=e1604]
+                      - button "Next image" [ref=e1606]:
+                        - img [ref=e1607]
+                      - button [ref=e1612]:
+                        - img
+                    - generic [ref=e1613]:
+                      - heading "Professional House Cleaning" [level=3] [ref=e1614]
+                      - generic [ref=e1615]:
+                        - generic [ref=e1616]: Maria Müller
+                        - img [ref=e1617]
+                      - generic [ref=e1620]:
+                        - generic [ref=e1621]:
+                          - img [ref=e1622]
+                          - generic [ref=e1624]: "5.0"
+                          - generic [ref=e1625]: (2)
+                        - generic [ref=e1626]:
+                          - img [ref=e1627]
+                          - generic [ref=e1630]: Zürich
+                      - generic [ref=e1631]:
+                        - generic [ref=e1633]: CHF 45.00/hour
+                        - button "View Details" [ref=e1634]
+            - button "Previous slide" [ref=e1635]:
+              - img
+              - generic [ref=e1636]: Previous slide
+            - button "Next slide" [ref=e1637]:
+              - img
+              - generic [ref=e1638]: Next slide
+      - generic [ref=e1640]:
+        - generic [ref=e1642]: Simple Process
+        - heading "How Commerzio Works" [level=2] [ref=e1643]
+        - paragraph [ref=e1644]: Book trusted services in three simple steps with complete security and transparency
+        - generic [ref=e1645]:
+          - generic [ref=e1646]:
+            - generic [ref=e1647]: "1"
+            - heading "Discover & Book" [level=3] [ref=e1648]
+            - paragraph [ref=e1649]: Browse verified service providers, compare reviews, and book your preferred time slot instantly.
+          - generic [ref=e1650]:
+            - generic [ref=e1651]: "2"
+            - heading "Secure Payment" [level=3] [ref=e1652]
+            - paragraph [ref=e1653]: Pay securely with escrow protection. Funds are held until you confirm the service is completed.
+          - generic [ref=e1654]:
+            - generic [ref=e1655]: "3"
+            - heading "Leave a Review" [level=3] [ref=e1656]
+            - paragraph [ref=e1657]: Share your experience and help others make informed decisions. Build trust in our community.
+      - generic [ref=e1659]:
+        - heading "Why Choose Commerzio" [level=2] [ref=e1660]
+        - paragraph [ref=e1661]: Built for the Swiss market with security and trust at its core
+        - generic [ref=e1662]:
+          - generic [ref=e1663]:
+            - img [ref=e1665]
+            - heading "Escrow Protection" [level=3] [ref=e1667]
+            - paragraph [ref=e1668]: Your payment is held securely until service completion. Full refund guarantee for disputes.
+          - generic [ref=e1669]:
+            - img [ref=e1671]
+            - heading "Verified Vendors" [level=3] [ref=e1673]
+            - paragraph [ref=e1674]: All service providers are verified with background checks and review systems.
+          - generic [ref=e1675]:
+            - img [ref=e1677]
+            - heading "Quality Guarantee" [level=3] [ref=e1679]
+            - paragraph [ref=e1680]: 98% satisfaction rate backed by our dispute resolution system and customer support.
+          - generic [ref=e1681]:
+            - img [ref=e1683]
+            - heading "Real-Time Booking" [level=3] [ref=e1685]
+            - paragraph [ref=e1686]: Instant availability checks and booking confirmations. No more endless phone calls.
+          - generic [ref=e1687]:
+            - img [ref=e1689]
+            - heading "Rewards Program" [level=3] [ref=e1691]
+            - paragraph [ref=e1692]: Earn points with every booking and referral. Redeem for discounts on future services.
+          - generic [ref=e1693]:
+            - img [ref=e1695]
+            - heading "Trusted Reviews" [level=3] [ref=e1697]
+            - paragraph [ref=e1698]: Only verified customers can leave reviews, ensuring authentic feedback.
+      - generic [ref=e1701]:
+        - heading "Ready to get started?" [level=2] [ref=e1702]
+        - paragraph [ref=e1703]: Join thousands of satisfied customers and verified vendors on Switzerland's most trusted service platform
+        - generic [ref=e1704]:
+          - link "Find Services" [ref=e1705] [cursor=pointer]:
+            - /url: /search
+            - button "Find Services" [ref=e1706]
+          - link "Become a Vendor" [ref=e1707] [cursor=pointer]:
+            - /url: /register
+            - button "Become a Vendor" [ref=e1708]
+    - contentinfo [ref=e1709]:
+      - generic [ref=e1711]:
+        - generic [ref=e1712]:
+          - generic [ref=e1713]:
+            - img [ref=e1715]
+            - generic [ref=e1720]:
+              - generic [ref=e1721]: Commerzio
+              - generic [ref=e1722]: Services
+          - paragraph [ref=e1723]: Connecting trusted service providers with people who need their skills. Simple, secure, and Swiss.
+          - paragraph [ref=e1724]: A Commerzio company
+          - generic [ref=e1725]:
+            - generic [ref=e1726]:
+              - img [ref=e1727]
+              - generic [ref=e1729]: SSL Secured
+            - generic [ref=e1730]:
+              - img [ref=e1731]
+              - generic [ref=e1733]: Verified Providers
+        - generic [ref=e1734]:
+          - heading "Platform" [level=4] [ref=e1735]
+          - list [ref=e1736]:
+            - listitem [ref=e1737]:
+              - link "Browse Services" [ref=e1738] [cursor=pointer]:
+                - /url: /search
+            - listitem [ref=e1739]:
+              - link "Post a Service" [ref=e1740] [cursor=pointer]:
+                - /url: /register
+            - listitem [ref=e1741]:
+              - link "How it Works" [ref=e1742] [cursor=pointer]:
+                - /url: /how-it-works
+            - listitem [ref=e1743]:
+              - link "Refer & Earn" [ref=e1744] [cursor=pointer]:
+                - /url: /referrals
+        - generic [ref=e1745]:
+          - heading "Support" [level=4] [ref=e1746]
+          - list [ref=e1747]:
+            - listitem [ref=e1748]:
+              - link "Help Center" [ref=e1749] [cursor=pointer]:
+                - /url: /help-center
+            - listitem [ref=e1750]:
+              - link "Trust & Safety" [ref=e1751] [cursor=pointer]:
+                - /url: /trust-safety
+            - listitem [ref=e1752]:
+              - link "Contact Us" [ref=e1753] [cursor=pointer]:
+                - /url: /contact
+        - generic [ref=e1754]:
+          - heading "Legal" [level=4] [ref=e1755]
+          - list [ref=e1756]:
+            - listitem [ref=e1757]:
+              - link "Terms of Service" [ref=e1758] [cursor=pointer]:
+                - /url: /terms
+            - listitem [ref=e1759]:
+              - link "Privacy Policy" [ref=e1760] [cursor=pointer]:
+                - /url: /privacy
+      - generic [ref=e1762]:
+        - paragraph [ref=e1763]: © 2025 Commerzio Services AG. All rights reserved.
+        - generic [ref=e1764]:
+          - generic [ref=e1765]: "Payment Methods:"
+          - generic [ref=e1766]:
+            - generic [ref=e1767]: 💳 Card
+            - generic [ref=e1768]: 📱 TWINT
+            - generic [ref=e1769]: 💵 Cash
+        - generic [ref=e1770]:
+          - generic [ref=e1771]: 🇨🇭
+          - generic [ref=e1772]: Made in Switzerland
+  - button "Open chat support" [ref=e1775]:
+    - img
+  - generic [ref=e1777]:
+    - generic [ref=e1778]:
+      - img [ref=e1780]
+      - generic [ref=e1782]:
+        - heading "Cookie Preferences" [level=3] [ref=e1783]
+        - paragraph [ref=e1784]: We use cookies to enhance your browsing experience and provide personalized content. You can customize your preferences below.
+    - button "Customize Preferences" [ref=e1785]:
+      - generic [ref=e1786]:
+        - img [ref=e1787]
+        - text: Customize Preferences
+      - img [ref=e1790]
+    - generic [ref=e1792]:
+      - button "Decline All" [ref=e1793]
+      - button "Accept All" [ref=e1794]
+    - paragraph [ref=e1795]:
+      - text: By using our site, you agree to our
+      - link "Privacy Policy" [ref=e1796] [cursor=pointer]:
+        - /url: /privacy
+      - text: and
+      - link "Terms of Service" [ref=e1797] [cursor=pointer]:
+        - /url: /terms
+      - text: .
+```

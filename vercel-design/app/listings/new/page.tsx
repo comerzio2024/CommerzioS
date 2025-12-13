@@ -328,6 +328,23 @@ export default function PostServicePage() {
                     </div>
                   </CardHeader>
                   <CardContent className="pt-6 space-y-6">
+                    {/* Service Name - MOVED UP */}
+                    <div className="space-y-2">
+                      <Label htmlFor="serviceName" className="text-base font-semibold">
+                        Service Title <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="serviceName"
+                        placeholder="e.g., Professional Home Cleaning Service"
+                        value={serviceName}
+                        onChange={(e) => setServiceName(e.target.value)}
+                        className="h-12 text-lg"
+                      />
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <span>💡</span> Tip: Be specific and include what makes you unique
+                      </p>
+                    </div>
+
                     {/* Category Selection */}
                     <div className="space-y-3">
                       <Label className="text-base font-semibold">
@@ -369,11 +386,11 @@ export default function PostServicePage() {
                       </div>
                     </div>
 
-                    {/* Service Images */}
+                    {/* Service Images - MOVED TO TOP */}
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <Label className="text-base font-semibold">
-                          Images <span className="text-red-500">*</span>
+                          Service Photos <span className="text-red-500">*</span>
                           {images.length > 0 && (
                             <span className="ml-2 text-sm font-normal text-muted-foreground">
                               ({images.length} uploaded)
@@ -382,7 +399,7 @@ export default function PostServicePage() {
                         </Label>
                         <Button variant="ghost" size="sm" className="text-emerald-600">
                           <Wand2 className="h-4 w-4 mr-2" />
-                          AI Magic
+                          AI Enhance
                         </Button>
                       </div>
 
@@ -390,7 +407,7 @@ export default function PostServicePage() {
                         {images.map((img, idx) => (
                           <div
                             key={idx}
-                            className="relative group aspect-square rounded-lg overflow-hidden border-2 border-border"
+                            className="relative group aspect-square rounded-xl overflow-hidden border-2 border-border hover:border-primary transition-all"
                           >
                             <img
                               src={img || "/placeholder.svg"}
@@ -399,17 +416,19 @@ export default function PostServicePage() {
                             />
                             <button
                               onClick={() => removeImage(idx)}
-                              className="absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
                             >
                               <X className="h-4 w-4" />
                             </button>
-                            {idx === 0 && <Badge className="absolute bottom-2 left-2 bg-blue-600">Thumbnail</Badge>}
+                            {idx === 0 && <Badge className="absolute bottom-2 left-2 bg-primary shadow-lg">Cover Photo</Badge>}
                           </div>
                         ))}
 
-                        <label className="aspect-square rounded-lg border-2 border-dashed border-border hover:border-blue-600 transition-colors cursor-pointer flex flex-col items-center justify-center gap-2 hover:bg-blue-50 dark:hover:bg-blue-950/20">
-                          <Upload className="h-8 w-8 text-muted-foreground" />
-                          <span className="text-sm font-medium text-muted-foreground">Upload</span>
+                        <label className="aspect-square rounded-xl border-2 border-dashed border-border hover:border-primary transition-all cursor-pointer flex flex-col items-center justify-center gap-2 hover:bg-primary/5 group">
+                          <div className="w-12 h-12 rounded-full bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors">
+                            <Upload className="h-6 w-6 text-primary" />
+                          </div>
+                          <span className="text-sm font-medium text-muted-foreground">Add Photos</span>
                           <input
                             type="file"
                             multiple
@@ -419,23 +438,9 @@ export default function PostServicePage() {
                           />
                         </label>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Upload high-quality images. First image will be your thumbnail.
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <span>📸</span> Tip: Use natural lighting and show your work. First image is your cover photo.
                       </p>
-                    </div>
-
-                    {/* Service Name */}
-                    <div className="space-y-2">
-                      <Label htmlFor="serviceName" className="text-base font-semibold">
-                        Service Name <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id="serviceName"
-                        placeholder="e.g., Professional Home Cleaning"
-                        value={serviceName}
-                        onChange={(e) => setServiceName(e.target.value)}
-                        className="h-12"
-                      />
                     </div>
 
                     {/* Description */}

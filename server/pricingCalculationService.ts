@@ -70,7 +70,7 @@ export interface PricingBreakdown {
   totalDays: number;
   fullDays: number;
   extraHours: number;
-  
+
   // Cost breakdown
   baseCost: number;
   dailyCost: number;
@@ -79,16 +79,16 @@ export interface PricingBreakdown {
   tierAdjustment: number;
   surcharges: SurchargeItem[];
   discount: number;
-  
+
   // Final amounts
   subtotal: number;
   platformFee: number;
   total: number;
   currency: string;
-  
+
   // Breakdown details for display
   lineItems: LineItem[];
-  
+
   // Calculation method used
   calculationMethod: 'hourly' | 'daily' | 'mixed' | 'fixed';
 }
@@ -124,6 +124,14 @@ export interface BookingContext {
   unitSelections?: Array<{ type: string; quantity: number }>;
   tierSelections?: Array<{ type: string; selectedOption: string }>;
   travelDistanceKm?: number;
+  selectedListItems?: string[];
+}
+
+interface PriceListItem {
+  description: string;
+  price: string;
+  unit?: string;
+  billingType?: 'once' | 'per_duration'; // once = fixed, per_duration = multiplied by duration
 }
 
 // ===========================================
@@ -181,7 +189,7 @@ export async function calculateBookingPrice(params: {
       .from(servicePricingOptions)
       .where(eq(servicePricingOptions.id, pricingOptionId))
       .limit(1);
-    
+
     if (option) {
       pricingOption = {
         id: option.id,
@@ -208,7 +216,15 @@ export async function calculateBookingPrice(params: {
   // Calculate based on billing interval
   let breakdown: PricingBreakdown;
 
-  if (pricingOption?.billingInterval === 'one_time') {
+  // Special handling for list-type services:
+  // When priceType is 'list', all pricing comes from selected items, not a base rate
+  const isListTypeService = service.priceType === 'list';
+
+  if (isListTypeService) {
+    // For list-type services, start with an empty breakdown
+    // Price will come entirely from selected price list items
+    breakdown = createEmptyBreakdown(totalHours, totalDays, pricing.currency);
+  } else if (pricingOption?.billingInterval === 'one_time') {
     breakdown = calculateFixedPrice(pricingOption, startTime, endTime, pricing);
   } else if (pricingOption?.billingInterval === 'hourly' || (!pricingOption && pricing.hourlyRate)) {
     breakdown = calculateHourlyPrice(totalHours, startTime, endTime, pricing);
@@ -220,16 +236,16 @@ export async function calculateBookingPrice(params: {
   } else {
     // Fallback to service base price
     breakdown = calculateFixedPrice(
-      { 
-        id: '', 
-        label: 'Base Price', 
-        price: pricing.basePrice || 0, 
+      {
+        id: '',
+        label: 'Base Price',
+        price: pricing.basePrice || 0,
         currency: pricing.currency,
         billingInterval: 'one_time',
-        durationMinutes: null 
+        durationMinutes: null
       },
-      startTime, 
-      endTime, 
+      startTime,
+      endTime,
       pricing
     );
   }
@@ -239,8 +255,39 @@ export async function calculateBookingPrice(params: {
     breakdown = applyFlexiblePricing(breakdown, pricingOption, context, startTime);
   }
 
+  // Apply price list items if selected
+  if (context?.selectedListItems && context.selectedListItems.length > 0) {
+    breakdown = applyPriceListItems(breakdown, service.priceList as PriceListItem[], context.selectedListItems);
+  }
+
   return breakdown;
 }
+
+/**
+ * Create an empty breakdown for list-type services
+ */
+function createEmptyBreakdown(totalHours: number, totalDays: number, currency: string): PricingBreakdown {
+  return {
+    totalHours,
+    totalDays,
+    fullDays: Math.floor(totalDays),
+    extraHours: totalHours % HOURS_PER_DAY,
+    baseCost: 0,
+    dailyCost: 0,
+    hourlyCost: 0,
+    unitMultiplierCost: 0,
+    tierAdjustment: 0,
+    surcharges: [],
+    discount: 0,
+    subtotal: 0,
+    platformFee: 0,
+    total: 0,
+    currency,
+    lineItems: [],
+    calculationMethod: 'fixed',
+  };
+}
+
 
 /**
  * Apply flexible pricing adjustments (units, tiers, advanced surcharges)
@@ -255,7 +302,7 @@ function applyFlexiblePricing(
   const surcharges = [...breakdown.surcharges];
   let unitMultiplierCost = 0;
   let tierAdjustment = 0;
-  
+
   // Apply unit multipliers (e.g., extra dogs, extra children)
   if (pricingOption.includedUnits && context.unitSelections) {
     for (const unit of pricingOption.includedUnits) {
@@ -276,7 +323,7 @@ function applyFlexiblePricing(
       }
     }
   }
-  
+
   // Apply tier adjustments (e.g., pet size)
   if (pricingOption.tiers && context.tierSelections) {
     for (const tier of pricingOption.tiers) {
@@ -297,19 +344,19 @@ function applyFlexiblePricing(
       }
     }
   }
-  
+
   // Apply advanced surcharges from modifiers
   if (pricingOption.modifiers) {
     const modifiers = pricingOption.modifiers;
     const baseCost = breakdown.baseCost + breakdown.dailyCost + breakdown.hourlyCost;
-    
+
     // Evening surcharge
     // Note: percentage value is 0-100 (e.g., 20 for 20%), fixed value is stored in cents
     if (modifiers.eveningSurcharge) {
       const hour = startTime.getHours();
       const afterHour = modifiers.eveningSurcharge.afterHour;
       const beforeHour = modifiers.eveningSurcharge.beforeHour ?? 24;
-      
+
       if (hour >= afterHour || hour < beforeHour) {
         const surchargeType = modifiers.eveningSurcharge.type || 'fixed';
         // For percentage: baseCost * (20/100) = 20% of baseCost
@@ -317,7 +364,7 @@ function applyFlexiblePricing(
         const amount = surchargeType === 'percentage'
           ? baseCost * (modifiers.eveningSurcharge.value / 100)
           : modifiers.eveningSurcharge.value / 100; // Convert cents to CHF
-        
+
         surcharges.push({
           type: 'evening',
           description: `Evening surcharge (after ${afterHour}:00)`,
@@ -333,12 +380,12 @@ function applyFlexiblePricing(
         });
       }
     }
-    
+
     // Express (same-day) surcharge
     if (modifiers.expressSurcharge) {
       const now = new Date();
       const isSameDay = startTime.toDateString() === now.toDateString();
-      
+
       if (isSameDay) {
         const surchargeType = modifiers.expressSurcharge.type;
         // For percentage: baseCost * (20/100) = 20% of baseCost
@@ -346,7 +393,7 @@ function applyFlexiblePricing(
         const amount = surchargeType === 'percentage'
           ? baseCost * (modifiers.expressSurcharge.value / 100)
           : modifiers.expressSurcharge.value / 100; // Convert cents to CHF
-        
+
         surcharges.push({
           type: 'express',
           description: 'Same-day booking surcharge',
@@ -362,12 +409,12 @@ function applyFlexiblePricing(
         });
       }
     }
-    
+
     // Travel fee (all values stored in cents)
     if (modifiers.travelFee && context.travelDistanceKm) {
       const chargeableKm = Math.max(0, context.travelDistanceKm - modifiers.travelFee.freeKm);
       const travelFee = (modifiers.travelFee.baseFee + chargeableKm * modifiers.travelFee.perKmFee) / 100; // Convert cents to CHF
-      
+
       if (travelFee > 0) {
         surcharges.push({
           type: 'travel',
@@ -384,20 +431,80 @@ function applyFlexiblePricing(
       }
     }
   }
-  
+
   // Recalculate totals
   const surchargeTotal = surcharges.reduce((sum, s) => sum + s.amount, 0);
-  const subtotal = breakdown.baseCost + breakdown.dailyCost + breakdown.hourlyCost + 
-                   unitMultiplierCost + tierAdjustment + surchargeTotal;
+  const subtotal = breakdown.baseCost + breakdown.dailyCost + breakdown.hourlyCost +
+    unitMultiplierCost + tierAdjustment + surchargeTotal;
   const platformFee = subtotal * PLATFORM_FEE_PERCENTAGE;
   const total = subtotal + platformFee;
-  
+
   return {
     ...breakdown,
     lineItems,
     surcharges,
     unitMultiplierCost,
     tierAdjustment,
+    subtotal,
+    platformFee,
+    total,
+  };
+}
+
+/**
+ * Apply selected price list items with billing type awareness
+ */
+function applyPriceListItems(
+  breakdown: PricingBreakdown,
+  priceList: PriceListItem[],
+  selectedItems: string[]
+): PricingBreakdown {
+  const lineItems = [...breakdown.lineItems];
+  let additionalCost = 0;
+
+  if (priceList && selectedItems) {
+    for (const itemName of selectedItems) {
+      const item = priceList.find(i => i.description === itemName);
+      if (item) {
+        const itemPrice = parseFloat(item.price);
+        if (!isNaN(itemPrice)) {
+          const billingType = item.billingType || 'once'; // Default to one-time if not specified
+
+          if (billingType === 'per_duration') {
+            // Multiply by duration (use hours or days based on breakdown)
+            const multiplier = breakdown.totalHours > 0 ? breakdown.totalHours : 1;
+            const totalItemCost = itemPrice * multiplier;
+            additionalCost += totalItemCost;
+            lineItems.push({
+              description: `${item.description} (${multiplier.toFixed(1)} hrs @ CHF ${itemPrice}/hr)`,
+              quantity: multiplier,
+              unitPrice: itemPrice,
+              total: totalItemCost,
+              type: 'hourly',
+            });
+          } else {
+            // One-time fixed price
+            additionalCost += itemPrice;
+            lineItems.push({
+              description: item.description,
+              quantity: 1,
+              unitPrice: itemPrice,
+              total: itemPrice,
+              type: 'base',
+            });
+          }
+        }
+      }
+    }
+  }
+
+  const subtotal = breakdown.subtotal + additionalCost;
+  const platformFee = subtotal * PLATFORM_FEE_PERCENTAGE;
+  const total = subtotal + platformFee;
+
+  return {
+    ...breakdown,
+    lineItems,
     subtotal,
     platformFee,
     total,
@@ -786,7 +893,7 @@ function calculateSurcharges(
 function countWeekendDays(start: Date, end: Date): number {
   let count = 0;
   const current = new Date(start);
-  
+
   while (current < end) {
     const day = current.getDay();
     if (day === 0 || day === 6) { // Sunday or Saturday
@@ -794,7 +901,7 @@ function countWeekendDays(start: Date, end: Date): number {
     }
     current.setDate(current.getDate() + 1);
   }
-  
+
   return count;
 }
 
@@ -804,7 +911,7 @@ function countWeekendDays(start: Date, end: Date): number {
 function countHolidayDays(start: Date, end: Date): number {
   let count = 0;
   const current = new Date(start);
-  
+
   while (current < end) {
     const dateStr = current.toISOString().split('T')[0];
     if (SWISS_HOLIDAYS_2024.includes(dateStr)) {
@@ -812,7 +919,7 @@ function countHolidayDays(start: Date, end: Date): number {
     }
     current.setDate(current.getDate() + 1);
   }
-  
+
   return count;
 }
 
@@ -836,7 +943,7 @@ function getPricingFromService(service: any, pricingOption: PricingOption | null
   if (pricingOption) {
     const isHourly = pricingOption.billingInterval === 'hourly';
     const isDaily = pricingOption.billingInterval === 'daily';
-    
+
     return {
       hourlyRate: isHourly ? pricingOption.price : null,
       dailyRate: isDaily ? pricingOption.price : null,
@@ -852,7 +959,7 @@ function getPricingFromService(service: any, pricingOption: PricingOption | null
   // Otherwise use service defaults
   const priceUnit = service.priceUnit || 'fixed';
   const price = parseFloat(service.price) || 0;
-  
+
   return {
     hourlyRate: priceUnit === 'hour' ? price : null,
     dailyRate: priceUnit === 'day' ? price : null,
@@ -888,7 +995,7 @@ export async function getQuickPriceEstimate(params: {
 
   const startTime = new Date();
   const endTime = new Date(startTime);
-  
+
   if (days > 0) {
     endTime.setDate(endTime.getDate() + days);
   }

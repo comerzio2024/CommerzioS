@@ -131,7 +131,7 @@ export async function upgradeToLevel2(
     // Notify user
     await createNotification({
         userId,
-        type: "account_verified",
+        type: "system",
         title: "Verification Complete! 🎉",
         message: creditsAwarded > 0
             ? `You're now Level 2 verified! You've received ${creditsAwarded} bonus credits.`
@@ -217,7 +217,7 @@ export async function upgradeToLevel3(
     // Notify user
     await createNotification({
         userId,
-        type: "account_verified",
+        type: "system",
         title: "Business Verified! 🏆",
         message: `Your business "${businessInfo.name}" is now verified! You've unlocked all premium features.`,
         actionUrl: "/profile",

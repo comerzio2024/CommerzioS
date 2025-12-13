@@ -193,18 +193,15 @@ export function ProposalBuilder({
     // Submit mutation
     const submitMutation = useMutation({
         mutationFn: async (data: ProposalFormData) => {
-            const response = await apiRequest("/api/proposals", {
-                method: "POST",
-                body: JSON.stringify({
-                    serviceRequestId: serviceRequest.id,
-                    ...data,
-                    proposedDate: data.timeBlocks[0]?.date.toISOString(),
-                    proposedDateEnd: data.timeBlocks.length > 1
-                        ? data.timeBlocks[data.timeBlocks.length - 1].date.toISOString()
-                        : undefined,
-                }),
+            const response = await apiRequest("POST", "/api/proposals", {
+                serviceRequestId: serviceRequest.id,
+                ...data,
+                proposedDate: data.timeBlocks[0]?.date.toISOString(),
+                proposedDateEnd: data.timeBlocks.length > 1
+                    ? data.timeBlocks[data.timeBlocks.length - 1].date.toISOString()
+                    : undefined,
             });
-            return response;
+            return response.json();
         },
         onSuccess: () => {
             toast({

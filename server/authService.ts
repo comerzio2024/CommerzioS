@@ -166,6 +166,7 @@ export async function loginUser(data: {
 }): Promise<{
   success: boolean;
   message: string;
+  isDeactivated?: boolean;
   user?: {
     id: string;
     email: string;

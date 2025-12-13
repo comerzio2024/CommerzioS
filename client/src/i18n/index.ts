@@ -61,8 +61,8 @@ export function getCurrentLanguage(): string {
 }
 
 // Helper to change language
-export function changeLanguage(lng: string): Promise<void> {
-    return i18n.changeLanguage(lng);
+export async function changeLanguage(lng: string): Promise<void> {
+    await i18n.changeLanguage(lng);
 }
 
 // Get all supported languages

@@ -10,9 +10,9 @@
  */
 
 import { db } from './db';
-import { 
-  bookings, 
-  vendorAvailabilitySettings, 
+import {
+  bookings,
+  vendorAvailabilitySettings,
   vendorCalendarBlocks,
   services,
   users,
@@ -41,7 +41,7 @@ async function sendBookingNotification(
       .from(services)
       .where(eq(services.id, booking.serviceId))
       .limit(1);
-    
+
     const serviceName = service?.title || 'Service';
     let recipientId: string;
     let title: string;
@@ -122,7 +122,7 @@ export async function getVendorAvailabilitySettings(userId: string) {
     .from(vendorAvailabilitySettings)
     .where(eq(vendorAvailabilitySettings.userId, userId))
     .limit(1);
-  
+
   return settings;
 }
 
@@ -130,11 +130,11 @@ export async function getVendorAvailabilitySettings(userId: string) {
  * Create or update vendor availability settings
  */
 export async function upsertVendorAvailabilitySettings(
-  userId: string, 
+  userId: string,
   data: Partial<InsertVendorAvailabilitySettings>
 ) {
   const existing = await getVendorAvailabilitySettings(userId);
-  
+
   if (existing) {
     const [updated] = await db.update(vendorAvailabilitySettings)
       .set({ ...data, updatedAt: new Date() })
@@ -172,8 +172,8 @@ export function getDefaultWorkingHours() {
  * Get calendar blocks for a vendor
  */
 export async function getVendorCalendarBlocks(
-  userId: string, 
-  startDate: Date, 
+  userId: string,
+  startDate: Date,
   endDate: Date,
   serviceId?: string
 ) {
@@ -186,16 +186,16 @@ export async function getVendorCalendarBlocks(
         lte(vendorCalendarBlocks.startTime, endDate),
         gte(vendorCalendarBlocks.endTime, startDate),
         // Include blocks for this specific service OR all services (null)
-        serviceId 
+        serviceId
           ? or(
-              eq(vendorCalendarBlocks.serviceId, serviceId),
-              isNull(vendorCalendarBlocks.serviceId)
-            )
+            eq(vendorCalendarBlocks.serviceId, serviceId),
+            isNull(vendorCalendarBlocks.serviceId)
+          )
           : undefined
       )
     )
     .orderBy(asc(vendorCalendarBlocks.startTime));
-  
+
   return await query;
 }
 
@@ -209,7 +209,7 @@ export async function createCalendarBlock(
   // Convert string dates to Date objects if needed
   const startTime = typeof data.startTime === 'string' ? new Date(data.startTime) : data.startTime;
   const endTime = typeof data.endTime === 'string' ? new Date(data.endTime) : data.endTime;
-  const recurrenceEndDate = data.recurrenceEndDate 
+  const recurrenceEndDate = data.recurrenceEndDate
     ? (typeof data.recurrenceEndDate === 'string' ? new Date(data.recurrenceEndDate) : data.recurrenceEndDate)
     : null;
 
@@ -219,15 +219,15 @@ export async function createCalendarBlock(
   }
 
   const [block] = await db.insert(vendorCalendarBlocks)
-    .values({ 
-      userId, 
+    .values({
+      userId,
       ...data,
       startTime,
       endTime,
       recurrenceEndDate,
     })
     .returning();
-  
+
   return block;
 }
 
@@ -248,7 +248,7 @@ export async function updateCalendarBlock(
       )
     )
     .returning();
-  
+
   return block;
 }
 
@@ -264,7 +264,7 @@ export async function deleteCalendarBlock(blockId: string, userId: string) {
       )
     )
     .returning();
-  
+
   return deleted;
 }
 
@@ -289,12 +289,12 @@ export async function isTimeSlotAvailable(
 ): Promise<{ available: boolean; reason?: string }> {
   // 1. Check calendar blocks
   const blocks = await getVendorCalendarBlocks(vendorId, startTime, endTime, serviceId);
-  
+
   for (const block of blocks) {
     if (doTimesOverlap(startTime, endTime, block.startTime, block.endTime)) {
-      return { 
-        available: false, 
-        reason: `Time blocked: ${block.title || block.blockType}` 
+      return {
+        available: false,
+        reason: `Time blocked: ${block.title || block.blockType}`
       };
     }
   }
@@ -352,9 +352,9 @@ export async function isTimeSlotAvailable(
     );
 
   if (existingBookings.length > 0 || pendingBookings.length > 0) {
-    return { 
-      available: false, 
-      reason: 'Time slot already booked' 
+    return {
+      available: false,
+      reason: 'Time slot already booked'
     };
   }
 
@@ -364,11 +364,11 @@ export async function isTimeSlotAvailable(
     const workingHours = settings.defaultWorkingHours as Record<string, any>;
     const dayOfWeek = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][startTime.getDay()];
     const daySettings = workingHours[dayOfWeek];
-    
+
     if (!daySettings?.enabled) {
       return { available: false, reason: 'Vendor not available on this day' };
     }
-    
+
     // TODO: Add time-of-day validation if needed
   }
 
@@ -401,14 +401,14 @@ export async function getAvailableSlots(
   }
 
   const vendorId = service.ownerId;
-  
+
   // Try to get service-specific availability settings first
-  let serviceAvailability: { 
-    workingHours?: unknown; 
-    defaultSlotDurationMinutes?: number; 
+  let serviceAvailability: {
+    workingHours?: unknown;
+    defaultSlotDurationMinutes?: number;
     bufferBetweenBookingsMinutes?: number;
   } | null = null;
-  
+
   try {
     const { serviceAvailabilitySettings } = await import('../shared/schema');
     const [svcAvail] = await db.select()
@@ -419,10 +419,10 @@ export async function getAvailableSlots(
   } catch {
     // Table may not exist yet, continue with vendor settings
   }
-  
+
   // Fall back to vendor availability settings
   const vendorSettings = await getVendorAvailabilitySettings(vendorId);
-  
+
   // Get duration from pricing option if specified
   let effectiveDuration = durationMinutes;
   if (pricingOptionId) {
@@ -431,30 +431,30 @@ export async function getAvailableSlots(
       .from(servicePricingOptions)
       .where(eq(servicePricingOptions.id, pricingOptionId))
       .limit(1);
-    
+
     if (pricingOption?.durationMinutes) {
       effectiveDuration = pricingOption.durationMinutes;
     }
   }
-  
+
   // Priority: service availability > vendor settings > defaults
-  const slotDuration = serviceAvailability?.defaultSlotDurationMinutes 
-    || vendorSettings?.defaultSlotDurationMinutes 
+  const slotDuration = serviceAvailability?.defaultSlotDurationMinutes
+    || vendorSettings?.defaultSlotDurationMinutes
     || effectiveDuration;
-    
-  const buffer = serviceAvailability?.bufferBetweenBookingsMinutes 
-    || vendorSettings?.bufferBetweenBookingsMinutes 
+
+  const buffer = serviceAvailability?.bufferBetweenBookingsMinutes
+    || vendorSettings?.bufferBetweenBookingsMinutes
     || 15;
-  
+
   // Get working hours for the day
   const dayOfWeek = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getDay()];
-  
+
   // Priority: service working hours > vendor working hours > defaults
-  const workingHours = (serviceAvailability?.workingHours as Record<string, unknown>) 
-    || (vendorSettings?.defaultWorkingHours as Record<string, unknown>) 
+  const workingHours = (serviceAvailability?.workingHours as Record<string, unknown>)
+    || (vendorSettings?.defaultWorkingHours as Record<string, unknown>)
     || getDefaultWorkingHours();
   const daySettings = workingHours[dayOfWeek] as { enabled?: boolean; start?: string; end?: string } | undefined;
-  
+
   if (!daySettings?.enabled || !daySettings.start || !daySettings.end) {
     return [];
   }
@@ -463,7 +463,7 @@ export async function getAvailableSlots(
   const dayStart = new Date(date);
   const [startHour, startMin] = daySettings.start.split(':').map(Number);
   dayStart.setHours(startHour, startMin, 0, 0);
-  
+
   const dayEnd = new Date(date);
   const [endHour, endMin] = daySettings.end.split(':').map(Number);
   dayEnd.setHours(endHour, endMin, 0, 0);
@@ -484,20 +484,20 @@ export async function getAvailableSlots(
   // Generate available slots
   const slots: TimeSlot[] = [];
   let currentTime = new Date(dayStart);
-  
+
   while (currentTime.getTime() + slotDuration * 60000 <= dayEnd.getTime()) {
     const slotEnd = new Date(currentTime.getTime() + slotDuration * 60000);
-    
+
     // Check if slot conflicts with any block or booking
     let isBlocked = false;
-    
+
     for (const block of blocks) {
       if (doTimesOverlap(currentTime, slotEnd, block.startTime, block.endTime)) {
         isBlocked = true;
         break;
       }
     }
-    
+
     if (!isBlocked) {
       for (const booking of existingBookings) {
         const bookingStart = booking.confirmedStartTime || booking.requestedStartTime;
@@ -508,15 +508,15 @@ export async function getAvailableSlots(
         }
       }
     }
-    
+
     if (!isBlocked) {
       slots.push({ start: new Date(currentTime), end: new Date(slotEnd) });
     }
-    
+
     // Move to next slot (considering buffer)
     currentTime = new Date(currentTime.getTime() + (slotDuration + buffer) * 60000);
   }
-  
+
   return slots;
 }
 
@@ -536,6 +536,7 @@ export async function createBookingRequest(data: {
   customerMessage?: string;
   customerPhone?: string;
   customerAddress?: string;
+  selectedListItems?: string[];
 }): Promise<typeof bookings.$inferSelect> {
   // Get service to find vendor
   const [service] = await db.select()
@@ -549,7 +550,7 @@ export async function createBookingRequest(data: {
 
   // Check vendor settings
   const settings = await getVendorAvailabilitySettings(service.ownerId);
-  
+
   // Check minimum notice
   const minNoticeHours = settings?.minBookingNoticeHours || 24;
   const minNoticeTime = new Date(Date.now() + minNoticeHours * 60 * 60 * 1000);
@@ -598,7 +599,9 @@ export async function createBookingRequest(data: {
       confirmedStartTime,
       confirmedEndTime,
       status,
-      customerMessage: data.customerMessage,
+      customerMessage: data.selectedListItems && data.selectedListItems.length > 0
+        ? (data.customerMessage ? `${data.customerMessage}\n\n` : '') + `Selected Options: ${data.selectedListItems.join(', ')}`
+        : data.customerMessage,
       customerPhone: data.customerPhone,
       customerAddress: data.customerAddress,
       acceptedAt,
@@ -610,7 +613,7 @@ export async function createBookingRequest(data: {
     .from(users)
     .where(eq(users.id, service.ownerId))
     .limit(1);
-  
+
   const vendorName = vendor ? `${vendor.firstName || ''} ${vendor.lastName || ''}`.trim() || 'the vendor' : 'the vendor';
 
   // Notify vendor about new booking request (only if pending, not auto-accepted)
@@ -933,15 +936,15 @@ export async function getVendorBookings(
   offset: number = 0
 ) {
   const conditions = [eq(bookings.vendorId, vendorId)];
-  
+
   if (status) {
     conditions.push(eq(bookings.status, status as any));
   }
-  
+
   if (startDate) {
     conditions.push(gte(sql`COALESCE(${bookings.confirmedStartTime}, ${bookings.requestedStartTime})`, startDate));
   }
-  
+
   if (endDate) {
     conditions.push(lte(sql`COALESCE(${bookings.confirmedStartTime}, ${bookings.requestedStartTime})`, endDate));
   }
@@ -1142,7 +1145,7 @@ export async function getPendingBookingsCount(vendorId: string): Promise<number>
         eq(bookings.status, 'pending')
       )
     );
-  
+
   return result[0]?.count || 0;
 }
 

@@ -38,6 +38,7 @@ interface PriceItem {
   description: string;
   price: string;
   unit: string;
+  billingType?: 'once' | 'per_duration'; // once = fixed, per_duration = multiplied by booking duration
 }
 
 interface ImageMetadata {
@@ -647,7 +648,7 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
   const addPriceItem = () => {
     setFormData((prev: FormData | null) => ({
       ...prev!,
-      priceList: [...prev!.priceList, { description: "", price: "", unit: "" }],
+      priceList: [...prev!.priceList, { description: "", price: "", unit: "", billingType: "once" as const }],
     }));
   };
 
@@ -1960,38 +1961,63 @@ export function ServiceFormModal({ open, onOpenChange, onSuggestCategory, onCate
                       ) : (
                         <div className="space-y-3">
                           {formData.priceList.map((item: PriceItem, idx: number) => (
-                            <div key={idx} className="grid grid-cols-3 gap-2 bg-muted p-3 rounded-lg">
-                              <Input
-                                placeholder="Description (e.g., Basic)"
-                                value={item.description}
-                                onChange={(e) => updatePriceItem(idx, "description", e.target.value)}
-                                data-testid={`input-price-item-description-${idx}`}
-                              />
-                              <Input
-                                placeholder="Price"
-                                type="number"
-                                step="0.01"
-                                value={item.price}
-                                onChange={(e) => updatePriceItem(idx, "price", e.target.value)}
-                                data-testid={`input-price-item-price-${idx}`}
-                              />
-                              <div className="flex gap-2">
+                            <div key={idx} className="bg-muted p-3 rounded-lg space-y-2">
+                              <div className="grid grid-cols-3 gap-2">
                                 <Input
-                                  placeholder="Unit (e.g., hour)"
-                                  value={item.unit}
-                                  onChange={(e) => updatePriceItem(idx, "unit", e.target.value)}
-                                  data-testid={`input-price-item-unit-${idx}`}
+                                  placeholder="Description (e.g., Basic)"
+                                  value={item.description}
+                                  onChange={(e) => updatePriceItem(idx, "description", e.target.value)}
+                                  data-testid={`input-price-item-description-${idx}`}
                                 />
-                                <Button
-                                  type="button"
-                                  size="icon"
-                                  variant="ghost"
-                                  className="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                  onClick={() => removePriceItem(idx)}
-                                  data-testid={`button-remove-price-item-${idx}`}
-                                >
-                                  <X className="w-4 h-4" />
-                                </Button>
+                                <Input
+                                  placeholder="Price"
+                                  type="number"
+                                  step="0.01"
+                                  value={item.price}
+                                  onChange={(e) => updatePriceItem(idx, "price", e.target.value)}
+                                  data-testid={`input-price-item-price-${idx}`}
+                                />
+                                <div className="flex gap-2">
+                                  <Input
+                                    placeholder="Unit (e.g., hour)"
+                                    value={item.unit}
+                                    onChange={(e) => updatePriceItem(idx, "unit", e.target.value)}
+                                    data-testid={`input-price-item-unit-${idx}`}
+                                  />
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    className="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => removePriceItem(idx)}
+                                    data-testid={`button-remove-price-item-${idx}`}
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3 text-sm">
+                                <span className="text-muted-foreground">Billing:</span>
+                                <label className="flex items-center gap-1.5 cursor-pointer">
+                                  <input
+                                    type="radio"
+                                    name={`billing-${idx}`}
+                                    checked={item.billingType !== 'per_duration'}
+                                    onChange={() => updatePriceItem(idx, "billingType", "once")}
+                                    className="w-4 h-4"
+                                  />
+                                  <span>One-time</span>
+                                </label>
+                                <label className="flex items-center gap-1.5 cursor-pointer">
+                                  <input
+                                    type="radio"
+                                    name={`billing-${idx}`}
+                                    checked={item.billingType === 'per_duration'}
+                                    onChange={() => updatePriceItem(idx, "billingType", "per_duration")}
+                                    className="w-4 h-4"
+                                  />
+                                  <span>Per hour/day</span>
+                                </label>
                               </div>
                             </div>
                           ))}

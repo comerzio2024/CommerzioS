@@ -1,0 +1,251 @@
+﻿node.exe : npm warn 
+config optional Use 
+`--omit=optional` to 
+exclude optional 
+dependencies, or
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo      
+        : NotSpecified  
+  : (npm warn config.   
+ ..ependencies, or:S    
+tring) [], RemoteEx    
+ception
+    + FullyQualifiedErr 
+   orId : NativeComman  
+  dError
+ 
+npm warn config 
+`--include=optional` to 
+include them.
+npm warn config
+npm warn config       
+Default value does 
+install optional deps 
+unless otherwise 
+omitted.
+client/src/i18n/index.ts(65,5): error TS2322: Type 'Promise<TFunction<"translation", undefined>>' is not assignable to type 'Promise<void>'.
+  Type 'TFunction<"translation", undefined>' is not assignable to type 'void'.
+client/src/pages/book-service.tsx(173,11): error TS1117: An object literal cannot have multiple properties with the same name.
+client/src/pages/book-service.tsx(457,23): error TS2322: Type 'unknown' is not assignable to type 'string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<...> | null | undefined'.
+client/src/pages/profile.tsx(324,51): error TS2559: Type '"DELETE"' has no properties in common with type 'RequestInit'.
+client/src/pages/profile.tsx(1223,53): error TS2345: Argument of type '"account" | "addresses" | "personal" | "settings"' is not assignable to parameter of type 'SetStateAction<"account" | "addresses" | "personal">'.
+  Type '"settings"' is not assignable to type 'SetStateAction<"account" | "addresses" | "personal">'.
+client/src/pages/profile.tsx(1978,16): error TS2367: This comparison appears to be unintentional because the types '"account" | "addresses" | "personal"' and '"settings"' have no overlap.
+client/src/pages/profile.tsx(2356,31): error TS2801: This condition will always return true since this 'Promise<boolean>' is always defined.
+client/src/pages/profile.tsx(2356,39): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ConfirmOptions'.
+client/src/pages/profile.tsx(2368,31): error TS2801: This condition will always return true since this 'Promise<boolean>' is always defined.
+client/src/pages/profile.tsx(2368,39): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ConfirmOptions'.
+client/src/pages/profile.tsx(2386,31): error TS2801: This condition will always return true since this 'Promise<boolean>' is always defined.
+client/src/pages/profile.tsx(2386,39): error TS2345: Argument of type 'string' is not assignable to parameter of type 'ConfirmOptions'.
+client/src/pages/profile.tsx(2611,69): error TS2367: This comparison appears to be unintentional because the types '"active"' and '"draft"' have no overlap.
+client/src/pages/profile.tsx(4078,19): error TS2304: Cannot find name 'logout'.
+client/src/pages/profile.tsx(4145,19): error TS2304: Cannot find name 'logout'.
+client/src/pages/profile.tsx(4215,19): error TS2304: Cannot find name 'logout'.
+client/src/pages/profile.tsx(4885,3): error TS2717: Subsequent property declarations must have the same type.  Property 'referralCode' must be of type 'string', but here has type 'string | null'.
+server/adminAuth.ts(284,13): error TS18047: 'existingAdmin.email' is possibly 'null'.
+server/auth.ts(152,15): error TS2353: Object literal may only specify known properties, and 'isDeactivated' does not exist in type 'IVerifyOptions'.
+server/auth.ts(536,13): error TS2304: Cannot find name 'db'.
+server/auth.ts(536,23): error TS2304: Cannot find name 'users'.
+server/auth.ts(541,16): error TS2304: Cannot find name 'eq'.
+server/auth.ts(541,19): error TS2304: Cannot find name 'users'.
+server/authService.ts(223,7): error TS2353: Object literal may only specify known properties, and 'isDeactivated' does not exist in type '{ success: boolean; message: string; user?: { id: string; email: string; firstName: string | null; lastName: string | null; profileImageUrl: string | null; isAdmin: boolean; emailVerified: boolean; } | undefined; }'.
+server/authService.ts(659,38): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(value: { message: string | SQL<unknown> | Placeholder<string, any>; type: "message" | "booking" | "payment" | "review" | "promotion" | "system" | "referral" | SQL<unknown> | "service" | "tip" | "question" | Placeholder<...>; ... 18 more ...; pushSentAt?: SQL<...> | ... 3 more ... | undefined; }): PgInsertBase<...>', gave the following error.
+    Object literal may only specify known properties, and 'link' does not exist in type '{ message: string | SQL<unknown> | Placeholder<string, any>; type: "message" | "booking" | "payment" | "review" | "promotion" | "system" | "referral" | SQL<unknown> | "service" | "tip" | "question" | Placeholder<...>; ... 18 more ...; pushSentAt?: SQL<...> | ... 3 more ... | undefined; }'.
+  Overload 2 of 2, '(values: { message: string | SQL<unknown> | Placeholder<string, any>; type: "message" | "booking" | "payment" | "review" | "promotion" | "system" | "referral" | SQL<unknown> | "service" | "tip" | "question" | Placeholder<...>; ... 18 more ...; pushSentAt?: SQL<...> | ... 3 more ... | undefined; }[]): PgInsertBase<...>', gave the following error.
+    Object literal may only specify known properties, and 'userId' does not exist in type '{ message: string | SQL<unknown> | Placeholder<string, any>; type: "message" | "booking" | "payment" | "review" | "promotion" | "system" | "referral" | SQL<unknown> | "service" | "tip" | "question" | Placeholder<...>; ... 18 more ...; pushSentAt?: SQL<...> | ... 3 more ... | undefined; }[]'.
+server/authService.ts(689,33): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+server/authService.ts(701,95): error TS2304: Cannot find name 'Result'.
+server/authService.ts(718,25): error TS2304: Cannot find name 'comparePassword'.
+server/bookingPaymentProtocol.ts(189,9): error TS2322: Type '"payment_reminder"' is not assignable to type '"message" | "booking" | "payment" | "review" | "promotion" | "system" | "referral" | "service" | "tip" | "question"'.
+server/bookingPaymentProtocol.ts(220,13): error TS2353: Object literal may only specify known properties, and 'cancelledByUserId' does not exist in type '{ serviceId?: string | SQL<unknown> | PgColumn<ColumnBaseConfig<ColumnDataType, string>, {}, {}> | undefined; bookingNumber?: string | SQL<...> | PgColumn<...> | undefined; ... 37 more ...; completedAt?: SQL<...> | ... 3 more ... | undefined; }'.
+server/bookingPaymentProtocol.ts(229,9): error TS2322: Type '"booking_cancelled"' is not assignable to type '"message" | "booking" | "payment" | "review" | "promotion" | "system" | "referral" | "service" | "tip" | "question"'.
+server/bookingPaymentProtocol.ts(237,9): error TS2322: Type '"booking_cancelled"' is not assignable to type '"message" | "booking" | "payment" | "review" | "promotion" | "system" | "referral" | "service" | "tip" | "question"'.
+server/bookingPaymentProtocol.ts(271,35): error TS2339: Property 'depositAmount' does not exist on type '{ id: string; bookingNumber: string; customerId: string; vendorId: string; serviceId: string; pricingOptionId: string | null; paymentMethod: "card" | "twint" | "cash"; stripePaymentIntentId: string | null; ... 31 more ...; updatedAt: Date; }'.
+server/bookingPaymentProtocol.ts(296,9): error TS2322: Type '"payment_received"' is not assignable to type '"message" | "booking" | "payment" | "review" | "promotion" | "system" | "referral" | "service" | "tip" | "question"'.
+server/bookingPaymentProtocol.ts(403,30): error TS2339: Property 'depositAmount' does not exist on type '{ id: string; bookingNumber: string; customerId: string; vendorId: string; serviceId: string; pricingOptionId: string | null; paymentMethod: "card" | "twint" | "cash"; stripePaymentIntentId: string | null; ... 31 more ...; updatedAt: Date; }'.
+server/chatService.ts(597,11): error TS2353: Object literal may only specify known properties, and 'metadata' does not exist in type '{ customerId?: string | SQL<unknown> | PgColumn<ColumnBaseConfig<ColumnDataType, string>, {}, {}> | undefined; vendorId?: string | SQL<...> | PgColumn<...> | undefined; ... 12 more ...; flagReason?: string | ... 3 more ... | undefined; }'.
+server/chatService.ts(1172,23): error TS2339: Property 'metadata' does not exist on type '{ id: string; customerId: string; vendorId: string; bookingId: string | null; orderId: string | null; serviceId: string | null; status: "active" | "closed" | "archived" | "blocked"; ... 7 more ...; updatedAt: Date; }'.
+server/chatService.ts(1172,50): error TS2339: Property 'metadata' does not exist on type '{ id: string; customerId: string; vendorId: string; bookingId: string | null; orderId: string | null; serviceId: string | null; status: "active" | "closed" | "archived" | "blocked"; ... 7 more ...; updatedAt: Date; }'.
+server/chatService.ts(1187,11): error TS2353: Object literal may only specify known properties, and 'metadata' does not exist in type '{ customerId?: string | SQL<unknown> | PgColumn<ColumnBaseConfig<ColumnDataType, string>, {}, {}> | undefined; vendorId?: string | SQL<...> | PgColumn<...> | undefined; ... 12 more ...; flagReason?: string | ... 3 more ... | undefined; }'.
+server/chatService.ts(1216,15): error TS2339: Property 'metadata' does not exist on type '{ id: string; conversationId: string; senderId: string; senderRole: "system" | "customer" | "vendor"; content: string; originalContent: string | null; messageType: "system" | "image" | "text" | "file" | "booking_update" | "payment_update"; ... 9 more ...; createdAt: Date; }'.
+server/chatService.ts(1218,42): error TS2339: Property 'metadata' does not exist on type '{ id: string; conversationId: string; senderId: string; senderRole: "system" | "customer" | "vendor"; content: string; originalContent: string | null; messageType: "system" | "image" | "text" | "file" | "booking_update" | "payment_update"; ... 9 more ...; createdAt: Date; }'.
+server/chatService.ts(1239,17): error TS2353: Object literal may only specify known properties, and 'metadata' does not exist in type '{ content?: string | SQL<unknown> | PgColumn<ColumnBaseConfig<ColumnDataType, string>, {}, {}> | undefined; conversationId?: string | SQL<...> | PgColumn<...> | undefined; ... 14 more ...; deletedAt?: SQL<...> | ... 3 more ... | undefined; }'.
+server/comPointsService.ts(359,9): error TS2322: Type '"reward"' is not assignable to type '"message" | "booking" | "payment" | "review" | "promotion" | "system" | "referral" | "service" | "tip" | "question"'.
+server/comPointsService.ts(463,9): error TS2322: Type '"reward"' is not assignable to type '"message" | "booking" | "payment" | "review" | "promotion" | "system" | "referral" | "service" | "tip" | "question"'.
+server/comPointsService.ts(557,30): error TS2367: This comparison appears to be unintentional because the types '"expired" | "in_progress" | "completed" | "available"' and '"claimed"' have no overlap.
+server/launch100QualificationService.ts(304,35): error TS2339: Property 'totalAmount' does not exist on type 'PgTableWithColumns<{ name: "bookings"; schema: undefined; columns: { id: PgColumn<{ name: "id"; tableName: "bookings"; dataType: "string"; columnType: "PgVarchar"; data: string; driverParam: string; notNull: true; hasDefault: true; ... 6 more ...; generated: undefined; }, {}, { ...; }>; ... 38 more ...; updatedAt: P...'.
+server/launch100QualificationService.ts(311,29): error TS2339: Property 'earningsTransferred' does not exist on type 'PgTableWithColumns<{ name: "bookings"; schema: undefined; columns: { id: PgColumn<{ name: "id"; tableName: "bookings"; dataType: "string"; columnType: "PgVarchar"; data: string; driverParam: string; notNull: true; hasDefault: true; ... 6 more ...; generated: undefined; }, {}, { ...; }>; ... 38 more ...; updatedAt: P...'.
+server/proofOfAttendanceService.ts(268,9): error TS2322: Type '"booking_update"' is not assignable to type '"message" | "booking" | "payment" | "review" | "promotion" | "system" | "referral" | "service" | "tip" | "question"'.
+server/proofOfAttendanceService.ts(306,9): error TS2322: Type '"booking_completed"' is not assignable to type '"message" | "booking" | "payment" | "review" | "promotion" | "system" | "referral" | "service" | "tip" | "question"'.
+server/proofOfAttendanceService.ts(314,9): error TS2322: Type '"booking_completed"' is not assignable to type '"message" | "booking" | "payment" | "review" | "promotion" | "system" | "referral" | "service" | "tip" | "question"'.
+server/routes.ts(104,10): error TS2300: Duplicate identifier 'moderateMessage'.
+server/routes.ts(217,3): error TS2300: Duplicate identifier 'moderateMessage'.
+server/routes.ts(351,19): error TS7006: Parameter 'err' implicitly has an 'any' type.
+server/routes.ts(388,19): error TS7006: Parameter 'err' implicitly has an 'any' type.
+server/routes.ts(1234,25): error TS2304: Cannot find name 'bookings'.
+server/routes.ts(1235,17): error TS2304: Cannot find name 'bookings'.
+server/routes.ts(1238,18): error TS2304: Cannot find name 'bookings'.
+server/routes.ts(1239,18): error TS2304: Cannot find name 'bookings'.
+server/routes.ts(1244,25): error TS2304: Cannot find name 'bookings'.
+server/routes.ts(1245,17): error TS2304: Cannot find name 'bookings'.
+server/routes.ts(1248,18): error TS2304: Cannot find name 'bookings'.
+server/routes.ts(1249,18): error TS2304: Cannot find name 'bookings'.
+server/routes.ts(3115,52): error TS2339: Property 'username' does not exist on type '{ id: string; email: string | null; firstName: string | null; lastName: string | null; profileImageUrl: string | null; phone: string | null; phoneNumber: string | null; passwordHash: string | null; ... 61 more ...; updatedAt: Date; }'.
+server/routes.ts(3116,55): error TS2339: Property 'displayName' does not exist on type '{ id: string; email: string | null; firstName: string | null; lastName: string | null; profileImageUrl: string | null; phone: string | null; phoneNumber: string | null; passwordHash: string | null; ... 61 more ...; updatedAt: Date; }'.
+server/routes.ts(3118,56): error TS2551: Property 'profileImage' does not exist on type '{ id: string; email: string | null; firstName: string | null; lastName: string | null; profileImageUrl: string | null; phone: string | null; phoneNumber: string | null; passwordHash: string | null; ... 61 more ...; updatedAt: Date; }'. Did you mean 'profileImageUrl'?
+server/routes.ts(3125,29): error TS2339: Property 'username' does not exist on type '{ id: string; email: string | null; firstName: string | null; lastName: string | null; profileImageUrl: string | null; phone: string | null; phoneNumber: string | null; passwordHash: string | null; ... 61 more ...; updatedAt: Date; }'.
+server/routes.ts(3126,32): error TS2339: Property 'displayName' does not exist on type '{ id: string; email: string | null; firstName: string | null; lastName: string | null; profileImageUrl: string | null; phone: string | null; phoneNumber: string | null; passwordHash: string | null; ... 61 more ...; updatedAt: Date; }'.
+server/routes.ts(3128,33): error TS2551: Property 'profileImage' does not exist on type '{ id: string; email: string | null; firstName: string | null; lastName: string | null; profileImageUrl: string | null; phone: string | null; phoneNumber: string | null; passwordHash: string | null; ... 61 more ...; updatedAt: Date; }'. Did you mean 'profileImageUrl'?
+server/routes.ts(3357,39): error TS2339: Property 'slug' does not exist on type 'ServiceWithRelations'.
+server/routes.ts(3378,34): error TS2339: Property 'username' does not exist on type '{ id: string; email: string | null; firstName: string | null; lastName: string | null; profileImageUrl: string | null; phone: string | null; phoneNumber: string | null; passwordHash: string | null; ... 61 more ...; updatedAt: Date; }'.
+server/routes.ts(3379,37): error TS2339: Property 'displayName' does not exist on type '{ id: string; email: string | null; firstName: string | null; lastName: string | null; profileImageUrl: string | null; phone: string | null; phoneNumber: string | null; passwordHash: string | null; ... 61 more ...; updatedAt: Date; }'.
+server/routes.ts(3381,38): error TS2551: Property 'profileImage' does not exist on type '{ id: string; email: string | null; firstName: string | null; lastName: string | null; profileImageUrl: string | null; phone: string | null; phoneNumber: string | null; passwordHash: string | null; ... 61 more ...; updatedAt: Date; }'. Did you mean 'profileImageUrl'?
+server/routes.ts(3453,44): error TS2339: Property 'slug' does not exist on type '{ id: string; status: "active" | "draft" | "paused" | "expired" | "archived"; description: string; createdAt: Date; updatedAt: Date; locationLat: string | null; locationLng: string | null; ... 35 more ...; expiresAt: Date; }'.
+server/routes.ts(8975,53): error TS2304: Cannot find name 'User'.
+server/routes/disputes.routes.ts(223,39): error TS2551: Property 'notifyDisputeParties' does not exist on type 'typeof import("D:/Documents/GitHub/CommerzioS/server/services/disputePhaseService")'. Did you mean 'getDisputeParties'?
+server/routes/users.routes.ts(15,17): error TS2724: '"@shared/schema"' has no exported member named 'userAddresses'. Did you mean 'addresses'?
+server/routes/users.routes.ts(39,48): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(req: AuthenticatedRequest, res: Response) => Promise<void>' is not assignable to parameter of type 'RequestHandlerParams<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+      Type '(req: AuthenticatedRequest, res: Response) => Promise<void>' is not assignable to type 'RequestHandler<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+        Types of parameters 'req' and 'req' are incompatible.
+          Type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>' is not assignable to type 'AuthenticatedRequest'.
+            Type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>' is not assignable to type '{ user?: { id: string; email: string; firstName?: string | undefined; } | undefined; logout: (cb: (err: any) => void) => void; login: (user: any, cb: (err: any) => void) => void; session: any; }'.
+              Types of property 'user' are incompatible.
+                Type 'User | undefined' is not assignable to type '{ id: string; email: string; firstName?: string | undefined; } | undefined'.
+                  Type 'User' is not assignable to type '{ id: string; email: string; firstName?: string | undefined; }'.
+                    Types of property 'firstName' are incompatible.
+                      Type 'string | null' is not assignable to type 'string | undefined'.
+                        Type 'null' is not assignable to type 'string | undefined'.
+server/routes/users.routes.ts(58,49): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(req: AuthenticatedRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>' is not assignable to parameter of type 'RequestHandlerParams<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+      Type '(req: AuthenticatedRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>' is not assignable to type 'RequestHandler<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+        Types of parameters 'req' and 'req' are incompatible.
+          Type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>' is not assignable to type 'AuthenticatedRequest'.
+            Type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>' is not assignable to type '{ user?: { id: string; email: string; firstName?: string | undefined; } | undefined; logout: (cb: (err: any) => void) => void; login: (user: any, cb: (err: any) => void) => void; session: any; }'.
+              Types of property 'user' are incompatible.
+                Type 'User | undefined' is not assignable to type '{ id: string; email: string; firstName?: string | undefined; } | undefined'.
+                  Type 'User' is not assignable to type '{ id: string; email: string; firstName?: string | undefined; }'.
+                    Types of property 'firstName' are incompatible.
+                      Type 'string | null' is not assignable to type 'string | undefined'.
+                        Type 'null' is not assignable to type 'string | undefined'.
+server/routes/users.routes.ts(112,50): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(req: AuthenticatedRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>' is not assignable to parameter of type 'RequestHandlerParams<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+      Type '(req: AuthenticatedRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>' is not assignable to type 'RequestHandler<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+        Types of parameters 'req' and 'req' are incompatible.
+          Type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>' is not assignable to type 'AuthenticatedRequest'.
+            Type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>' is not assignable to type '{ user?: { id: string; email: string; firstName?: string | undefined; } | undefined; logout: (cb: (err: any) => void) => void; login: (user: any, cb: (err: any) => void) => void; session: any; }'.
+              Types of property 'user' are incompatible.
+                Type 'User | undefined' is not assignable to type '{ id: string; email: string; firstName?: string | undefined; } | undefined'.
+                  Type 'User' is not assignable to type '{ id: string; email: string; firstName?: string | undefined; }'.
+                    Types of property 'firstName' are incompatible.
+                      Type 'string | null' is not assignable to type 'string | undefined'.
+                        Type 'null' is not assignable to type 'string | undefined'.
+server/routes/users.routes.ts(142,59): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(req: AuthenticatedRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>' is not assignable to parameter of type 'RequestHandlerParams<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+      Type '(req: AuthenticatedRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>' is not assignable to type 'RequestHandler<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+        Types of parameters 'req' and 'req' are incompatible.
+          Type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>' is not assignable to type 'AuthenticatedRequest'.
+            Type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>' is not assignable to type '{ user?: { id: string; email: string; firstName?: string | undefined; } | undefined; logout: (cb: (err: any) => void) => void; login: (user: any, cb: (err: any) => void) => void; session: any; }'.
+              Types of property 'user' are incompatible.
+                Type 'User | undefined' is not assignable to type '{ id: string; email: string; firstName?: string | undefined; } | undefined'.
+                  Type 'User' is not assignable to type '{ id: string; email: string; firstName?: string | undefined; }'.
+                    Types of property 'firstName' are incompatible.
+                      Type 'string | null' is not assignable to type 'string | undefined'.
+                        Type 'null' is not assignable to type 'string | undefined'.
+server/routes/users.routes.ts(176,38): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(req: AuthenticatedRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>' is not assignable to parameter of type 'Application<Record<string, any>>'.
+      Type '(req: AuthenticatedRequest, res: Response<any, Record<string, any>>) => Promise<Response<any, Record<string, any>> | undefined>' is missing the following properties from type 'Application<Record<string, any>>': init, defaultConfiguration, engine, set, and 63 more.
+server/routes/users.routes.ts(206,57): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(req: AuthenticatedRequest, res: Response) => Promise<void>' is not assignable to parameter of type 'RequestHandlerParams<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+      Type '(req: AuthenticatedRequest, res: Response) => Promise<void>' is not assignable to type 'RequestHandler<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+        Types of parameters 'req' and 'req' are incompatible.
+          Type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>' is not assignable to type 'AuthenticatedRequest'.
+            Type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>' is not assignable to type '{ user?: { id: string; email: string; firstName?: string | undefined; } | undefined; logout: (cb: (err: any) => void) => void; login: (user: any, cb: (err: any) => void) => void; session: any; }'.
+              Types of property 'user' are incompatible.
+                Type 'User | undefined' is not assignable to type '{ id: string; email: string; firstName?: string | undefined; } | undefined'.
+                  Type 'User' is not assignable to type '{ id: string; email: string; firstName?: string | undefined; }'.
+                    Types of property 'firstName' are incompatible.
+                      Type 'string | null' is not assignable to type 'string | undefined'.
+                        Type 'null' is not assignable to type 'string | undefined'.
+server/routes/users.routes.ts(221,58): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(req: AuthenticatedRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>' is not assignable to parameter of type 'RequestHandlerParams<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+      Type '(req: AuthenticatedRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>' is not assignable to type 'RequestHandler<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+        Types of parameters 'req' and 'req' are incompatible.
+          Type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>' is not assignable to type 'AuthenticatedRequest'.
+            Type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>' is not assignable to type '{ user?: { id: string; email: string; firstName?: string | undefined; } | undefined; logout: (cb: (err: any) => void) => void; login: (user: any, cb: (err: any) => void) => void; session: any; }'.
+              Types of property 'user' are incompatible.
+                Type 'User | undefined' is not assignable to type '{ id: string; email: string; firstName?: string | undefined; } | undefined'.
+                  Type 'User' is not assignable to type '{ id: string; email: string; firstName?: string | undefined; }'.
+                    Types of property 'firstName' are incompatible.
+                      Type 'string | null' is not assignable to type 'string | undefined'.
+                        Type 'null' is not assignable to type 'string | undefined'.
+server/routes/users.routes.ts(229,43): error TS2554: Expected 2 arguments, but got 1.
+server/routes/users.routes.ts(244,63): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(req: AuthenticatedRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>' is not assignable to parameter of type 'RequestHandlerParams<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+      Type '(req: AuthenticatedRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>' is not assignable to type 'RequestHandler<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+        Types of parameters 'req' and 'req' are incompatible.
+          Type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>' is not assignable to type 'AuthenticatedRequest'.
+            Type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>' is not assignable to type '{ user?: { id: string; email: string; firstName?: string | undefined; } | undefined; logout: (cb: (err: any) => void) => void; login: (user: any, cb: (err: any) => void) => void; session: any; }'.
+              Types of property 'user' are incompatible.
+                Type 'User | undefined' is not assignable to type '{ id: string; email: string; firstName?: string | undefined; } | undefined'.
+                  Type 'User' is not assignable to type '{ id: string; email: string; firstName?: string | undefined; }'.
+                    Types of property 'firstName' are incompatible.
+                      Type 'string | null' is not assignable to type 'string | undefined'.
+                        Type 'null' is not assignable to type 'string | undefined'.
+server/routes/users.routes.ts(258,43): error TS2554: Expected 3 arguments, but got 2.
+server/routes/users.routes.ts(270,64): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(req: AuthenticatedRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>' is not assignable to parameter of type 'RequestHandlerParams<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+      Type '(req: AuthenticatedRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>' is not assignable to type 'RequestHandler<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+        Types of parameters 'req' and 'req' are incompatible.
+          Type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>' is not assignable to type 'AuthenticatedRequest'.
+            Type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>' is not assignable to type '{ user?: { id: string; email: string; firstName?: string | undefined; } | undefined; logout: (cb: (err: any) => void) => void; login: (user: any, cb: (err: any) => void) => void; session: any; }'.
+              Types of property 'user' are incompatible.
+                Type 'User | undefined' is not assignable to type '{ id: string; email: string; firstName?: string | undefined; } | undefined'.
+                  Type 'User' is not assignable to type '{ id: string; email: string; firstName?: string | undefined; }'.
+                    Types of property 'firstName' are incompatible.
+                      Type 'string | null' is not assignable to type 'string | undefined'.
+                        Type 'null' is not assignable to type 'string | undefined'.
+server/routes/users.routes.ts(284,27): error TS2554: Expected 2 arguments, but got 1.
+server/services/disputeAiService.ts(81,7): error TS2304: Cannot find name 'or'.
+server/services/disputeAiService.ts(82,27): error TS2339: Property 'customerId' does not exist on type 'PgTableWithColumns<{ name: "escrow_disputes"; schema: undefined; columns: { id: PgColumn<{ name: "id"; tableName: "escrow_disputes"; dataType: "string"; columnType: "PgVarchar"; data: string; driverParam: string; notNull: true; ... 7 more ...; generated: undefined; }, {}, { ...; }>; ... 13 more ...; resolvedAt: PgCo...'.
+server/services/disputeAiService.ts(83,27): error TS2339: Property 'vendorId' does not exist on type 'PgTableWithColumns<{ name: "escrow_disputes"; schema: undefined; columns: { id: PgColumn<{ name: "id"; tableName: "escrow_disputes"; dataType: "string"; columnType: "PgVarchar"; data: string; driverParam: string; notNull: true; ... 7 more ...; generated: undefined; }, {}, { ...; }>; ... 13 more ...; resolvedAt: PgCo...'.
+server/services/disputeAiService.ts(96,28): error TS2339: Property 'customerId' does not exist on type '{ id: string; escrowTransactionId: string; bookingId: string; raisedBy: "customer" | "vendor"; raisedByUserId: string; reason: "other" | "no_show" | "poor_quality" | "wrong_service" | "service_not_provided" | "overcharged"; ... 8 more ...; resolvedAt: Date | null; }'.
+server/services/disputeAiService.ts(100,33): error TS2339: Property 'vendorId' does not exist on type '{ id: string; escrowTransactionId: string; bookingId: string; raisedBy: "customer" | "vendor"; raisedByUserId: string; reason: "other" | "no_show" | "poor_quality" | "wrong_service" | "service_not_provided" | "overcharged"; ... 8 more ...; resolvedAt: Date | null; }'.
+server/socialMissionVerificationService.ts(60,9): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+server/socialMissionVerificationService.ts(62,23): error TS2339: Property 'providerUserId' does not exist on type '{ id: string; userId: string; provider: "google" | "twitter" | "facebook"; accessToken: string | null; refreshToken: string | null; expiresAt: Date | null; createdAt: Date; updatedAt: Date; }'.
+server/socialMissionVerificationService.ts(63,25): error TS2339: Property 'providerUsername' does not exist on type '{ id: string; userId: string; provider: "google" | "twitter" | "facebook"; accessToken: string | null; refreshToken: string | null; expiresAt: Date | null; createdAt: Date; updatedAt: Date; }'.
+server/socialMissionVerificationService.ts(74,48): error TS2345: Argument of type '"twitter" | "facebook" | "instagram"' is not assignable to parameter of type '"google" | "twitter" | "facebook"'.
+  Type '"instagram"' is not assignable to type '"google" | "twitter" | "facebook"'.
+server/storage.ts(1154,46): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(value: { userId: string | SQL<unknown> | Placeholder<string, any>; action: SQL<unknown> | "warn" | "suspend" | "ban" | "kick" | "reactivate" | Placeholder<string, any>; ... 6 more ...; ipAddress?: string | ... 3 more ... | undefined; }): PgInsertBase<...>', gave the following error.
+    Type '"active" | "inactive" | "warned" | "suspended" | "banned" | "kicked"' is not assignable to type 'SQL<unknown> | "active" | "warned" | "suspended" | "banned" | "kicked" | Placeholder<string, any> | null | undefined'.
+      Type '"inactive"' is not assignable to type 'SQL<unknown> | "active" | "warned" | "suspended" | "banned" | "kicked" | Placeholder<string, any> | null | undefined'. Did you mean '"active"'?
+  Overload 2 of 2, '(values: { userId: string | SQL<unknown> | Placeholder<string, any>; action: SQL<unknown> | "warn" | "suspend" | "ban" | "kick" | "reactivate" | Placeholder<string, any>; ... 6 more ...; ipAddress?: string | ... 3 more ... | undefined; }[]): PgInsertBase<...>', gave the following error.
+    Object literal may only specify known properties, and 'userId' does not exist in type '{ userId: string | SQL<unknown> | Placeholder<string, any>; action: SQL<unknown> | "warn" | "suspend" | "ban" | "kick" | "reactivate" | Placeholder<string, any>; ... 6 more ...; ipAddress?: string | ... 3 more ... | undefined; }[]'.
+server/storage.ts(1528,23): error TS2345: Argument of type 'SQL<unknown> | undefined' is not assignable to parameter of type 'SQL<unknown>'.
+  Type 'undefined' is not assignable to type 'SQL<unknown>'.
+server/storage.ts(1533,23): error TS2345: Argument of type 'SQL<unknown> | undefined' is not assignable to parameter of type 'SQL<unknown>'.
+  Type 'undefined' is not assignable to type 'SQL<unknown>'.
+server/swissVerificationService.ts(120,13): error TS2353: Object literal may only specify known properties, and 'stripeAccountId' does not exist in type '{ id?: string | SQL<unknown> | PgColumn<ColumnBaseConfig<ColumnDataType, string>, {}, {}> | undefined; points?: number | SQL<unknown> | PgColumn<...> | undefined; ... 67 more ...; launch100RevocationReason?: string | ... 3 more ... | undefined; }'.
+server/swissVerificationService.ts(134,9): error TS2322: Type '"account_verified"' is not assignable to type '"message" | "booking" | "payment" | "review" | "promotion" | "system" | "referral" | "service" | "tip" | "question"'.
+server/swissVerificationService.ts(220,9): error TS2322: Type '"account_verified"' is not assignable to type '"message" | "booking" | "payment" | "review" | "promotion" | "system" | "referral" | "service" | "tip" | "question"'.
+
