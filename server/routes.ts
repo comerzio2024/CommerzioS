@@ -266,6 +266,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { registerComPointsRoutes } = await import("./routes/comPoints.routes");
   registerComPointsRoutes(app);
 
+  // SMS routes (Twilio integration, paid credits)
+  const { registerSmsRoutes } = await import("./routes/sms.routes");
+  registerSmsRoutes(app);
+
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
