@@ -57,7 +57,7 @@ export function registerModularRoutes(app: Express): void {
     registerReviewsRoutes(app);
     registerReferralsRoutes(app);
 
-    console.log("✓ All modular routes registered (12 complete, 5 stubs)");
+    console.log("✓ All modular routes registered (13 complete, 4 stubs)");
 }
 
 // Re-export for backward compatibility
