@@ -1150,16 +1150,7 @@ export class DatabaseStorage implements IStorage {
         .where(eq(users.id, userId))
         .returning();
 
-      // Log moderation action
-      await tx.insert(userModerationActions).values({
-        userId,
-        adminId,
-        action,
-        previousStatus,
-        newStatus,
-        reason,
-        ipAddress,
-      });
+      // Log moderation action\n      await tx.insert(userModerationActions).values({\n        userId,\n        adminId,\n        action,\n        previousStatus: previousStatus as any,\n        newStatus: newStatus as any,\n        reason,\n        ipAddress,\n      } as any);
 
       // If banning or kicking, add identifiers to banned list (with uniqueness check)
       if (action === "ban" || action === "kick") {
