@@ -351,7 +351,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Logout session
-      req.logout((err) => {
+      req.logout((err: any) => {
         if (err) console.error("Logout error after delete:", err);
         req.session.destroy(() => {
           res.clearCookie("sid");
@@ -388,7 +388,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       // Logout session
-      req.logout((err) => {
+      req.logout((err: any) => {
         if (err) console.error("Logout error after deactivation:", err);
         req.session.destroy(() => {
           res.clearCookie("sid");

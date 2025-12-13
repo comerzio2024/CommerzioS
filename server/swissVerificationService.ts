@@ -117,7 +117,7 @@ export async function upgradeToLevel2(
         .update(users)
         .set({
             verificationLevel: "LEVEL_2",
-            stripeAccountId,
+            // stripeAccountId, // Removed - field not in users schema
         })
         .where(eq(users.id, userId));
 

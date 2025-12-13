@@ -102,9 +102,9 @@ router.get("/me/addresses", isAuthenticated, async (req: any, res: Response) => 
     try {
         const userId = req.user!.id;
         const addresses = await db.select()
-            .from(userAddresses)
-            .where(eq(userAddresses.userId, userId))
-            .orderBy(desc(userAddresses.isDefault));
+            .from(addresses)
+            .where(eq(addresses.userId, userId))
+            .orderBy(desc(addresses.isDefault));
         res.json(addresses);
     } catch (error) {
         console.error("Error fetching addresses:", error);
@@ -123,12 +123,12 @@ router.post("/me/addresses", isAuthenticated, async (req: any, res: Response) =>
 
         // If setting as default, unset others
         if (isDefault) {
-            await db.update(userAddresses)
+            await db.update(addresses)
                 .set({ isDefault: false })
-                .where(eq(userAddresses.userId, userId));
+                .where(eq(addresses.userId, userId));
         }
 
-        const [address] = await db.insert(userAddresses).values({
+        const [address] = await db.insert(addresses).values({
             userId,
             label,
             street,
@@ -157,8 +157,8 @@ router.patch("/me/addresses/:id", isAuthenticated, async (req: any, res: Respons
 
         // Verify ownership
         const [existing] = await db.select()
-            .from(userAddresses)
-            .where(eq(userAddresses.id, addressId))
+            .from(addresses)
+            .where(eq(addresses.id, addressId))
             .limit(1);
 
         if (!existing || existing.userId !== userId) {
@@ -168,12 +168,12 @@ router.patch("/me/addresses/:id", isAuthenticated, async (req: any, res: Respons
         const { label, street, city, postalCode, canton, country, isDefault } = req.body;
 
         if (isDefault) {
-            await db.update(userAddresses)
+            await db.update(addresses)
                 .set({ isDefault: false })
-                .where(eq(userAddresses.userId, userId));
+                .where(eq(addresses.userId, userId));
         }
 
-        const [updated] = await db.update(userAddresses)
+        const [updated] = await db.update(addresses)
             .set({
                 label: label ?? existing.label,
                 street: street ?? existing.street,
@@ -183,7 +183,7 @@ router.patch("/me/addresses/:id", isAuthenticated, async (req: any, res: Respons
                 country: country ?? existing.country,
                 isDefault: isDefault ?? existing.isDefault,
             })
-            .where(eq(userAddresses.id, addressId))
+            .where(eq(addresses.id, addressId))
             .returning();
 
         res.json(updated);
@@ -204,15 +204,15 @@ router.delete("/me/addresses/:id", isAuthenticated, async (req: any, res: Respon
 
         // Verify ownership
         const [existing] = await db.select()
-            .from(userAddresses)
-            .where(eq(userAddresses.id, addressId))
+            .from(addresses)
+            .where(eq(addresses.id, addressId))
             .limit(1);
 
         if (!existing || existing.userId !== userId) {
             return res.status(404).json({ message: "Address not found" });
         }
 
-        await db.delete(userAddresses).where(eq(userAddresses.id, addressId));
+        await db.delete(addresses).where(eq(addresses.id, addressId));
         res.json({ success: true });
     } catch (error) {
         console.error("Error deleting address:", error);
@@ -234,9 +234,9 @@ router.get("/me/transactions", isAuthenticated, async (req: any, res: Response) 
         const limit = parseInt(req.query.limit as string) || 50;
 
         const transactions = await db.select()
-            .from(creditTransactions)
-            .where(eq(creditTransactions.userId, userId))
-            .orderBy(desc(creditTransactions.createdAt))
+            .from(credits)
+            .where(eq(credits.userId, userId))
+            .orderBy(desc(credits.createdAt))
             .limit(limit);
 
         res.json(transactions);
