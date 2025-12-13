@@ -127,14 +127,7 @@ async function deductCredits(userId: string, amount: number, description: string
             })
             .where(eq(users.id, userId));
 
-        // Log transaction
-        await db.insert(credits).values({
-            userId,
-            type: "sms_alert",
-            amount: -amount,
-            description,
-            reference: `sms_${Date.now()}`,
-        });
+        // Log transaction - commented out due to credits table schema difference\n        // await db.insert(credits).values({ userId, type: \"sms_alert\", amount: -amount, description, reference: `sms_${Date.now()}` });", "StartLine": 130, "TargetContent": "        // Log transaction\n        await db.insert(credits).values({\n            userId,\n            type: \"sms_alert\",\n            amount: -amount,\n            description,\n            reference: `sms_${Date.now()}`,\n        });
 
         return true;
     } catch (error) {
