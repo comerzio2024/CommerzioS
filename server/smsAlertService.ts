@@ -13,7 +13,7 @@
 
 import { db } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
-import { users, creditTransactions, notifications } from "@shared/schema";
+import { users, credits, notifications } from "@shared/schema";
 
 // ============================================
 // CONFIGURATION
@@ -107,7 +107,7 @@ async function checkUserCredits(userId: string): Promise<{ hasCredits: boolean; 
         .where(eq(users.id, userId))
         .limit(1);
 
-    const balance = parseFloat(user?.creditBalance || "0");
+    const balance = parseFloat(String(user?.creditBalance || "0"));
     return {
         hasCredits: balance >= smsConfig.creditsPerSms,
         balance,
@@ -128,7 +128,7 @@ async function deductCredits(userId: string, amount: number, description: string
             .where(eq(users.id, userId));
 
         // Log transaction
-        await db.insert(creditTransactions).values({
+        await db.insert(credits).values({
             userId,
             type: "sms_alert",
             amount: -amount,
@@ -157,13 +157,13 @@ async function checkRateLimit(userId: string): Promise<SmsRateLimitResult> {
     const [result] = await db.select({
         count: sql<number>`COUNT(*)`,
     })
-        .from(creditTransactions)
+        .from(credits)
         .where(
             and(
-                eq(creditTransactions.userId, userId),
-                eq(creditTransactions.type, "sms_alert"),
-                sql`${creditTransactions.createdAt} >= ${today}`,
-                sql`${creditTransactions.createdAt} < ${tomorrow}`
+                eq(credits.userId, userId),
+                eq(credits.type, "sms_alert"),
+                sql`${credits.createdAt} >= ${today}`,
+                sql`${credits.createdAt} < ${tomorrow}`
             )
         );
 
@@ -232,7 +232,7 @@ export async function getUserSmsStatus(userId: string): Promise<{
     return {
         enabled: isSmsConfigured() && !!user?.phoneVerified,
         phoneVerified: !!user?.phoneVerified,
-        creditsAvailable: parseFloat(user?.creditBalance || "0"),
+        creditsAvailable: parseFloat(String(user?.creditBalance || "0")),
         dailyRemaining: rateLimit.remaining,
         costPerSms: smsConfig.creditsPerSms,
     };

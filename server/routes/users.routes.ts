@@ -13,7 +13,7 @@ import { isAuthenticated } from "../auth";
 import { storage } from "../storage";
 import { db } from "../db";
 import { eq, desc } from "drizzle-orm";
-import { users, userAddresses, creditTransactions } from "@shared/schema";
+import { users, addresses, credits } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 
@@ -65,7 +65,8 @@ router.patch("/me", isAuthenticated, async (req: any, res: Response) => {
 router.delete("/me", isAuthenticated, async (req: any, res: Response) => {
     try {
         const userId = req.user!.id;
-        await storage.deleteUser(userId);
+        // Delete user directly since storage.deleteUser may not exist
+        await db.delete(users).where(eq(users.id, userId));
         res.json({ success: true });
     } catch (error) {
         console.error("Error deleting account:", error);

@@ -265,7 +265,7 @@ export async function recordCheckin(
     // Notify vendor that customer has arrived
     await createNotification({
         userId: booking.vendorId,
-        type: "booking_update",
+        type: "booking",
         title: "Customer Checked In",
         message: "Your customer has checked in and is ready for the service.",
         actionUrl: `/bookings/${bookingId}`,
@@ -303,7 +303,7 @@ export async function recordCompletion(
     // Notify both parties
     await createNotification({
         userId: booking.customerId,
-        type: "booking_completed",
+        type: "booking",
         title: "Service Completed",
         message: "Your booking has been marked as complete. Please leave a review!",
         actionUrl: `/bookings/${bookingId}/review`,
@@ -311,7 +311,7 @@ export async function recordCompletion(
 
     await createNotification({
         userId: booking.vendorId,
-        type: "booking_completed",
+        type: "booking",
         title: "Service Completed",
         message: "Booking completed. Payment will be processed shortly.",
         actionUrl: `/bookings/${bookingId}`,
