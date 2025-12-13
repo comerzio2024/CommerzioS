@@ -254,6 +254,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Credit routes (booking redesign)
   registerCreditsRoutes(app);
 
+  // Booking availability routes (booking redesign)
+  const { registerBookingAvailabilityRoutes } = await import("./routes/bookingAvailability.routes");
+  registerBookingAvailabilityRoutes(app);
+
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
