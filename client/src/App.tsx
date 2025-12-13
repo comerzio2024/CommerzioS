@@ -43,6 +43,7 @@ import NotificationsPage from "@/pages/notifications";
 import CustomerBookingsPage from "@/pages/bookings";
 import DisputesPage from "@/pages/disputes";
 import ServiceRequestsPage from "@/pages/service-requests";
+import SettingsPage from "@/pages/settings";
 import { useLocation } from "wouter";
 
 // Redirect component for old /services/:id URLs to /service/:id
@@ -95,7 +96,7 @@ function Router() {
       <Route path="/search" component={SearchResults} />
       <Route path="/profile" component={Profile} />
       <Route path="/dashboard" component={Profile} />
-      <Route path="/settings" component={Profile} />
+      <Route path="/settings" component={SettingsPage} />
       <Route path="/plans" component={PlansPage} />
       <Route path="/favorites" component={Favorites} />
       <Route path="/saved" component={Favorites} />
