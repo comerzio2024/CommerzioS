@@ -13,7 +13,7 @@ import { isAuthenticated } from "../auth";
 import { storage } from "../storage";
 import { db } from "../db";
 import { eq, desc } from "drizzle-orm";
-import { users, addresses, credits } from "@shared/schema";
+import { users, addresses as addressesTable, credits } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 
@@ -102,9 +102,9 @@ router.get("/me/addresses", isAuthenticated, async (req: any, res: Response) => 
     try {
         const userId = req.user!.id;
         const addresses = await db.select()
-            .from(addresses)
-            .where(eq(addresses.userId, userId))
-            .orderBy(desc(addresses.isDefault));
+            .from(addressesTable)
+            .where(eq(addressesTable.userId, userId))
+            .orderBy(desc(addressesTable.isPrimary));
         res.json(addresses);
     } catch (error) {
         console.error("Error fetching addresses:", error);
@@ -119,16 +119,16 @@ router.get("/me/addresses", isAuthenticated, async (req: any, res: Response) => 
 router.post("/me/addresses", isAuthenticated, async (req: any, res: Response) => {
     try {
         const userId = req.user!.id;
-        const { label, street, city, postalCode, canton, country, isDefault } = req.body;
+        const { label, street, city, postalCode, canton, country, isPrimary } = req.body;
 
         // If setting as default, unset others
-        if (isDefault) {
-            await db.update(addresses)
-                .set({ isDefault: false })
-                .where(eq(addresses.userId, userId));
+        if (isPrimary) {
+            await db.update(addressesTable)
+                .set({ isPrimary: false })
+                .where(eq(addressesTable.userId, userId));
         }
 
-        const [address] = await db.insert(addresses).values({
+        const [address] = await db.insert(addressesTable).values({
             userId,
             label,
             street,
@@ -136,7 +136,7 @@ router.post("/me/addresses", isAuthenticated, async (req: any, res: Response) =>
             postalCode,
             canton,
             country: country || "CH",
-            isDefault: isDefault || false,
+            isPrimary: isPrimary || false,
         }).returning();
 
         res.status(201).json(address);
@@ -157,23 +157,23 @@ router.patch("/me/addresses/:id", isAuthenticated, async (req: any, res: Respons
 
         // Verify ownership
         const [existing] = await db.select()
-            .from(addresses)
-            .where(eq(addresses.id, addressId))
+            .from(addressesTable)
+            .where(eq(addressesTable.id, addressId))
             .limit(1);
 
         if (!existing || existing.userId !== userId) {
             return res.status(404).json({ message: "Address not found" });
         }
 
-        const { label, street, city, postalCode, canton, country, isDefault } = req.body;
+        const { label, street, city, postalCode, canton, country, isPrimary } = req.body;
 
-        if (isDefault) {
-            await db.update(addresses)
-                .set({ isDefault: false })
-                .where(eq(addresses.userId, userId));
+        if (isPrimary) {
+            await db.update(addressesTable)
+                .set({ isPrimary: false })
+                .where(eq(addressesTable.userId, userId));
         }
 
-        const [updated] = await db.update(addresses)
+        const [updated] = await db.update(addressesTable)
             .set({
                 label: label ?? existing.label,
                 street: street ?? existing.street,
@@ -181,9 +181,9 @@ router.patch("/me/addresses/:id", isAuthenticated, async (req: any, res: Respons
                 postalCode: postalCode ?? existing.postalCode,
                 canton: canton ?? existing.canton,
                 country: country ?? existing.country,
-                isDefault: isDefault ?? existing.isDefault,
+                isPrimary: isPrimary ?? existing.isPrimary,
             })
-            .where(eq(addresses.id, addressId))
+            .where(eq(addressesTable.id, addressId))
             .returning();
 
         res.json(updated);
@@ -204,15 +204,15 @@ router.delete("/me/addresses/:id", isAuthenticated, async (req: any, res: Respon
 
         // Verify ownership
         const [existing] = await db.select()
-            .from(addresses)
-            .where(eq(addresses.id, addressId))
+            .from(addressesTable)
+            .where(eq(addressesTable.id, addressId))
             .limit(1);
 
         if (!existing || existing.userId !== userId) {
             return res.status(404).json({ message: "Address not found" });
         }
 
-        await db.delete(addresses).where(eq(addresses.id, addressId));
+        await db.delete(addressesTable).where(eq(addressesTable.id, addressId));
         res.json({ success: true });
     } catch (error) {
         console.error("Error deleting address:", error);
