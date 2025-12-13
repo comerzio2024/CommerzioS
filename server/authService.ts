@@ -42,6 +42,16 @@ const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 const EMAIL_VERIFICATION_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
 const PASSWORD_RESET_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 
+// Result type for auth operations
+type Result = { success: boolean; message: string };
+
+/**
+ * Compare password with hash
+ */
+async function comparePassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash);
+}
+
 /**
  * Generate a secure random token
  */
@@ -663,7 +673,7 @@ export async function reactivateUser(userId: string): Promise<{ success: boolean
         title: "Missed Message While Away",
         message: `${contact.senderName} tried to contact you on ${new Date(contact.attemptedAt).toLocaleDateString()}`,
         isRead: false,
-        link: contact.serviceId ? `/messages?service=${contact.serviceId}` : '/messages',
+        actionUrl: contact.serviceId ? `/messages?service=${contact.serviceId}` : '/messages',
         createdAt: new Date(),
       });
     }
