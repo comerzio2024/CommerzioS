@@ -1219,16 +1219,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/services/:id/reviews', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user!.id;
+      const serviceId = req.params.id;
       const user = await storage.getUser(userId);
 
       if (!user?.isVerified) {
         return res.status(403).json({ message: "Identity verification required to post reviews" });
       }
 
+      // Check for active disputes - block reviews during disputes
+      const service = await storage.getService(serviceId);
+      if (service) {
+        // Find any bookings between this user and vendor with open disputes
+        const userBookings = await db
+          .select({ id: bookings.id })
+          .from(bookings)
+          .where(
+            and(
+              eq(bookings.customerId, userId),
+              eq(bookings.vendorId, service.ownerId)
+            )
+          );
+
+        const vendorBookings = await db
+          .select({ id: bookings.id })
+          .from(bookings)
+          .where(
+            and(
+              eq(bookings.vendorId, userId),
+              eq(bookings.customerId, service.ownerId)
+            )
+          );
+
+        const allBookingIds = [...userBookings.map(b => b.id), ...vendorBookings.map(b => b.id)];
+
+        if (allBookingIds.length > 0) {
+          // Check for open disputes on any of these bookings
+          for (const bookingId of allBookingIds) {
+            const [openDispute] = await db
+              .select()
+              .from(escrowDisputes)
+              .where(
+                and(
+                  eq(escrowDisputes.bookingId, bookingId),
+                  eq(escrowDisputes.status, "open")
+                )
+              )
+              .limit(1);
+
+            if (openDispute) {
+              return res.status(403).json({
+                message: "Cannot leave reviews while an active dispute exists. Please resolve the dispute first.",
+                disputeId: openDispute.id
+              });
+            }
+          }
+        }
+      }
+
       const validated = insertReviewSchema.parse(req.body);
       const review = await storage.createReview({
         ...validated,
-        serviceId: req.params.id,
+        serviceId,
         userId,
       });
 

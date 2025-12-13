@@ -13,15 +13,15 @@
 import Stripe from "stripe";
 import { db } from "../db";
 import { eq, and, desc } from "drizzle-orm";
-import { 
-  escrowDisputes, 
+import {
+  escrowDisputes,
   escrowTransactions,
-  users, 
+  users,
   bookings,
   services
 } from "../../shared/schema";
-import { 
-  disputePhases, 
+import {
+  disputePhases,
   disputeResponses,
   disputeAiOptions,
   disputeAiDecisions,
@@ -29,7 +29,7 @@ import {
   type DisputeResponse,
   type DisputeAiDecision
 } from "../../shared/schema-disputes";
-import { 
+import {
   initializeDisputePhases,
   escalateToPhase2,
   escalateToPhase3,
@@ -81,7 +81,7 @@ export async function openDispute(
   // Determine who is raising the dispute
   const isCustomer = booking.customerId === raisedByUserId;
   const isVendor = booking.vendorId === raisedByUserId;
-  
+
   if (!isCustomer && !isVendor) {
     throw new Error("Only the customer or vendor can open a dispute");
   }
@@ -166,7 +166,7 @@ export async function submitCounterOffer(
   message?: string
 ): Promise<DisputeResponse> {
   const phases = await getDisputePhases(disputeId);
-  
+
   if (!phases || phases.currentPhase !== "phase_1") {
     throw new Error("Counter-offers only allowed in Phase 1");
   }
@@ -178,7 +178,7 @@ export async function submitCounterOffer(
 
   const isCustomer = parties.customerId === userId;
   const isVendor = parties.vendorId === userId;
-  
+
   if (!isCustomer && !isVendor) {
     throw new Error("User is not part of this dispute");
   }
@@ -227,7 +227,7 @@ export async function acceptCounterOffer(
   responseId: string
 ): Promise<{ resolved: boolean; customerPercent: number; vendorPercent: number }> {
   const phases = await getDisputePhases(disputeId);
-  
+
   if (!phases || phases.currentPhase !== "phase_1") {
     throw new Error("Can only accept counter-offers in Phase 1");
   }
@@ -322,7 +322,7 @@ export async function acceptAiOption(
   optionId: string
 ): Promise<DisputeResponse> {
   const phases = await getDisputePhases(disputeId);
-  
+
   if (!phases || phases.currentPhase !== "phase_2") {
     throw new Error("AI options can only be accepted in Phase 2");
   }
@@ -345,7 +345,7 @@ export async function acceptAiOption(
 
   const isCustomer = parties.customerId === userId;
   const isVendor = parties.vendorId === userId;
-  
+
   if (!isCustomer && !isVendor) {
     throw new Error("User is not part of this dispute");
   }
@@ -382,9 +382,9 @@ export async function acceptAiOption(
   if (otherPartyResponse) {
     // Both accepted same option - resolve!
     await executeResolution(
-      disputeId, 
-      option.customerRefundPercent, 
-      option.vendorPaymentPercent, 
+      disputeId,
+      option.customerRefundPercent,
+      option.vendorPaymentPercent,
       "phase_2_agreement"
     );
     await markDisputeResolved(disputeId, "phase_2");
@@ -420,13 +420,13 @@ export async function acceptAiOption(
 export async function chooseExternalResolution(
   disputeId: string,
   userId: string
-): Promise<{ 
-  success: boolean; 
-  feeCharged: boolean; 
+): Promise<{
+  success: boolean;
+  feeCharged: boolean;
   outcome: { customerPercent: number; vendorPercent: number };
 }> {
   const phases = await getDisputePhases(disputeId);
-  
+
   if (!phases || phases.currentPhase !== "phase_3_pending") {
     throw new Error("External resolution only available during Phase 3 review period");
   }
@@ -438,7 +438,7 @@ export async function chooseExternalResolution(
 
   const isCustomer = parties.customerId === userId;
   const isVendor = parties.vendorId === userId;
-  
+
   if (!isCustomer && !isVendor) {
     throw new Error("User is not part of this dispute");
   }
@@ -466,8 +466,8 @@ export async function chooseExternalResolution(
 
   // Charge the 25 CHF fee to the rejector
   const feeResult = await chargeDisputeFee(
-    disputeId, 
-    userId, 
+    disputeId,
+    userId,
     isCustomer ? "customer" : "vendor"
   );
 
@@ -478,11 +478,11 @@ export async function chooseExternalResolution(
   await markExternalResolution(disputeId, isCustomer ? "customer" : "vendor");
 
   // Notify both parties
-  const customerMessage = isCustomer 
+  const customerMessage = isCustomer
     ? "You chose external resolution. The vendor receives full payment, and you've been charged a 25 CHF fee."
     : "The vendor chose external resolution. You receive a full refund.";
-  
-  const vendorMessage = isVendor 
+
+  const vendorMessage = isVendor
     ? "You chose external resolution. The customer receives a full refund, and you've been charged a 25 CHF fee."
     : "The customer chose external resolution. You receive full payment.";
 
@@ -603,10 +603,10 @@ async function executeResolution(
     }
 
     // Update dispute status - map to valid enum values
-    const status = customerPercent > vendorPercent 
-      ? "resolved_customer" 
-      : vendorPercent > customerPercent 
-        ? "resolved_vendor" 
+    const status = customerPercent > vendorPercent
+      ? "resolved_customer"
+      : vendorPercent > customerPercent
+        ? "resolved_vendor"
         : "resolved_split";
 
     await db
@@ -634,6 +634,111 @@ async function executeResolution(
   } catch (error: any) {
     console.error(`[Dispute] Failed to execute resolution:`, error.message);
     throw error;
+  }
+}
+
+// ============================================
+// STRIPE EVIDENCE SUBMISSION
+// ============================================
+
+/**
+ * Submit evidence to Stripe for a chargeback/dispute
+ * 
+ * This compiles all relevant evidence from our platform:
+ * - Booking details
+ * - Communication logs
+ * - Service completion proof
+ * - Our internal dispute resolution (if any)
+ */
+export async function submitStripeEvidence(
+  stripeDisputeId: string,
+  bookingId: string
+): Promise<{ success: boolean; message: string }> {
+  try {
+    // Get booking details
+    const [booking] = await db
+      .select()
+      .from(bookings)
+      .where(eq(bookings.id, bookingId))
+      .limit(1);
+
+    if (!booking) {
+      return { success: false, message: "Booking not found" };
+    }
+
+    // Get service details
+    const [service] = await db
+      .select()
+      .from(services)
+      .where(eq(services.id, booking.serviceId))
+      .limit(1);
+
+    // Get customer details
+    const [customer] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, booking.customerId))
+      .limit(1);
+
+    // Get vendor details
+    const [vendor] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, booking.vendorId))
+      .limit(1);
+
+    // Check if we have an internal dispute for this booking
+    const [internalDispute] = await db
+      .select()
+      .from(escrowDisputes)
+      .where(eq(escrowDisputes.bookingId, bookingId))
+      .orderBy(desc(escrowDisputes.createdAt))
+      .limit(1);
+
+    // Compile evidence
+    const evidenceDetails = {
+      // Customer info
+      customer_name: `${customer?.firstName || ''} ${customer?.lastName || ''}`.trim(),
+      customer_email_address: customer?.email || undefined,
+
+      // Service info
+      product_description: service ? `${service.title} - ${service.description?.substring(0, 500) || 'Professional service'}` : 'Service booking',
+
+      // Transaction info
+      billing_address: booking.customerAddress || undefined,
+
+      // Service date
+      service_date: booking.confirmedStartTime
+        ? new Date(booking.confirmedStartTime).toISOString().split('T')[0]
+        : booking.requestedStartTime
+          ? new Date(booking.requestedStartTime).toISOString().split('T')[0]
+          : undefined,
+
+      // Proof of service if completed
+      uncategorized_text: internalDispute
+        ? `Internal dispute resolution: ${internalDispute.status}. Reason: ${internalDispute.reason}. Description: ${internalDispute.description || 'N/A'}. ${internalDispute.resolvedAt ? `Resolved at: ${internalDispute.resolvedAt.toISOString()}` : ''}`
+        : `Service booking #${booking.bookingNumber}. Status: ${booking.status}. Vendor: ${vendor?.firstName} ${vendor?.lastName}. Service location: ${booking.customerAddress || 'Not specified'}`,
+    };
+
+    // Submit to Stripe
+    const dispute = await stripe.disputes.update(stripeDisputeId, {
+      evidence: evidenceDetails,
+      submit: true, // Auto-submit the evidence
+    });
+
+    console.log(`[Stripe Evidence] Submitted evidence for dispute ${stripeDisputeId}, status: ${dispute.status}`);
+
+    return {
+      success: true,
+      message: `Evidence submitted to Stripe. Dispute status: ${dispute.status}`
+    };
+
+  } catch (error: any) {
+    console.error(`[Stripe Evidence] Failed to submit evidence:`, error.message);
+    return {
+      success: false,
+      message: error.message || 'Failed to submit evidence to Stripe'
+    };
   }
 }
 
@@ -693,7 +798,7 @@ export async function getUserDisputes(
     .select({ id: bookings.id })
     .from(bookings)
     .where(eq(bookings.customerId, userId));
-  
+
   const vendorBookings = await db
     .select({ id: bookings.id })
     .from(bookings)
@@ -710,14 +815,14 @@ export async function getUserDisputes(
 
   // Get disputes for these bookings with full context
   const disputesWithContext = [];
-  
+
   for (const bookingId of bookingIds) {
     const bookingDisputes = await db
       .select()
       .from(escrowDisputes)
       .where(eq(escrowDisputes.bookingId, bookingId))
       .orderBy(desc(escrowDisputes.createdAt));
-    
+
     for (const dispute of bookingDisputes) {
       // Get booking details
       const [booking] = await db
@@ -753,10 +858,10 @@ export async function getUserDisputes(
       const isCustomer = booking.customerId === userId;
       const otherPartyId = isCustomer ? booking.vendorId : booking.customerId;
       const [otherParty] = await db
-        .select({ 
-          firstName: users.firstName, 
+        .select({
+          firstName: users.firstName,
           lastName: users.lastName,
-          profileImageUrl: users.profileImageUrl 
+          profileImageUrl: users.profileImageUrl
         })
         .from(users)
         .where(eq(users.id, otherPartyId))
