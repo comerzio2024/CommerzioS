@@ -118,6 +118,57 @@ router.post("/missions/:missionId/claim", isAuthenticated, async (req: any, res)
     }
 });
 
+/**
+ * POST /api/com-points/missions/:missionId/verify
+ * Verify a social mission (OAuth-based)
+ */
+router.post("/missions/:missionId/verify", isAuthenticated, async (req: any, res) => {
+    try {
+        const userId = req.user!.id;
+        const { missionId } = req.params;
+        const { missionType, params } = req.body;
+
+        // Import verification service
+        const { verifyMission } = await import("../socialMissionVerificationService");
+
+        const result = await verifyMission(userId, missionType, params);
+
+        res.json({
+            success: result.verified,
+            message: result.message,
+            details: result.details,
+        });
+    } catch (error: any) {
+        console.error("Error verifying mission:", error);
+        res.status(400).json({ message: error.message || "Failed to verify mission" });
+    }
+});
+
+/**
+ * GET /api/com-points/social-connections
+ * Check which social accounts are connected
+ */
+router.get("/social-connections", isAuthenticated, async (req: any, res) => {
+    try {
+        const userId = req.user!.id;
+
+        // Import verification service
+        const { hasSocialConnection } = await import("../socialMissionVerificationService");
+
+        const connections = {
+            twitter: await hasSocialConnection(userId, "twitter"),
+            instagram: false, // Instagram requires Graph API business account
+            facebook: await hasSocialConnection(userId, "facebook"),
+            tiktok: false, // TikTok has limited API access
+        };
+
+        res.json({ connections });
+    } catch (error: any) {
+        console.error("Error checking social connections:", error);
+        res.status(500).json({ message: "Failed to check social connections" });
+    }
+});
+
 // ===========================================
 // REDEMPTION SHOP ENDPOINTS
 // ===========================================
