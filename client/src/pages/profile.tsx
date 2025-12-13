@@ -326,7 +326,7 @@ export default function Profile() {
   });
 
   const deleteUserMutation = useMutation({
-    mutationFn: () => apiRequest("DELETE", "/api/users/me"),
+    mutationFn: () => apiRequest("/api/users/me", { method: "DELETE" }),
     onSuccess: () => {
       toast({ title: "Account deleted", description: "Your account has been successfully deleted." });
       setLocation("/");
@@ -4063,7 +4063,7 @@ export default function Profile() {
               className="bg-amber-600 hover:bg-amber-700 text-white"
               onClick={async () => {
                 try {
-                  await apiRequest('POST', '/api/users/me/deactivate');
+                  await apiRequest('/api/users/me/deactivate', { method: 'POST' });
                   toast({ title: 'Account Deactivated', description: 'Your account has been deactivated. You can reactivate anytime by logging in.' });
                   setShowDeactivateDialog(false);
                   logout();

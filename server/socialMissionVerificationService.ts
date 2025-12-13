@@ -57,10 +57,10 @@ export async function getSocialToken(
 
     return {
         provider: provider as any,
-        accessToken: token.accessToken,
+        accessToken: token.accessToken || "",
         refreshToken: token.refreshToken || undefined,
-        userId: token.providerUserId || "",
-        username: token.providerUsername || undefined,
+        userId: (token as any).providerUserId || token.userId || "",
+        username: (token as any).providerUsername || undefined,
     };
 }
 

@@ -1519,9 +1519,9 @@ export class DatabaseStorage implements IStorage {
       conditions.push(or(
         and(eq(listingQuestions.isAnswered, true), eq(listingQuestions.isPrivate, false)),
         eq(listingQuestions.userId, currentUserId)
-      ));
+      )!);
     } else {
-      conditions.push(and(eq(listingQuestions.isAnswered, true), eq(listingQuestions.isPrivate, false)));
+      conditions.push(and(eq(listingQuestions.isAnswered, true), eq(listingQuestions.isPrivate, false))!);
     }
 
     const questions = await db.query.listingQuestions.findMany({
