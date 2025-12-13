@@ -8,6 +8,7 @@
 
 import { Express } from "express";
 import { registerHealthRoutes } from "./health.routes";
+import { registerDisputesRoutes } from "./disputes.routes";
 
 /**
  * Register all modular routes with the Express app
@@ -16,6 +17,7 @@ import { registerHealthRoutes } from "./health.routes";
 export function registerRoutes(app: Express): void {
     // Register route modules
     registerHealthRoutes(app);
+    registerDisputesRoutes(app);
 
     // Future modules will be registered here:
     // registerUsersRoutes(app);
