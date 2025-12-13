@@ -27,6 +27,7 @@ import { registerCategoriesRoutes } from "./categories.routes";
 import { registerNotificationsRoutes } from "./notifications.routes";
 import { registerReviewsRoutes } from "./reviews.routes";
 import { registerReferralsRoutes } from "./referrals.routes";
+import { registerSmsRoutes } from "./sms.routes";
 
 /**
  * Register all modular routes with the Express app
@@ -53,8 +54,9 @@ export function registerModularRoutes(app: Express): void {
     registerNotificationsRoutes(app);
     registerReviewsRoutes(app);
     registerReferralsRoutes(app);
+    registerSmsRoutes(app);
 
-    console.log("✓ All modular routes registered (17/17 complete)");
+    console.log("✓ All modular routes registered (18/18 complete)");
 }
 
 // Re-export for backward compatibility
