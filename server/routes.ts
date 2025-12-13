@@ -3115,20 +3115,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ...a,
           user: answerUserMap.get(a.userId) ? {
             id: answerUserMap.get(a.userId)!.id,
-            username: answerUserMap.get(a.userId)!.username,
-            displayName: answerUserMap.get(a.userId)!.displayName,
+            email: answerUserMap.get(a.userId)!.email,
             firstName: answerUserMap.get(a.userId)!.firstName,
-            profileImage: answerUserMap.get(a.userId)!.profileImage,
+            lastName: answerUserMap.get(a.userId)!.lastName,
+            profileImageUrl: answerUserMap.get(a.userId)!.profileImageUrl,
           } : null
         }));
         return {
           ...q,
           user: qUser ? {
             id: qUser.id,
-            username: qUser.username,
-            displayName: qUser.displayName,
+            email: qUser.email,
             firstName: qUser.firstName,
-            profileImage: qUser.profileImage,
+            lastName: qUser.lastName,
+            profileImageUrl: qUser.profileImageUrl,
           } : null,
           answers: qAnswers,
         };
@@ -3378,10 +3378,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...question,
         user: questionUser ? {
           id: questionUser.id,
-          username: questionUser.username,
-          displayName: questionUser.displayName,
+          email: questionUser.email,
           firstName: questionUser.firstName,
-          profileImage: questionUser.profileImage,
+          lastName: questionUser.lastName,
+          profileImageUrl: questionUser.profileImageUrl,
         } : null,
         answers: [],
       };

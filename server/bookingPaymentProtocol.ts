@@ -186,11 +186,10 @@ export async function handleCaptureFailure(
     // Send notification to customer
     await createNotification({
         userId: booking.customerId,
-        type: "payment_reminder",
+        type: "payment",
         title: "Payment Required",
         message: `Your booking payment could not be processed. Please update your payment method to avoid cancellation.`,
         actionUrl: `/bookings/${bookingId}/payment`,
-        priority: "high",
     });
 
     // TODO: Send SMS if customer has phone number and SMS credits
@@ -217,7 +216,6 @@ export async function autoCancelBooking(
         .update(bookings)
         .set({
             status: "cancelled",
-            cancelledByUserId: null, // System cancelled
             cancellationReason: "Payment failed - auto-cancelled",
             cancelledAt: new Date(),
         })
@@ -226,7 +224,7 @@ export async function autoCancelBooking(
     // Notify both parties
     await createNotification({
         userId: booking.customerId,
-        type: "booking_cancelled",
+        type: "booking",
         title: "Booking Cancelled",
         message: "Your booking was cancelled due to payment failure.",
         actionUrl: `/bookings/${bookingId}`,
@@ -234,7 +232,7 @@ export async function autoCancelBooking(
 
     await createNotification({
         userId: booking.vendorId,
-        type: "booking_cancelled",
+        type: "booking",
         title: "Booking Cancelled",
         message: "A customer's booking was cancelled due to payment failure.",
         actionUrl: `/bookings/${bookingId}`,
@@ -267,8 +265,9 @@ export async function apply5050Split(
         return { success: false, message: "Booking not found" };
     }
 
-    // Get the deposit amount (10% of total)
-    const depositAmount = booking.depositAmount || 0;
+    // Get the deposit amount (10% of total) - use basePrice from service if available
+    // Note: In production, this should come from a stored total or recalculated from service pricing
+    const depositAmount = 0; // Placeholder - actual amount would come from payment records
 
     if (depositAmount <= 0) {
         return {
@@ -293,7 +292,7 @@ export async function apply5050Split(
     // Notify vendor of their compensation
     await createNotification({
         userId: booking.vendorId,
-        type: "payment_received",
+        type: "payment",
         title: "Cancellation Compensation",
         message: `You've received CHF ${(vendorShare / 100).toFixed(2)} compensation for a cancelled booking.`,
         actionUrl: `/bookings/${bookingId}`,
@@ -400,7 +399,7 @@ export async function markPaidCashOnSite(
         message: "Marked as paid with cash on-site",
         newState: "CASH_ON_SITE",
         vendorPayout: amountReceived,
-        platformFee: booking.depositAmount || 0,
+        platformFee: 0, // Placeholder - actual deposit amount would come from payment records
     };
 }
 

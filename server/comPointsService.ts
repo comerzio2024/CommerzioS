@@ -347,7 +347,7 @@ export async function claimMissionReward(
     await db
         .update(userMissions)
         .set({
-            status: "claimed",
+            status: "completed",
             claimedAt: new Date(),
             updatedAt: new Date(),
         })
@@ -356,7 +356,7 @@ export async function claimMissionReward(
     // Notify user
     await createNotification({
         userId,
-        type: "reward",
+        type: "system",
         title: "Mission Completed! 🎉",
         message: `You earned ${mission.rewardPoints} COM Points for completing "${mission.name}"`,
         actionUrl: "/rewards/history",
@@ -460,7 +460,7 @@ export async function redeemItem(
     // Notify user
     await createNotification({
         userId,
-        type: "reward",
+        type: "system",
         title: "Redemption Successful! 🎁",
         message: `You redeemed "${item.name}" for ${item.costPoints} COM Points`,
         actionUrl: "/rewards/redemptions",
@@ -546,15 +546,15 @@ export async function processReferralMission(
         }
 
         // Update progress
-        if (userMission.status !== "claimed") {
+        if (userMission.status !== "completed") {
             const { completed } = await updateMissionProgress(
                 referrerId,
                 mission.id,
                 1
             );
 
-            // Auto-claim if completed
-            if (completed && userMission.status !== "claimed") {
+            // Auto-claim if completed - status is already 'completed'
+            if (completed) {
                 await claimMissionReward(referrerId, mission.id);
             }
         }
