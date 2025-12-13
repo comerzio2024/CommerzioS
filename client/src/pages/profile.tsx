@@ -83,6 +83,11 @@ export default function Profile() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const { confirm } = useConfirmDialog();
+
+  // Logout helper function
+  const logout = () => {
+    window.location.href = '/api/logout';
+  };
   const queryClient = useQueryClient();
 
   // Extract tab from URL search params
@@ -321,7 +326,7 @@ export default function Profile() {
   });
 
   const deleteUserMutation = useMutation({
-    mutationFn: () => apiRequest("/api/users/me", "DELETE"),
+    mutationFn: () => apiRequest("DELETE", "/api/users/me"),
     onSuccess: () => {
       toast({ title: "Account deleted", description: "Your account has been successfully deleted." });
       setLocation("/");
@@ -2339,7 +2344,7 @@ export default function Profile() {
                         variant="secondary"
                         size="sm"
                         onClick={() => {
-                          if (confirm(`Pause all ${activeServices.length} active services?`)) {
+                          if (window.confirm(`Pause all ${activeServices.length} active services?`)) {
                             activeServices.forEach(s => updateServiceMutation.mutate({ id: s.id, data: { status: 'paused' } }));
                           }
                         }}
@@ -2351,7 +2356,7 @@ export default function Profile() {
                         variant="destructive"
                         size="sm"
                         onClick={() => {
-                          if (confirm(`Delete all ${activeServices.length} active services? This cannot be undone!`)) {
+                          if (window.confirm(`Delete all ${activeServices.length} active services? This cannot be undone!`)) {
                             activeServices.forEach(s => deleteServiceMutation.mutate(s.id));
                           }
                         }}
@@ -2369,7 +2374,7 @@ export default function Profile() {
                         size="sm"
                         onClick={() => {
                           const pausedServices = allServices.filter(s => s.status === 'paused');
-                          if (confirm(`Resume all ${pausedServices.length} paused services?`)) {
+                          if (window.confirm(`Resume all ${pausedServices.length} paused services?`)) {
                             pausedServices.forEach(s => updateServiceMutation.mutate({ id: s.id, data: { status: 'active' } }));
                           }
                         }}
@@ -4058,7 +4063,7 @@ export default function Profile() {
               className="bg-amber-600 hover:bg-amber-700 text-white"
               onClick={async () => {
                 try {
-                  await apiRequest('/api/users/me/deactivate', { method: 'POST' });
+                  await apiRequest('POST', '/api/users/me/deactivate');
                   toast({ title: 'Account Deactivated', description: 'Your account has been deactivated. You can reactivate anytime by logging in.' });
                   setShowDeactivateDialog(false);
                   logout();
