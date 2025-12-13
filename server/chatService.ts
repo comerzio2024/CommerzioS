@@ -602,7 +602,7 @@ export async function sendMessage(params: {
             lockedAt: new Date().toISOString()
           }),
           updatedAt: new Date(),
-        })
+        } as any)
         .where(eq(chatConversations.id, params.conversationId));
     }
 
@@ -1169,7 +1169,7 @@ export async function handleUserReactivation(userId: string): Promise<{
     // Check if conversation was locked due to this user's deactivation
     let metadata: any = {};
     try {
-      metadata = conv.metadata ? JSON.parse(conv.metadata as string) : {};
+      metadata = (conv as any).metadata ? JSON.parse((conv as any).metadata as string) : {};
     } catch (e) {
       metadata = {};
     }
@@ -1186,7 +1186,7 @@ export async function handleUserReactivation(userId: string): Promise<{
         .set({
           metadata: Object.keys(updatedMetadata).length > 0 ? JSON.stringify(updatedMetadata) : null,
           updatedAt: new Date(),
-        })
+        } as any)
         .where(eq(chatConversations.id, conv.id));
 
       // Delete the old deactivation system message to avoid confusion
@@ -1213,9 +1213,9 @@ export async function handleUserReactivation(userId: string): Promise<{
       .where(eq(chatMessages.conversationId, conv.id));
 
     for (const msg of pendingMessages) {
-      if (msg.metadata) {
+      if ((msg as any).metadata) {
         try {
-          const msgMeta = JSON.parse(msg.metadata as string);
+          const msgMeta = JSON.parse((msg as any).metadata as string);
           if (msgMeta.pendingForDeactivatedUser && msgMeta.recipientId === userId) {
             // Get sender info
             const [sender] = await db.select({ firstName: users.firstName, lastName: users.lastName })
@@ -1237,7 +1237,7 @@ export async function handleUserReactivation(userId: string): Promise<{
             await db.update(chatMessages)
               .set({
                 metadata: Object.keys(updatedMsgMeta).length > 0 ? JSON.stringify(updatedMsgMeta) : null,
-              })
+              } as any)
               .where(eq(chatMessages.id, msg.id));
           }
         } catch (e) {

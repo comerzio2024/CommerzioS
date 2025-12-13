@@ -30,12 +30,15 @@ import {
   getUserById,
 } from "./authService";
 import { storage } from "./storage";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 import {
   registerWithReferralSchema,
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
   changePasswordSchema,
+  users,
 } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 

@@ -1234,22 +1234,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (service) {
         // Find any bookings between this user and vendor with open disputes
         const userBookings = await db
-          .select({ id: bookings.id })
-          .from(bookings)
+          .select({ id: bookingsTable.id })
+          .from(bookingsTable)
           .where(
             and(
-              eq(bookings.customerId, userId),
-              eq(bookings.vendorId, service.ownerId)
+              eq(bookingsTable.customerId, userId),
+              eq(bookingsTable.vendorId, service.ownerId)
             )
           );
 
         const vendorBookings = await db
-          .select({ id: bookings.id })
-          .from(bookings)
+          .select({ id: bookingsTable.id })
+          .from(bookingsTable)
           .where(
             and(
-              eq(bookings.vendorId, userId),
-              eq(bookings.customerId, service.ownerId)
+              eq(bookingsTable.vendorId, userId),
+              eq(bookingsTable.customerId, service.ownerId)
             )
           );
 
