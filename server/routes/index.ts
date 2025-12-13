@@ -2,13 +2,12 @@
  * Route Module Index
  * Aggregates all route modules and registers them with the Express app.
  * 
- * Complete modules are fully migrated from routes.ts and functional.
- * Stub modules are prepared placeholders for future migration.
+ * All 17 route modules are now fully migrated from routes.ts.
  */
 
 import { Express } from "express";
 
-// Complete route modules (fully migrated)
+// Core route modules
 import { registerHealthRoutes } from "./health.routes";
 import { registerCreditsRoutes } from "./credits.routes";
 import { registerBookingAvailabilityRoutes } from "./bookingAvailability.routes";
@@ -17,7 +16,7 @@ import { registerComPointsRoutes } from "./comPoints.routes";
 import { registerDisputesRoutes } from "./disputes.routes";
 import { registerAiRoutes } from "./ai.routes";
 
-// Stub route modules (prepared for migration)
+// Entity route modules
 import { registerUsersRoutes } from "./users.routes";
 import { registerServicesRoutes } from "./services.routes";
 import { registerBookingsRoutes } from "./bookings.routes";
@@ -34,7 +33,7 @@ import { registerReferralsRoutes } from "./referrals.routes";
  * Call this function from your main app setup after routes.ts
  */
 export function registerModularRoutes(app: Express): void {
-    // === COMPLETE MODULES ===
+    // === CORE MODULES ===
     registerHealthRoutes(app);
     registerCreditsRoutes(app);
     registerBookingAvailabilityRoutes(app);
@@ -43,9 +42,7 @@ export function registerModularRoutes(app: Express): void {
     registerDisputesRoutes(app);
     registerAiRoutes(app);
 
-    // === STUB MODULES (prepared for migration) ===
-    // These are empty placeholders that will be populated
-    // as endpoints are migrated from the monolithic routes.ts
+    // === ENTITY MODULES ===
     registerUsersRoutes(app);
     registerServicesRoutes(app);
     registerBookingsRoutes(app);
@@ -57,7 +54,7 @@ export function registerModularRoutes(app: Express): void {
     registerReviewsRoutes(app);
     registerReferralsRoutes(app);
 
-    console.log("✓ All modular routes registered (13 complete, 4 stubs)");
+    console.log("✓ All modular routes registered (17/17 complete)");
 }
 
 // Re-export for backward compatibility

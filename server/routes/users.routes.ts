@@ -1,293 +1,256 @@
 /**
  * Users Routes
  * 
- * Handles user profile management endpoints:
- * - GET /api/auth/user - Current user session
- * - PATCH /api/users/me - Update profile
- * - DELETE /api/users/me - Delete account
- * - POST /api/users/me/deactivate - Deactivate account
- * - POST /api/auth/reactivate - Reactivate account
- * - GET/POST /api/users/me/addresses - Address management
+ * Modular endpoints for user management:
+ * - Profile CRUD
+ * - Address management
+ * - User transactions
+ * - Account deactivation
  */
 
-import { Express, Request, Response, NextFunction } from "express";
-import { db } from "../db";
-import { users, userAddresses, insertAddressSchema } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { Router, Response } from "express";
 import { isAuthenticated } from "../auth";
-import { deleteUser, deactivateUser, reactivateUserWithCredentials } from "../authService";
-import { sendDeactivationEmail, sendReactivationEmail } from "../emailService";
 import { storage } from "../storage";
+import { db } from "../db";
+import { eq, desc } from "drizzle-orm";
+import { users, userAddresses, creditTransactions } from "@shared/schema";
+import { z } from "zod";
+import { fromZodError } from "zod-validation-error";
 
-type AuthenticatedRequest = Request & {
-    user?: { id: string; email: string; firstName?: string };
-    logout: (cb: (err: any) => void) => void;
-    login: (user: any, cb: (err: any) => void) => void;
-    session: any;
-};
+const router = Router();
 
-export function registerUsersRoutes(app: Express): void {
+// ===========================================
+// PROFILE
+// ===========================================
 
-    // ============================================
-    // CURRENT USER SESSION
-    // ============================================
+/**
+ * PATCH /api/users/me
+ * Update current user profile
+ */
+router.patch("/me", isAuthenticated, async (req: any, res: Response) => {
+    try {
+        const userId = req.user!.id;
+        const {
+            firstName, lastName, bio, phone, profileImageUrl,
+            preferredLanguage, businessName, vatNumber,
+        } = req.body;
 
-    /**
-     * GET /api/auth/user
-     * Get current authenticated user
-     */
-    app.get('/api/auth/user', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
-        try {
-            const userId = req.user!.id;
-            const user = await storage.getUser(userId);
-            res.json(user);
-        } catch (error) {
-            console.error("Error fetching user:", error);
-            res.status(500).json({ message: "Failed to fetch user" });
+        const updates: any = {};
+        if (firstName !== undefined) updates.firstName = firstName;
+        if (lastName !== undefined) updates.lastName = lastName;
+        if (bio !== undefined) updates.bio = bio;
+        if (phone !== undefined) updates.phone = phone;
+        if (profileImageUrl !== undefined) updates.profileImageUrl = profileImageUrl;
+        if (preferredLanguage !== undefined) updates.preferredLanguage = preferredLanguage;
+        if (businessName !== undefined) updates.businessName = businessName;
+        if (vatNumber !== undefined) updates.vatNumber = vatNumber;
+
+        if (Object.keys(updates).length > 0) {
+            updates.updatedAt = new Date();
+            await db.update(users).set(updates).where(eq(users.id, userId));
         }
-    });
 
-    // ============================================
-    // PROFILE MANAGEMENT
-    // ============================================
+        const user = await storage.getUser(userId);
+        res.json(user);
+    } catch (error) {
+        console.error("Error updating profile:", error);
+        res.status(500).json({ message: "Failed to update profile" });
+    }
+});
 
-    /**
-     * PATCH /api/users/me
-     * Update current user profile
-     */
-    app.patch('/api/users/me', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
-        try {
-            const userId = req.user!.id;
-            const {
-                firstName, lastName, phoneNumber, profileImageUrl,
-                locationLat, locationLng, preferredLocationName,
-                acceptCardPayments, acceptTwintPayments, acceptCashPayments, requireBookingApproval,
-                vendorBio
-            } = req.body;
+/**
+ * DELETE /api/users/me
+ * Delete current user account
+ */
+router.delete("/me", isAuthenticated, async (req: any, res: Response) => {
+    try {
+        const userId = req.user!.id;
+        await storage.deleteUser(userId);
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Error deleting account:", error);
+        res.status(500).json({ message: "Failed to delete account" });
+    }
+});
 
-            // Validate Swiss phone number if provided
-            if (phoneNumber) {
-                const swissPhoneRegex = /^\+41\s?(\d{2}\s?\d{3}\s?\d{2}\s?\d{2}|\d{9,11})$/;
-                const normalizedPhone = phoneNumber.replace(/\s/g, '');
-                if (!swissPhoneRegex.test(normalizedPhone)) {
-                    return res.status(400).json({
-                        message: "Invalid phone number. Swiss phone numbers must start with +41 (e.g., +41 44 123 4567)"
-                    });
-                }
-            }
+/**
+ * POST /api/users/me/deactivate
+ * Deactivate current user account
+ */
+router.post("/me/deactivate", isAuthenticated, async (req: any, res: Response) => {
+    try {
+        const userId = req.user!.id;
+        const { deactivateUser } = await import("../authService");
+        const result = await deactivateUser(userId);
+        res.json(result);
+    } catch (error: any) {
+        console.error("Error deactivating account:", error);
+        res.status(500).json({ message: error.message || "Failed to deactivate account" });
+    }
+});
 
-            // Validate location fields
-            if ((locationLat !== undefined || locationLng !== undefined) && (locationLat === undefined || locationLng === undefined)) {
-                return res.status(400).json({
-                    message: "Both latitude and longitude must be provided together"
-                });
-            }
+// ===========================================
+// ADDRESSES
+// ===========================================
 
-            const updateData: Record<string, any> = {};
-            if (firstName !== undefined) updateData.firstName = firstName;
-            if (lastName !== undefined) updateData.lastName = lastName;
-            if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
-            if (profileImageUrl !== undefined) updateData.profileImageUrl = profileImageUrl;
-            if (locationLat !== undefined) updateData.locationLat = locationLat ? parseFloat(locationLat) : null;
-            if (locationLng !== undefined) updateData.locationLng = locationLng ? parseFloat(locationLng) : null;
-            if (preferredLocationName !== undefined) updateData.preferredLocationName = preferredLocationName;
-            if (acceptCardPayments !== undefined) updateData.acceptCardPayments = acceptCardPayments;
-            if (acceptTwintPayments !== undefined) updateData.acceptTwintPayments = acceptTwintPayments;
-            if (acceptCashPayments !== undefined) updateData.acceptCashPayments = acceptCashPayments;
-            if (requireBookingApproval !== undefined) updateData.requireBookingApproval = requireBookingApproval;
-            if (vendorBio !== undefined) updateData.vendorBio = vendorBio;
+/**
+ * GET /api/users/me/addresses
+ * Get user addresses
+ */
+router.get("/me/addresses", isAuthenticated, async (req: any, res: Response) => {
+    try {
+        const userId = req.user!.id;
+        const addresses = await db.select()
+            .from(userAddresses)
+            .where(eq(userAddresses.userId, userId))
+            .orderBy(desc(userAddresses.isDefault));
+        res.json(addresses);
+    } catch (error) {
+        console.error("Error fetching addresses:", error);
+        res.status(500).json({ message: "Failed to fetch addresses" });
+    }
+});
 
-            const user = await storage.updateUserProfile(userId, updateData);
-            res.json(user);
-        } catch (error) {
-            console.error("Error updating user profile:", error);
-            res.status(500).json({ message: "Failed to update profile" });
+/**
+ * POST /api/users/me/addresses
+ * Add address
+ */
+router.post("/me/addresses", isAuthenticated, async (req: any, res: Response) => {
+    try {
+        const userId = req.user!.id;
+        const { label, street, city, postalCode, canton, country, isDefault } = req.body;
+
+        // If setting as default, unset others
+        if (isDefault) {
+            await db.update(userAddresses)
+                .set({ isDefault: false })
+                .where(eq(userAddresses.userId, userId));
         }
-    });
 
-    /**
-     * DELETE /api/users/me
-     * Delete current user account (hard delete)
-     */
-    app.delete('/api/users/me', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
-        try {
-            const userId = req.user!.id;
-            const result = await deleteUser(userId);
+        const [address] = await db.insert(userAddresses).values({
+            userId,
+            label,
+            street,
+            city,
+            postalCode,
+            canton,
+            country: country || "CH",
+            isDefault: isDefault || false,
+        }).returning();
 
-            if (!result.success) {
-                return res.status(500).json({ message: result.message });
-            }
+        res.status(201).json(address);
+    } catch (error) {
+        console.error("Error adding address:", error);
+        res.status(500).json({ message: "Failed to add address" });
+    }
+});
 
-            req.logout((err) => {
-                if (err) console.error("Logout error after delete:", err);
-                req.session.destroy(() => {
-                    res.clearCookie("sid");
-                    res.json({ message: result.message });
-                });
-            });
-        } catch (error: any) {
-            console.error("Error deleting user:", error);
-            res.status(500).json({ message: "Failed to delete user", details: error.message });
+/**
+ * PATCH /api/users/me/addresses/:id
+ * Update address
+ */
+router.patch("/me/addresses/:id", isAuthenticated, async (req: any, res: Response) => {
+    try {
+        const userId = req.user!.id;
+        const addressId = req.params.id;
+
+        // Verify ownership
+        const [existing] = await db.select()
+            .from(userAddresses)
+            .where(eq(userAddresses.id, addressId))
+            .limit(1);
+
+        if (!existing || existing.userId !== userId) {
+            return res.status(404).json({ message: "Address not found" });
         }
-    });
 
-    // ============================================
-    // ACCOUNT DEACTIVATION/REACTIVATION
-    // ============================================
+        const { label, street, city, postalCode, canton, country, isDefault } = req.body;
 
-    /**
-     * POST /api/users/me/deactivate
-     * Temporarily deactivate current user account
-     */
-    app.post('/api/users/me/deactivate', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
-        try {
-            const userId = req.user!.id;
-            const userEmail = req.user!.email;
-            const userFirstName = req.user!.firstName || "there";
-
-            const result = await deactivateUser(userId);
-
-            if (!result.success) {
-                return res.status(400).json({ message: result.message });
-            }
-
-            // Send confirmation email
-            sendDeactivationEmail(userEmail, userFirstName).catch(err =>
-                console.error("Failed to send deactivation email:", err)
-            );
-
-            req.logout((err) => {
-                if (err) console.error("Logout error after deactivation:", err);
-                req.session.destroy(() => {
-                    res.clearCookie("sid");
-                    res.json({ message: "Account deactivated successfully" });
-                });
-            });
-        } catch (error: any) {
-            console.error("Error deactivating user:", error);
-            res.status(500).json({ message: "Failed to deactivate user" });
+        if (isDefault) {
+            await db.update(userAddresses)
+                .set({ isDefault: false })
+                .where(eq(userAddresses.userId, userId));
         }
-    });
 
-    /**
-     * POST /api/auth/reactivate
-     * Reactivate a deactivated account
-     */
-    app.post('/api/auth/reactivate', async (req: AuthenticatedRequest, res: Response) => {
-        try {
-            const { email, password } = req.body;
+        const [updated] = await db.update(userAddresses)
+            .set({
+                label: label ?? existing.label,
+                street: street ?? existing.street,
+                city: city ?? existing.city,
+                postalCode: postalCode ?? existing.postalCode,
+                canton: canton ?? existing.canton,
+                country: country ?? existing.country,
+                isDefault: isDefault ?? existing.isDefault,
+            })
+            .where(eq(userAddresses.id, addressId))
+            .returning();
 
-            const result = await reactivateUserWithCredentials(email, password);
+        res.json(updated);
+    } catch (error) {
+        console.error("Error updating address:", error);
+        res.status(500).json({ message: "Failed to update address" });
+    }
+});
 
-            if (!result.success) {
-                return res.status(401).json({ message: result.message });
-            }
+/**
+ * DELETE /api/users/me/addresses/:id
+ * Delete address
+ */
+router.delete("/me/addresses/:id", isAuthenticated, async (req: any, res: Response) => {
+    try {
+        const userId = req.user!.id;
+        const addressId = req.params.id;
 
-            req.login(result.user, (err: any) => {
-                if (err) {
-                    return res.status(500).json({ message: "Reactivation successful, but login failed. Please login manually." });
-                }
-                res.json({ message: result.message, user: result.user });
-            });
-        } catch (error: any) {
-            console.error("Error reactivating user:", error);
-            res.status(500).json({ message: "Failed to reactivate user" });
+        // Verify ownership
+        const [existing] = await db.select()
+            .from(userAddresses)
+            .where(eq(userAddresses.id, addressId))
+            .limit(1);
+
+        if (!existing || existing.userId !== userId) {
+            return res.status(404).json({ message: "Address not found" });
         }
-    });
 
-    // ============================================
-    // ADDRESS MANAGEMENT
-    // ============================================
+        await db.delete(userAddresses).where(eq(userAddresses.id, addressId));
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Error deleting address:", error);
+        res.status(500).json({ message: "Failed to delete address" });
+    }
+});
 
-    /**
-     * GET /api/users/me/addresses
-     * Get all addresses for current user
-     */
-    app.get('/api/users/me/addresses', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
-        try {
-            const userId = req.user!.id;
-            const addresses = await storage.getAddresses(userId);
-            res.json(addresses);
-        } catch (error) {
-            console.error("Error fetching addresses:", error);
-            res.status(500).json({ message: "Failed to fetch addresses" });
-        }
-    });
+// ===========================================
+// TRANSACTIONS
+// ===========================================
 
-    /**
-     * POST /api/users/me/addresses
-     * Add a new address for current user
-     */
-    app.post('/api/users/me/addresses', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
-        try {
-            const userId = req.user!.id;
-            const validatedData = insertAddressSchema.parse({
-                ...req.body,
-                userId,
-            });
+/**
+ * GET /api/users/me/transactions
+ * Get user credit transactions
+ */
+router.get("/me/transactions", isAuthenticated, async (req: any, res: Response) => {
+    try {
+        const userId = req.user!.id;
+        const limit = parseInt(req.query.limit as string) || 50;
 
-            const address = await storage.createAddress(validatedData);
-            res.status(201).json(address);
-        } catch (error: any) {
-            console.error("Error creating address:", error);
-            if (error.name === 'ZodError') {
-                return res.status(400).json({ message: "Invalid address data", errors: error.errors });
-            }
-            res.status(500).json({ message: "Failed to create address" });
-        }
-    });
+        const transactions = await db.select()
+            .from(creditTransactions)
+            .where(eq(creditTransactions.userId, userId))
+            .orderBy(desc(creditTransactions.createdAt))
+            .limit(limit);
 
-    /**
-     * PATCH /api/users/me/addresses/:id
-     * Update an address
-     */
-    app.patch('/api/users/me/addresses/:id', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
-        try {
-            const userId = req.user!.id;
-            const addressId = req.params.id;
+        res.json(transactions);
+    } catch (error) {
+        console.error("Error fetching transactions:", error);
+        res.status(500).json({ message: "Failed to fetch transactions" });
+    }
+});
 
-            // Verify ownership
-            const [address] = await db.select()
-                .from(userAddresses)
-                .where(eq(userAddresses.id, addressId));
+// ===========================================
+// EXPORTS
+// ===========================================
 
-            if (!address || address.userId !== userId) {
-                return res.status(404).json({ message: "Address not found" });
-            }
+export { router as usersRouter };
 
-            const updated = await storage.updateAddress(addressId, req.body);
-            res.json(updated);
-        } catch (error) {
-            console.error("Error updating address:", error);
-            res.status(500).json({ message: "Failed to update address" });
-        }
-    });
-
-    /**
-     * DELETE /api/users/me/addresses/:id
-     * Delete an address
-     */
-    app.delete('/api/users/me/addresses/:id', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
-        try {
-            const userId = req.user!.id;
-            const addressId = req.params.id;
-
-            // Verify ownership
-            const [address] = await db.select()
-                .from(userAddresses)
-                .where(eq(userAddresses.id, addressId));
-
-            if (!address || address.userId !== userId) {
-                return res.status(404).json({ message: "Address not found" });
-            }
-
-            await storage.deleteAddress(addressId);
-            res.json({ message: "Address deleted" });
-        } catch (error) {
-            console.error("Error deleting address:", error);
-            res.status(500).json({ message: "Failed to delete address" });
-        }
-    });
-
-    console.log("✓ Users routes registered");
+export function registerUsersRoutes(app: any): void {
+    app.use("/api/users", router);
 }
