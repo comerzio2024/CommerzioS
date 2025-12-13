@@ -18,6 +18,60 @@ import {
 import { createInsertSchema } from 'drizzle-zod';
 import { z } from 'zod';
 
+// ===========================================
+// BOOKING REDESIGN ENUMS
+// ===========================================
+
+/**
+ * Scheduling Type - How services handle availability
+ * - TIME_BOUND: Blocks specific calendar slots (e.g., Cleaning, Moving)
+ * - CAPACITY_BOUND: Async work with turnaround time (e.g., Logo Design, Advisory)
+ */
+export const schedulingTypeEnum = pgEnum("scheduling_type", ["TIME_BOUND", "CAPACITY_BOUND"]);
+
+/**
+ * Subscription Tier - Vendor subscription levels
+ * - STARTER: Free tier, 15% commission, 0 credits
+ * - PRO: CHF 39/mo, 13% commission, 45 credits
+ * - BUSINESS: CHF 89/mo, 9% commission, 110 credits
+ */
+export const subscriptionTierEnum = pgEnum("subscription_tier", ["STARTER", "PRO", "BUSINESS"]);
+
+/**
+ * Verification Level - Swiss trust tiers
+ * - LEVEL_1: SMS verified only, OFFLINE payments only
+ * - LEVEL_2: Stripe KYC complete, ONLINE + OFFLINE
+ * - LEVEL_3: Zefix UID verified, all features + Business badge
+ */
+export const verificationLevelEnum = pgEnum("verification_level", ["LEVEL_1", "LEVEL_2", "LEVEL_3"]);
+
+/**
+ * Payout Preference - How vendors receive funds
+ * - INSTANT: Released immediately on completion (Level 3 only)
+ * - PARTIAL: % released upfront, rest on completion
+ * - STANDARD: Released 5 days after completion (default)
+ */
+export const payoutPreferenceEnum = pgEnum("payout_preference", ["INSTANT", "PARTIAL", "STANDARD"]);
+
+/**
+ * Pricing Mode - How service items are priced
+ * - fixed: Set price shown (e.g., "50 CHF")
+ * - hourly: Rate-based with duration (e.g., "25 CHF/hr")
+ * - inquire: No price, triggers Proposal Builder flow
+ */
+export const pricingModeEnum = pgEnum("pricing_mode", ["fixed", "hourly", "inquire"]);
+
+/**
+ * Dispute Phase - Stages of AI dispute resolution
+ * - negotiation: Phase 1 - 48h human negotiation
+ * - ai_committee: Phase 2 - 72h AI consensus
+ * - binding_verdict: Phase 3 - Final AI decision
+ * - closed: Dispute resolved
+ */
+export const disputePhaseEnum = pgEnum("dispute_phase", ["negotiation", "ai_committee", "binding_verdict", "closed"]);
+
+
+
 // Session table
 export const session = pgTable("session",
   {
@@ -150,6 +204,37 @@ export const users = pgTable("users", {
   totalCompletedBookings: integer("total_completed_bookings").default(0).notNull(), // Booking count for metrics
   avgResponseTimeMinutes: integer("avg_response_time_minutes"), // Computed avg response time from messages
   satisfactionRate: decimal("satisfaction_rate", { precision: 5, scale: 2 }), // Computed from reviews (percentage)
+
+  // ===========================================
+  // BOOKING REDESIGN FIELDS
+  // ===========================================
+
+  // Swiss Trust Verification Level
+  verificationLevel: verificationLevelEnum("verification_level").default("LEVEL_1").notNull(),
+
+  // Swiss Business Registry ID (for Level 3 verification)
+  zefixUid: varchar("zefix_uid", { length: 20 }), // Format: CHE-xxx.xxx.xxx
+
+  // Subscription tier for commission rates
+  subscriptionTier: subscriptionTierEnum("subscription_tier").default("STARTER").notNull(),
+
+  // Credit wallet balance (for offline lead fees)
+  creditBalance: integer("credit_balance").default(0).notNull(),
+
+  // Leakage defense score (tracking chat PII violations)
+  leakageScore: integer("leakage_score").default(0).notNull(),
+
+  // Punctuality score (% on-time arrivals for TIME_BOUND services)
+  punctualityScore: decimal("punctuality_score", { precision: 5, scale: 2 }),
+
+  // AI Concierge credits (for premium AI booking assistance)
+  conciergeCredits: integer("concierge_credits").default(0).notNull(),
+
+  // First 1000 users flag (for early bird benefits)
+  isEarlyBird: boolean("is_early_bird").default(false).notNull(),
+
+  // Track user registration order for early bird
+  registrationNumber: integer("registration_number"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -573,8 +658,11 @@ export const submittedCategoriesRelations = relations(submittedCategories, ({ on
 // Price list item type
 export const priceListSchema = z.object({
   description: z.string(),
-  price: z.string(),
+  price: z.string(), // Can be "0" or empty for inquire items
   unit: z.string().optional(),
+  billingType: z.enum(["once", "per_duration"]).default("once"), // once = fixed, per_duration = multiplied by booking duration
+  pricingMode: z.enum(["fixed", "hourly", "inquire"]).default("fixed"), // NEW: How the item is priced
+  estimatedMinutes: z.number().optional(), // NEW: For fixed-price items with duration
 });
 
 // Image metadata type
@@ -634,6 +722,39 @@ export const services = pgTable("services", {
   minBookingHours: integer("min_booking_hours").default(1), // Minimum hours per booking (e.g., "Minimum 2 hours")
   whatsIncluded: text("whats_included").array().default(sql`ARRAY[]::text[]`), // What's included list
   featured: boolean("featured").default(false).notNull(), // Featured listing badge
+
+  // Smart Booking System
+  requiresScheduling: boolean("requires_scheduling").default(true).notNull(), // Does this service need calendar booking?
+
+  // ===========================================
+  // BOOKING REDESIGN FIELDS
+  // ===========================================
+
+  // Scheduling type - determines availability logic
+  schedulingType: schedulingTypeEnum("scheduling_type").default("TIME_BOUND").notNull(),
+
+  // For TIME_BOUND: how many concurrent bookings at same slot (e.g., cleaning agency with 5 staff)
+  concurrentCapacity: integer("concurrent_capacity").default(1).notNull(),
+
+  // For CAPACITY_BOUND: max active orders (e.g., designer can handle 5 projects)
+  maxConcurrentOrders: integer("max_concurrent_orders").default(10).notNull(),
+
+  // For CAPACITY_BOUND: estimated delivery time in hours
+  turnaroundTimeHours: integer("turnaround_time_hours"),
+
+  // Per-service instant booking toggle (overrides listing default)
+  instantBookingEnabled: boolean("instant_booking_enabled").default(true).notNull(),
+
+  // Vendor's choice: how funds are released
+  payoutPreference: payoutPreferenceEnum("payout_preference").default("STANDARD").notNull(),
+
+  // Minimum hours notice before booking (prevent last-minute bookings)
+  minLeadTimeHours: integer("min_lead_time_hours").default(2).notNull(),
+
+  // Vendor risk model choice: 10% deposit (Growth) vs 100% upfront (Secure)
+  vendorRiskModel: varchar("vendor_risk_model", {
+    enum: ["growth", "secure"]
+  }).default("growth").notNull(),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
   expiresAt: timestamp("expires_at").notNull(),
@@ -862,6 +983,296 @@ export const favoritesRelations = relations(favorites, ({ one }) => ({
   }),
 }));
 
+// ===========================================
+// BOOKING REDESIGN - NEW TABLES
+// ===========================================
+
+/**
+ * Credits Ledger - Tracks all credit transactions
+ * Used for offline lead fees, promotional credits, etc.
+ */
+export const credits = pgTable("credits", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+
+  // Transaction amount (positive = credit, negative = debit)
+  amount: integer("amount").notNull(),
+  balanceAfter: integer("balance_after").notNull(),
+
+  // Transaction type
+  transactionType: varchar("transaction_type", {
+    enum: [
+      "launch_gift",           // Initial credits on verification
+      "subscription_credit",   // Monthly subscription credits
+      "top_up",               // Purchased credits
+      "lead_fee",             // Charged for offline booking
+      "refund",               // Returned credits
+      "admin_adjustment",     // Manual admin adjustment
+      "promo_bonus",          // Promotional bonus
+      "expired"               // Expired unused credits
+    ]
+  }).notNull(),
+
+  // Description for the transaction
+  description: text("description"),
+
+  // Reference to what triggered this transaction
+  referenceType: varchar("reference_type", {
+    enum: ["booking", "subscription", "admin", "promo", "system"]
+  }),
+  referenceId: varchar("reference_id"),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_credits_user").on(table.userId),
+  index("idx_credits_type").on(table.transactionType),
+  index("idx_credits_created").on(table.createdAt),
+]);
+
+export const creditsRelations = relations(credits, ({ one }) => ({
+  user: one(users, {
+    fields: [credits.userId],
+    references: [users.id],
+  }),
+}));
+
+/**
+ * Blocked Slots - Manual calendar blocks by vendors
+ * Allows vendors to mark specific slots as unavailable
+ */
+export const blockedSlots = pgTable("blocked_slots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  vendorId: varchar("vendor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  serviceId: varchar("service_id").references(() => services.id, { onDelete: "cascade" }),
+
+  // Block period
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time").notNull(),
+
+  // Block reason (optional)
+  reason: varchar("reason", {
+    enum: ["holiday", "external_booking", "personal", "maintenance", "other"]
+  }).default("other"),
+
+  note: text("note"),
+
+  // If true, blocks ALL services for this vendor
+  allServices: boolean("all_services").default(false).notNull(),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_blocked_slots_vendor").on(table.vendorId),
+  index("idx_blocked_slots_service").on(table.serviceId),
+  index("idx_blocked_slots_time").on(table.startTime, table.endTime),
+]);
+
+export const blockedSlotsRelations = relations(blockedSlots, ({ one }) => ({
+  vendor: one(users, {
+    fields: [blockedSlots.vendorId],
+    references: [users.id],
+  }),
+  service: one(services, {
+    fields: [blockedSlots.serviceId],
+    references: [services.id],
+  }),
+}));
+
+/**
+ * Price Inquiries - Customer requests for "inquire for price" items
+ * Triggers the Proposal Builder flow
+ */
+export const priceInquiries = pgTable("price_inquiries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  // Links
+  customerId: varchar("customer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  vendorId: varchar("vendor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  serviceId: varchar("service_id").notNull().references(() => services.id, { onDelete: "cascade" }),
+
+  // What they selected (array of priceList items with pricingMode: "inquire")
+  selectedItems: jsonb("selected_items").default(sql`'[]'::jsonb`),
+
+  // Customer input
+  description: text("description").notNull(),
+  attachments: jsonb("attachments").default(sql`'[]'::jsonb`), // Array of file URLs
+  preferredDateStart: timestamp("preferred_date_start"),
+  preferredDateEnd: timestamp("preferred_date_end"),
+  flexibleDates: boolean("flexible_dates").default(true).notNull(),
+
+  // Status
+  status: varchar("status", {
+    enum: ["pending", "quoted", "accepted", "rejected", "expired", "converted"]
+  }).default("pending").notNull(),
+
+  // Timestamps
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_price_inquiries_customer").on(table.customerId),
+  index("idx_price_inquiries_vendor").on(table.vendorId),
+  index("idx_price_inquiries_service").on(table.serviceId),
+  index("idx_price_inquiries_status").on(table.status),
+]);
+
+export const priceInquiriesRelations = relations(priceInquiries, ({ one, many }) => ({
+  customer: one(users, {
+    fields: [priceInquiries.customerId],
+    references: [users.id],
+    relationName: "customerInquiries",
+  }),
+  vendor: one(users, {
+    fields: [priceInquiries.vendorId],
+    references: [users.id],
+    relationName: "vendorInquiries",
+  }),
+  service: one(services, {
+    fields: [priceInquiries.serviceId],
+    references: [services.id],
+  }),
+  quotes: many(vendorQuotes),
+}));
+
+/**
+ * Vendor Quotes - Vendor responses to price inquiries
+ * The Proposal Builder output
+ */
+export const vendorQuotes = pgTable("vendor_quotes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  inquiryId: varchar("inquiry_id").notNull().references(() => priceInquiries.id, { onDelete: "cascade" }),
+  vendorId: varchar("vendor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+
+  // Quote details - line items array
+  lineItems: jsonb("line_items").notNull().$type<{
+    description: string;
+    quantity: number;
+    unitPrice: number; // in cents (CHF)
+    unit: string; // "once", "hour", "day"
+    subtotal: number;
+  }[]>(),
+
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).default("CHF").notNull(),
+
+  // Scheduling
+  estimatedDuration: text("estimated_duration"), // "2-3 hours", "1 day"
+  proposedDate: timestamp("proposed_date"),
+  proposedEndDate: timestamp("proposed_end_date"),
+
+  // Message
+  coverLetter: text("cover_letter").notNull(),
+
+  // Validity
+  validUntil: timestamp("valid_until").notNull(),
+
+  // Status
+  status: varchar("status", {
+    enum: ["pending", "accepted", "rejected", "expired", "withdrawn"]
+  }).default("pending").notNull(),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_vendor_quotes_inquiry").on(table.inquiryId),
+  index("idx_vendor_quotes_vendor").on(table.vendorId),
+  index("idx_vendor_quotes_status").on(table.status),
+]);
+
+export const vendorQuotesRelations = relations(vendorQuotes, ({ one }) => ({
+  inquiry: one(priceInquiries, {
+    fields: [vendorQuotes.inquiryId],
+    references: [priceInquiries.id],
+  }),
+  vendor: one(users, {
+    fields: [vendorQuotes.vendorId],
+    references: [users.id],
+  }),
+}));
+
+/**
+ * Disputes - AI-managed dispute resolution
+ * Tracks the 3-phase dispute process
+ */
+export const disputes = pgTable("disputes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  // Links - bookingId references the existing bookings table
+  bookingId: varchar("booking_id").notNull(),
+  customerId: varchar("customer_id").notNull().references(() => users.id),
+  vendorId: varchar("vendor_id").notNull().references(() => users.id),
+
+  // Dispute details
+  reason: varchar("reason", {
+    enum: ["no_show", "poor_quality", "incomplete", "damage", "wrong_service", "overcharge", "other"]
+  }).notNull(),
+  description: text("description").notNull(),
+
+  // Evidence from both parties
+  customerEvidence: jsonb("customer_evidence").default(sql`'[]'::jsonb`), // Array of file URLs
+  vendorEvidence: jsonb("vendor_evidence").default(sql`'[]'::jsonb`),
+
+  // Amount in dispute (in cents)
+  disputedAmount: integer("disputed_amount").notNull(),
+
+  // Current phase - using varchar instead of enum to avoid migration conflicts
+  phase: varchar("phase", {
+    enum: ["negotiation", "ai_committee", "binding_verdict", "closed"]
+  }).default("negotiation").notNull(),
+
+  // Phase 1 data: negotiation offers
+  negotiationOffers: jsonb("negotiation_offers").default(sql`'[]'::jsonb`),
+
+  // Phase 2 data: AI committee options
+  aiOptions: jsonb("ai_options").default(sql`'[]'::jsonb`),
+  customerVote: varchar("customer_vote"),
+  vendorVote: varchar("vendor_vote"),
+
+  // Phase 3 data: final verdict
+  finalVerdict: varchar("final_verdict", {
+    enum: ["NO_REFUND", "PARTIAL", "FULL"]
+  }),
+  refundPercentage: integer("refund_percentage"),
+  verdictReasoning: text("verdict_reasoning"),
+
+  // Execution
+  refundAmount: integer("refund_amount"),
+  vendorPenalty: integer("vendor_penalty"),
+  refundedAt: timestamp("refunded_at"),
+
+  // Timeline tracking
+  phase1Deadline: timestamp("phase1_deadline"),
+  phase2Deadline: timestamp("phase2_deadline"),
+  lastActivityAt: timestamp("last_activity_at").defaultNow(),
+
+  // Status flags
+  isClosed: boolean("is_closed").default(false).notNull(),
+  closedReason: varchar("closed_reason", {
+    enum: ["resolved", "settled", "verdict_executed", "withdrawn", "expired"]
+  }),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_disputes_booking").on(table.bookingId),
+  index("idx_disputes_customer").on(table.customerId),
+  index("idx_disputes_vendor").on(table.vendorId),
+  index("idx_disputes_phase").on(table.phase),
+  index("idx_disputes_closed").on(table.isClosed),
+]);
+
+export const disputesRelations = relations(disputes, ({ one }) => ({
+  customer: one(users, {
+    fields: [disputes.customerId],
+    references: [users.id],
+    relationName: "customerDisputes",
+  }),
+  vendor: one(users, {
+    fields: [disputes.vendorId],
+    references: [users.id],
+    relationName: "vendorDisputes",
+  }),
+}));
+
 // Types
 export type Plan = typeof plans.$inferSelect;
 export type InsertPlan = typeof plans.$inferInsert;
@@ -911,7 +1322,25 @@ export type InsertUserModerationAction = typeof userModerationActions.$inferInse
 export type BannedIdentifier = typeof bannedIdentifiers.$inferSelect;
 export type InsertBannedIdentifier = typeof bannedIdentifiers.$inferInsert;
 
-// Zod schemas for validation
+// ===========================================
+// BOOKING REDESIGN TYPES
+// ===========================================
+export type Credit = typeof credits.$inferSelect;
+export type InsertCredit = typeof credits.$inferInsert;
+
+export type BlockedSlot = typeof blockedSlots.$inferSelect;
+export type InsertBlockedSlot = typeof blockedSlots.$inferInsert;
+
+export type PriceInquiry = typeof priceInquiries.$inferSelect;
+export type InsertPriceInquiry = typeof priceInquiries.$inferInsert;
+
+export type VendorQuote = typeof vendorQuotes.$inferSelect;
+export type InsertVendorQuote = typeof vendorQuotes.$inferInsert;
+
+export type Dispute = typeof disputes.$inferSelect;
+export type InsertDispute = typeof disputes.$inferInsert;
+
+
 export const insertServiceSchema = createInsertSchema(services, {
   title: z.string().min(5, "Title must be at least 5 characters").max(200),
   description: z.string().min(20, "Description must be at least 20 characters"),
