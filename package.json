@@ -28,6 +28,7 @@
     "db:seed-marcel": "dotenv -e .env -- tsx scripts/seed-marcel-test-data.ts"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^2.0.86",
     "@aws-sdk/client-s3": "^3.943.0",
     "@aws-sdk/s3-request-presigner": "^3.943.0",
     "@google-cloud/storage": "^7.17.3",
@@ -67,6 +68,7 @@
     "@types/cors": "^2.8.19",
     "@types/memoizee": "^0.4.12",
     "@types/node-cron": "^3.0.11",
+    "ai": "^5.0.113",
     "bcrypt": "^5.1.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

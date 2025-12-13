@@ -15,6 +15,7 @@ import { registerBookingAvailabilityRoutes } from "./bookingAvailability.routes"
 import { registerBookingFlowRoutes } from "./bookingFlow.routes";
 import { registerComPointsRoutes } from "./comPoints.routes";
 import { registerDisputesRoutes } from "./disputes.routes";
+import { registerAiRoutes } from "./ai.routes";
 
 // Stub route modules (prepared for migration)
 import { registerUsersRoutes } from "./users.routes";
@@ -40,6 +41,7 @@ export function registerModularRoutes(app: Express): void {
     registerBookingFlowRoutes(app);
     registerComPointsRoutes(app);
     registerDisputesRoutes(app);
+    registerAiRoutes(app);
 
     // === STUB MODULES (prepared for migration) ===
     // These are empty placeholders that will be populated
@@ -55,7 +57,7 @@ export function registerModularRoutes(app: Express): void {
     registerReviewsRoutes(app);
     registerReferralsRoutes(app);
 
-    console.log("✓ All modular routes registered (6 complete, 10 stubs)");
+    console.log("✓ All modular routes registered (7 complete, 10 stubs)");
 }
 
 // Re-export for backward compatibility
