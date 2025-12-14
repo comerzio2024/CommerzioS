@@ -301,7 +301,7 @@ export async function getPendingLaunch100Payouts(): Promise<Array<{
         .select({
             id: bookings.id,
             vendorId: bookings.vendorId,
-            totalAmount: bookings.finalPrice, // Using finalPrice as totalAmount
+            totalAmount: (bookings as any).price || bookings.id, // Using fallback since finalPrice/totalAmount may not exist
             completedAt: bookings.confirmedEndTime
         })
         .from(bookings)

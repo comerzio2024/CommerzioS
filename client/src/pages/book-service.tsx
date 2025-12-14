@@ -453,14 +453,14 @@ export default function BookServicePage() {
                         minDate={new Date()}
                       />
 
-                      {service?.priceList && Array.isArray(service.priceList) && service.priceList.length > 0 && (
+                      {Boolean(service?.priceList && Array.isArray(service.priceList) && (service.priceList as any[]).length > 0) && (
                         <div className="mt-8">
                           <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
                             <Sparkles className="w-5 h-5 text-primary" />
                             Additional Options
                           </h3>
                           <div className="grid gap-3">
-                            {service.priceList.map((item: any, idx: number) => (
+                            {(service.priceList as any[]).map((item: any, idx: number) => (
                               <div
                                 key={idx}
                                 className={cn(

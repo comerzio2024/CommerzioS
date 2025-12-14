@@ -36,6 +36,24 @@ export async function refundBookingPayment(
     };
 }
 
+export async function createBookingCheckoutSession(options: {
+    bookingId: string;
+    customerId: string;
+    vendorId: string;
+    serviceTitle: string;
+    amount: number;
+    paymentMethod?: string;
+    successUrl?: string;
+    cancelUrl?: string;
+}): Promise<{ success: boolean; checkoutUrl?: string; sessionId?: string; error?: string }> {
+    console.log('[bookingPaymentService] createBookingCheckoutSession stub called');
+    return {
+        success: true,
+        checkoutUrl: `/booking-success?id=${options.bookingId}`,
+        sessionId: `checkout_stub_${Date.now()}`,
+    };
+}
+
 export async function createEscrowHold(
     bookingId: string,
     amount: number

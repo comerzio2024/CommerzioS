@@ -2599,7 +2599,7 @@ export default function Profile() {
                                   <>
                                     <Button variant="outline" size="sm" onClick={() => setEditingService(service)}>Edit</Button>
 
-                                    {service.status === 'active' && service.status !== 'draft' && (
+                                    {service.status === 'active' && (
                                       <Button variant="secondary" size="sm" onClick={() => handlePause(service.id)} disabled={updateServiceMutation.isPending}>
                                         Deactivate
                                       </Button>
@@ -4873,7 +4873,7 @@ interface MyReferrer {
 }
 
 interface ReferralStats {
-  referralCode: string | null;
+  referralCode: string;
   referralLink: string;
   totalDirectReferrals: number;
   totalNetworkSize: number;

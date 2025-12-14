@@ -222,7 +222,7 @@ export function registerDisputesRoutes(app: Express): void {
             // Notify parties - manually since notifyDisputeParties may not exist
             const parties = await disputePhaseService.getDisputeParties(dispute.id);
             // Note: Notification would be sent here via createNotification
-            console.log(`[Dispute] Notifying parties: ${parties?.customer?.id}, ${parties?.vendor?.id}`);
+            console.log(`[Dispute] Notifying parties: ${parties?.customerId}, ${parties?.vendorId}`);
 
             res.status(201).json({
                 dispute,
