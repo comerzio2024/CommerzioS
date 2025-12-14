@@ -233,6 +233,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "./r2Storage";
 import { getArchiveStats, runManualCleanup, deleteExpiredArchives } from "./imageArchiveService";
 import { z } from "zod";
 import { registerCreditsRoutes } from "./routes/credits.routes";
+import { registerModularRoutes } from "./routes/index";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint - useful for monitoring and load balancers
@@ -250,24 +251,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // OAuth routes (Google, Twitter, Facebook)
   setupOAuthRoutes(app);
 
-  // Credit routes (booking redesign)
-  registerCreditsRoutes(app);
-
-  // Booking availability routes (booking redesign)
-  const { registerBookingAvailabilityRoutes } = await import("./routes/bookingAvailability.routes");
-  registerBookingAvailabilityRoutes(app);
-
-  // Booking flow routes (booking redesign - tier system)
-  const { registerBookingFlowRoutes } = await import("./routes/bookingFlow.routes");
-  registerBookingFlowRoutes(app);
-
-  // COM Points routes (gamified rewards system)
-  const { registerComPointsRoutes } = await import("./routes/comPoints.routes");
-  registerComPointsRoutes(app);
-
-  // SMS routes (Twilio integration, paid credits)
-  const { registerSmsRoutes } = await import("./routes/sms.routes");
-  registerSmsRoutes(app);
+  // Register all modular routes (18 modules: credits, bookingAvailability, bookingFlow, 
+  // comPoints, sms, health, disputes, ai, users, services, bookings, payments, admin, 
+  // chat, categories, notifications, reviews, referrals)
+  registerModularRoutes(app);
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
